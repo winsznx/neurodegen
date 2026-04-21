@@ -1,0 +1,13 @@
+export const MYX_POLL_INTERVAL_MS: number = 15_000;
+export const PYTH_DASHBOARD_POLL_INTERVAL_MS: number = 30_000;
+export const LAUNCH_VELOCITY_WINDOW_HOURS: number = 4;
+export const CAPITAL_INFLOW_WINDOW_HOURS: number = 4;
+export const GRADUATION_VELOCITY_WINDOW_HOURS: number = 12;
+export const PURCHASE_CONCENTRATION_WINDOW: number = 50;
+export const FUNDING_TREND_SNAPSHOTS: number = 8;
+export const HOT_STATE_TTL_MINUTES: number = 30;
+export const EVENT_BATCH_SIZE: number = 100;
+export const WS_RECONNECT_INITIAL_MS: number = 1_000;
+export const WS_RECONNECT_MAX_MS: number = 30_000;
+export const WS_DISCONNECT_ALERT_MS: number = 60_000;
+export const MYX_TRACKED_PAIRS: string[] = ['BTC_USDT', 'ETH_USDT', 'BNB_USDT'];

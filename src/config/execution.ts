@@ -1,0 +1,13 @@
+export const ORACLE_DIVERGENCE_MAX: number = 0.005;
+export const OI_IMBALANCE_MAX: number = 0.7;
+export const FUNDING_RATE_MAX: number = 0.001;
+export const MAX_SLIPPAGE: number = 0.005;
+export const GAS_BUFFER_BNB: number = 0.01;
+export const GAS_HARD_CAP: number = 1_000_000;
+export const KEEPER_POLL_INTERVAL_MS: number = 2_000;
+export const MAX_KEEPER_WAIT_BLOCKS: number = 10;
+export const MAX_POSITION_DURATION_MS: number = 14_400_000;
+export const DEFAULT_TP_PERCENTAGE: number = 0.05;
+export const DEFAULT_SL_PERCENTAGE: number = 0.03;
+export const DEFAULT_LEVERAGE: number = 10;
+export const POSITION_POLL_INTERVAL_MS: number = 5_000;

@@ -1,0 +1,107 @@
+import type { MyxClient, PositionType } from '@myx-trade/sdk';
+import type { PositionState } from '@/types/execution';
+import type { RegimeLabel } from '@/types/cognition';
+import { insertPosition, updatePositionStatus } from '@/lib/queries/positions';
+import {
+  KEEPER_POLL_INTERVAL_MS,
+  MAX_KEEPER_WAIT_BLOCKS,
+  MAX_POSITION_DURATION_MS,
+} from '@/config/execution';
+
+export interface PositionExit {
+  position: PositionState;
+  reason: 'tp_hit' | 'sl_hit' | 'time_exit' | 'regime_exit' | 'liquidated' | 'manual';
+}
+
+export class PositionTracker {
+  private pollers = new Map<string, ReturnType<typeof setInterval>>();
+
+  constructor(
+    private sdk: MyxClient,
+    private agentAddress: `0x${string}`
+  ) {}
+
+  async trackNewOrder(positionState: PositionState): Promise<void> {
+    await insertPosition(positionState);
+
+    let pollCount = 0;
+    const interval = setInterval(async () => {
+      pollCount++;
+
+      if (pollCount > MAX_KEEPER_WAIT_BLOCKS) {
+        clearInterval(interval);
+        this.pollers.delete(positionState.positionId);
+        await updatePositionStatus(positionState.positionId, { status: 'expired' });
+        console.log(`[position-tracker] position ${positionState.positionId} expired after ${MAX_KEEPER_WAIT_BLOCKS} polls`);
+        return;
+      }
+
+      try {
+        const onChain = await this.findPosition(positionState.positionId);
+        if (onChain) {
+          clearInterval(interval);
+          this.pollers.delete(positionState.positionId);
+          await updatePositionStatus(positionState.positionId, { status: 'managed' });
+          console.log(`[position-tracker] position ${positionState.positionId} filled and managed`);
+        }
+      } catch (err) {
+        console.error('[position-tracker] poll error:', err instanceof Error ? err.message : String(err));
+      }
+    }, KEEPER_POLL_INTERVAL_MS);
+
+    this.pollers.set(positionState.positionId, interval);
+  }
+
+  async checkPositionExits(
+    openPositions: PositionState[],
+    currentRegime: RegimeLabel,
+    previousRegime: RegimeLabel | null
+  ): Promise<PositionExit[]> {
+    const exits: PositionExit[] = [];
+    const onChainPositions = await this.listAllPositions();
+
+    for (const pos of openPositions) {
+      if (pos.status !== 'managed') continue;
+
+      const openedTime = new Date(pos.openedAt).getTime();
+      if (Date.now() - openedTime > MAX_POSITION_DURATION_MS) {
+        exits.push({ position: pos, reason: 'time_exit' });
+        continue;
+      }
+
+      if (previousRegime && previousRegime !== 'volatile' && currentRegime === 'volatile') {
+        exits.push({ position: pos, reason: 'regime_exit' });
+        continue;
+      }
+
+      const onChain = onChainPositions.find((p) => p.positionId === pos.positionId);
+      if (!onChain || parseFloat(onChain.size ?? '0') === 0) {
+        exits.push({ position: pos, reason: 'liquidated' });
+      }
+    }
+
+    return exits;
+  }
+
+  stop(): void {
+    for (const [id, interval] of this.pollers) {
+      clearInterval(interval);
+      this.pollers.delete(id);
+    }
+  }
+
+  private async listAllPositions(): Promise<PositionType[]> {
+    const result = await this.sdk.position.listPositions(this.agentAddress);
+    if ('data' in result && result.data) return result.data;
+    return [];
+  }
+
+  private async findPosition(positionId: string): Promise<PositionType | null> {
+    const result = await this.sdk.position.listPositions(this.agentAddress, positionId);
+    if ('data' in result && result.data && result.data.length > 0) {
+      const match = result.data.find((p) => p.positionId === positionId) ?? result.data[0];
+      if (match && parseFloat(match.size ?? '0') > 0) return match;
+    }
+    return null;
+  }
+}
