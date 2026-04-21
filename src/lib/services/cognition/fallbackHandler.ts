@@ -3,13 +3,17 @@ import { callOpenAICompatible, createDGridOpenAIClient, createByokOpenAIClient }
 import { callClaudeAnthropicDirect } from '@/lib/clients/byok/anthropicDirect';
 import {
   CLAUDE_MODEL_ID,
+  CLAUDE_FALLBACK_MODEL_ID,
   CLAUDE_DIRECT_MODEL_ID,
   GPT4O_MODEL_ID,
+  GPT4O_FALLBACK_MODEL_ID,
   GPT4O_DIRECT_MODEL_ID,
   LLAMA_MODEL_ID,
+  LLAMA_FALLBACK_MODEL_ID,
   MODEL_CALL_TIMEOUT_MS,
   MODEL_RETRY_DELAY_MS,
 } from '@/config/cognition';
+import { ENABLE_BYOK_ROUTING } from '@/config/features';
 
 export interface ModelCallAttempt {
   modelId: string;
@@ -68,6 +72,11 @@ async function tryCall(
   }
 }
 
+function byokAllowed(envKey: string): boolean {
+  if (!ENABLE_BYOK_ROUTING) return false;
+  return !!process.env[envKey];
+}
+
 export class FallbackHandler {
   async callWithFallback(
     task: 'sentiment' | 'extraction' | 'classification',
@@ -79,99 +88,124 @@ export class FallbackHandler {
     return this.classificationChain(systemPrompt, userContent);
   }
 
+  private async runCandidate(
+    attempts: ModelCallAttempt[],
+    fn: () => Promise<{ text: string; inputTokens: number; outputTokens: number }>,
+    modelId: string,
+    endpointFormat: ModelCallAttempt['endpointFormat'],
+    routingDecision: ModelCallAttempt['routingDecision']
+  ): Promise<FallbackResult | null> {
+    const a = await tryCall(fn, modelId, endpointFormat, routingDecision);
+    attempts.push(a);
+    return a.success ? this.result(a, attempts) : null;
+  }
+
+  // Sentiment: exhaust every DGrid option before touching Anthropic BYOK.
   private async sentimentChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
-    const claude = () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID);
 
-    let a = await tryCall(claude, CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r1 = await this.runCandidate(attempts,
+      () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID), CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
+    if (r1) return r1;
 
     await delay(MODEL_RETRY_DELAY_MS);
-    a = await tryCall(claude, CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r2 = await this.runCandidate(attempts,
+      () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID), CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
+    if (r2) return r2;
 
-    if (process.env.ANTHROPIC_API_KEY) {
-      const direct = () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID);
-      a = await tryCall(direct, CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
-      attempts.push(a);
-      if (a.success) return this.result(a, attempts);
+    const r3 = await this.runCandidate(attempts,
+      () => callClaudeNative(sp, uc, CLAUDE_FALLBACK_MODEL_ID), CLAUDE_FALLBACK_MODEL_ID, 'claude_native', 'dgrid');
+    if (r3) return r3;
+
+    const r4 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r4) return r4;
+
+    if (byokAllowed('ANTHROPIC_API_KEY')) {
+      const r5 = await this.runCandidate(attempts,
+        () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID),
+        CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
+      if (r5) return r5;
     }
-
-    const gpt = () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient());
-    a = await tryCall(gpt, GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
 
     const degraded = JSON.stringify({ narrativeSummary: '', sentimentScore: 0, confidenceLevel: 0, flaggedPatterns: ['SENTIMENT_MODEL_UNAVAILABLE'] });
     return this.degradedResult(CLAUDE_MODEL_ID, 'claude_native', degraded, attempts);
   }
 
+  // Extraction: DGrid-first across multiple models + providers before BYOK.
   private async extractionChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
-    const hasByok = !!process.env.OPENAI_API_KEY;
-    const client = hasByok ? createByokOpenAIClient() : createDGridOpenAIClient();
-    const routing = hasByok ? 'byok' as const : 'dgrid' as const;
-    // Raw OpenAI rejects DGrid-prefixed IDs; BYOK must use the native model slug.
-    const activeModelId = hasByok ? GPT4O_DIRECT_MODEL_ID : GPT4O_MODEL_ID;
-    const gpt = () => callOpenAICompatible(activeModelId, sp, uc, client);
 
-    let a = await tryCall(gpt, activeModelId, 'openai_compatible', routing);
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r1 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r1) return r1;
 
     await delay(MODEL_RETRY_DELAY_MS);
-    a = await tryCall(gpt, activeModelId, 'openai_compatible', routing);
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r2 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r2) return r2;
 
-    if (hasByok) {
-      const dgridGpt = () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient());
-      a = await tryCall(dgridGpt, GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
-      attempts.push(a);
-      if (a.success) return this.result(a, attempts);
+    const r3 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(GPT4O_FALLBACK_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      GPT4O_FALLBACK_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r3) return r3;
+
+    const r4 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r4) return r4;
+
+    if (byokAllowed('OPENAI_API_KEY')) {
+      const r5 = await this.runCandidate(attempts,
+        () => callOpenAICompatible(GPT4O_DIRECT_MODEL_ID, sp, uc, createByokOpenAIClient()),
+        GPT4O_DIRECT_MODEL_ID, 'openai_compatible', 'byok');
+      if (r5) return r5;
     }
 
-    const llama = () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient());
-    a = await tryCall(llama, LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
-
-    if (process.env.ANTHROPIC_API_KEY) {
-      const claude = () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID);
-      a = await tryCall(claude, CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
-      attempts.push(a);
-      if (a.success) return this.result(a, attempts);
+    if (byokAllowed('ANTHROPIC_API_KEY')) {
+      const r6 = await this.runCandidate(attempts,
+        () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID),
+        CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
+      if (r6) return r6;
     }
 
     const degraded = JSON.stringify({ features: [] });
     return this.degradedResult(GPT4O_MODEL_ID, 'openai_compatible', degraded, attempts);
   }
 
+  // Classification: DGrid-first across DeepSeek, Qwen, GPT-4o before BYOK.
   private async classificationChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
-    const llama = () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient());
 
-    let a = await tryCall(llama, LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r1 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r1) return r1;
 
     await delay(MODEL_RETRY_DELAY_MS);
-    a = await tryCall(llama, LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r2 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r2) return r2;
 
-    const gpt = () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient());
-    a = await tryCall(gpt, GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
-    attempts.push(a);
-    if (a.success) return this.result(a, attempts);
+    const r3 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(LLAMA_FALLBACK_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      LLAMA_FALLBACK_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r3) return r3;
 
-    if (process.env.ANTHROPIC_API_KEY) {
-      const claude = () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID);
-      a = await tryCall(claude, CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
-      attempts.push(a);
-      if (a.success) return this.result(a, attempts);
+    const r4 = await this.runCandidate(attempts,
+      () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+    if (r4) return r4;
+
+    if (byokAllowed('ANTHROPIC_API_KEY')) {
+      const r5 = await this.runCandidate(attempts,
+        () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID),
+        CLAUDE_DIRECT_MODEL_ID, 'claude_native', 'byok');
+      if (r5) return r5;
     }
 
     const degraded = JSON.stringify({ action: 'hold', confidence: 0, rationale: 'CLASSIFIER_MODEL_UNAVAILABLE' });

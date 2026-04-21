@@ -125,7 +125,10 @@ async function main(): Promise<void> {
     workerMode: process.env.WORKER_MODE,
     webBroadcastUrl: process.env.WEB_BROADCAST_URL ? 'set' : 'unset',
     adminPort: HEALTH_PORT,
-    enableExecution: process.env.ENABLE_EXECUTION,
+    enableExecution: process.env.ENABLE_EXECUTION ?? 'unset(false)',
+    dryRunMode: process.env.DRY_RUN_MODE ?? 'unset(true)',
+    enableByokRouting: process.env.ENABLE_BYOK_ROUTING ?? 'unset(false)',
+    enableAttestation: process.env.ENABLE_ATTESTATION ?? 'unset(true)',
   });
   preflightEnv();
 
