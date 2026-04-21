@@ -38,19 +38,41 @@ export interface VerifiedAuthToken {
   expiresAt: number;
 }
 
+function stripWrappers(raw: string): string {
+  let s = raw.trim();
+  // Strip surrounding matching quotes (common when pasted from JSON or a .env file with quotes)
+  while (
+    s.length > 1 &&
+    ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 function normalizePemKey(raw: string): string {
-  const withNewlines = raw
+  const cleaned = stripWrappers(raw);
+
+  const withNewlines = cleaned
+    .replace(/\\r\\n/g, '\n')
     .replace(/\\n/g, '\n')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .trim();
 
-  if (withNewlines.includes('\n')) return withNewlines;
+  // If it already has newlines and canonical PEM markers, pass through untouched.
+  if (withNewlines.includes('\n') && /-----BEGIN [A-Z0-9 ]+-----/.test(withNewlines)) {
+    return withNewlines;
+  }
 
-  const match = withNewlines.match(/^-----BEGIN ([A-Z0-9 ]+)-----(.+)-----END \1-----$/);
+  // Otherwise we expect a single-line form: reconstruct with 64-char body lines.
+  const match = withNewlines.match(/-----BEGIN ([A-Z0-9 ]+)-----([\s\S]+?)-----END \1-----/);
   if (!match) {
+    const preview = withNewlines.slice(0, 60).replace(/\s+/g, ' ');
     throw new Error(
-      'PRIVY_VERIFICATION_KEY is not in PEM format. Expected -----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY----- from Privy Dashboard → App Settings → Verification Key.'
+      `PRIVY_VERIFICATION_KEY is not in PEM format. Got ${withNewlines.length} chars starting with: "${preview}". ` +
+        'Expected -----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY----- from Privy Dashboard → App Settings → Verification Key. ' +
+        'If you pasted a quoted value, remove surrounding quotes; make sure both BEGIN and END markers use exactly five dashes on each side.'
     );
   }
   const label = match[1].trim();
@@ -66,20 +88,37 @@ export async function verifyPrivyAuthToken(authToken: string): Promise<VerifiedA
       'PRIVY_VERIFICATION_KEY env var is required (Privy Dashboard → App Settings → Verification Key)'
     );
   }
-  const verificationKey = normalizePemKey(raw);
+  let verificationKey: string;
+  try {
+    verificationKey = normalizePemKey(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`PRIVY_VERIFICATION_KEY normalization failed: ${msg}`);
+  }
 
-  const result = await verifyAuthToken({
-    auth_token: authToken,
-    app_id: getAppId(),
-    verification_key: verificationKey,
-  });
-
-  return {
-    userId: result.user_id,
-    appId: result.app_id,
-    issuedAt: result.issued_at,
-    expiresAt: result.expiration,
-  };
+  try {
+    const result = await verifyAuthToken({
+      auth_token: authToken,
+      app_id: getAppId(),
+      verification_key: verificationKey,
+    });
+    return {
+      userId: result.user_id,
+      appId: result.app_id,
+      issuedAt: result.issued_at,
+      expiresAt: result.expiration,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('keyData') || msg.toLowerCase().includes('invalid key')) {
+      throw new Error(
+        `Privy token verification failed: ${msg}. The PEM key passed normalization but node:crypto rejected it. ` +
+          `This usually means the BEGIN/END markers or base64 body are corrupted in the Vercel env value. ` +
+          `Re-copy from Privy Dashboard → App Settings → Verification Key without surrounding quotes, paste into Vercel env as-is (multiline or single-line both work).`
+      );
+    }
+    throw err;
+  }
 }
 
 export function buildAuthorizationContext(): AuthorizationContext {
