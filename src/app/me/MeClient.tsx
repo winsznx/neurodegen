@@ -16,7 +16,7 @@ import { MirrorSettings } from './MirrorSettings';
 import { SkipReasons } from './SkipReasons';
 import { TelegramConnect } from './TelegramConnect';
 
-const FUND_THRESHOLD_USDT = 5;
+const MIN_FUND_USDT = 1;
 
 async function patchSubscription(body: Record<string, unknown>): Promise<void> {
   const res = await fetch('/api/me/subscription', {
@@ -72,7 +72,8 @@ export function MeClient() {
 
   const active = me.subscription?.active === true;
   const signerGranted = me.subscription?.sessionSignerGranted === true;
-  const funded = usdtNum !== null && usdtNum >= FUND_THRESHOLD_USDT;
+  const fundThreshold = Math.max(MIN_FUND_USDT, me.subscription?.maxPositionUsd ?? MIN_FUND_USDT);
+  const funded = usdtNum !== null && usdtNum >= fundThreshold;
 
   const realizedPnl = mine.positions.reduce((sum, p) => sum + (p.realizedPnlUsd ?? 0), 0);
   const open = mine.positions.filter((p) =>
