@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLogin, useLogout, useWallets, usePrivy, getAccessToken } from '@privy-io/react-auth';
 import { Button } from '@/components/ui';
@@ -18,13 +18,17 @@ async function registerSession(
     credentials: 'include',
     body: JSON.stringify({ authToken, walletAddress, walletId, email }),
   });
-  if (!res.ok) throw new Error(`session registration failed: ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { detail?: string; error?: string } | null;
+    throw new Error(body?.detail ?? body?.error ?? `session registration failed: ${res.status}`);
+  }
 }
 
 export function ConnectButton() {
   const router = useRouter();
   const { ready, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   const embeddedWallet = useMemo(
     () => wallets.find((w) => w.walletClientType === 'privy'),
@@ -46,6 +50,7 @@ export function ConnectButton() {
         return embedded?.id ?? null;
       })();
       try {
+        setSessionError(null);
         await registerSession(
           wallet.address as `0x${string}`,
           walletId,
@@ -53,7 +58,9 @@ export function ConnectButton() {
         );
         router.push('/onboard');
       } catch (err) {
-        console.error('[connect] session registration failed:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[connect] session registration failed:', msg);
+        setSessionError(msg);
       }
     },
   });
@@ -61,19 +68,25 @@ export function ConnectButton() {
   const { logout } = useLogout({
     onSuccess: async () => {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => null);
+      setSessionError(null);
       router.push('/');
     },
   });
 
-  if (!ready) {
-    return <Button variant="ghost" disabled>connecting…</Button>;
-  }
+  if (!ready) return <Button variant="ghost" disabled>connecting…</Button>;
 
   if (!authenticated) {
     return (
-      <Button variant="primary" onClick={() => login()} className="whitespace-nowrap">
-        Connect to copy-trade
-      </Button>
+      <div className="flex flex-col items-end gap-1">
+        <Button variant="primary" onClick={() => login()} className="whitespace-nowrap">
+          Connect to copy-trade
+        </Button>
+        {sessionError && (
+          <span className="max-w-55 text-right font-mono text-[10px] text-negative">
+            {sessionError}
+          </span>
+        )}
+      </div>
     );
   }
 

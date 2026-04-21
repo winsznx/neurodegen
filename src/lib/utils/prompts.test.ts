@@ -5,7 +5,7 @@ import {
   buildGPT4oExtractionPrompt,
   buildLlamaClassificationPrompt,
 } from './prompts';
-import type { LaunchEvent, PurchaseEvent, AggregateMetrics, MarketSnapshot } from '@/types/perception';
+import type { LaunchEvent, PurchaseEvent, AggregateMetrics } from '@/types/perception';
 
 const mockMetrics: AggregateMetrics = {
   computedAt: Date.now(),

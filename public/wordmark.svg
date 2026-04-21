@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 180" fill="none">
+  <title>NeuroDegen</title>
+  <rect width="360" height="180" fill="#0B0E14"/>
+  <g transform="translate(40 56)">
+    <rect width="68" height="68" rx="10" fill="#0B0E14" stroke="#2B2F36" stroke-width="1.5"/>
+    <rect x="14" y="18" width="34" height="3.5" rx="1.75" fill="#E5E7EB"/>
+    <rect x="14" y="30" width="24" height="3.5" rx="1.75" fill="#B1B8BF"/>
+    <rect x="14" y="42" width="14" height="3.5" rx="1.75" fill="#7E858C"/>
+    <rect x="52" y="18" width="4" height="28" rx="2" fill="#F59E0B"/>
+    <circle cx="54" cy="50" r="2.4" fill="#F59E0B"/>
+  </g>
+  <text x="130" y="102"
+        font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="32"
+        font-weight="600"
+        letter-spacing="-0.02em"
+        fill="#E5E7EB">neurodegen</text>
+  <text x="130" y="126"
+        font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+        font-size="11"
+        letter-spacing="0.18em"
+        fill="#7E858C">ON-CHAIN · PROOF · AGENT</text>
+</svg>

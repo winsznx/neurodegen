@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { PerceptionEvent, AggregateMetrics as MetricsType } from '@/types/perception';
 import type { ReasoningGraph, RegimeLabel } from '@/types/cognition';
 import { useSSE } from '@/hooks/useSSE';

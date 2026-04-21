@@ -16,7 +16,10 @@ export function useSSE(
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
 
   useEffect(() => {
     const eventSource = new EventSource(url);

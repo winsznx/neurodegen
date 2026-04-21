@@ -1,17 +1,26 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { cn } from '@/lib/utils/cn';
 
 export function AgentStatusBanner() {
   const { data, loading, error } = useAgentStatus();
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const interval = setInterval(tick, 1000);
+    queueMicrotask(tick);
+    return () => clearInterval(interval);
+  }, []);
 
   const running = data?.status === 'running';
   const dotClass = error ? 'bg-negative' : running ? 'bg-accent' : 'bg-text-tertiary';
   const label = error ? 'disconnected' : loading ? 'loading' : running ? 'running' : 'stopped';
 
-  const lastCycleDisplay = data?.lastCycleAt
-    ? `${Math.max(1, Math.round((Date.now() - data.lastCycleAt) / 1000))}s`
+  const lastCycleDisplay = data?.lastCycleAt && now !== null
+    ? `${Math.max(1, Math.round((now - data.lastCycleAt) / 1000))}s`
     : '—';
 
   const stats: { label: string; value: string | number }[] = [
