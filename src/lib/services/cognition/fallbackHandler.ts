@@ -5,6 +5,7 @@ import {
   CLAUDE_MODEL_ID,
   CLAUDE_DIRECT_MODEL_ID,
   GPT4O_MODEL_ID,
+  GPT4O_DIRECT_MODEL_ID,
   LLAMA_MODEL_ID,
   MODEL_CALL_TIMEOUT_MS,
   MODEL_RETRY_DELAY_MS,
@@ -112,14 +113,16 @@ export class FallbackHandler {
     const hasByok = !!process.env.OPENAI_API_KEY;
     const client = hasByok ? createByokOpenAIClient() : createDGridOpenAIClient();
     const routing = hasByok ? 'byok' as const : 'dgrid' as const;
-    const gpt = () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, client);
+    // Raw OpenAI rejects DGrid-prefixed IDs; BYOK must use the native model slug.
+    const activeModelId = hasByok ? GPT4O_DIRECT_MODEL_ID : GPT4O_MODEL_ID;
+    const gpt = () => callOpenAICompatible(activeModelId, sp, uc, client);
 
-    let a = await tryCall(gpt, GPT4O_MODEL_ID, 'openai_compatible', routing);
+    let a = await tryCall(gpt, activeModelId, 'openai_compatible', routing);
     attempts.push(a);
     if (a.success) return this.result(a, attempts);
 
     await delay(MODEL_RETRY_DELAY_MS);
-    a = await tryCall(gpt, GPT4O_MODEL_ID, 'openai_compatible', routing);
+    a = await tryCall(gpt, activeModelId, 'openai_compatible', routing);
     attempts.push(a);
     if (a.success) return this.result(a, attempts);
 

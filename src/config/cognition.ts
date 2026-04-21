@@ -3,6 +3,8 @@ export const CLAUDE_FALLBACK_MODEL_ID: string = 'anthropic/claude-haiku-4.5';
 export const CLAUDE_DIRECT_MODEL_ID: string = 'claude-haiku-4-5-20251001';
 export const GPT4O_MODEL_ID: string = 'openai/gpt-4o';
 export const GPT4O_FALLBACK_MODEL_ID: string = 'openai/gpt-4o-mini';
+// Raw OpenAI API rejects DGrid-prefixed IDs; use the native ID for BYOK paths.
+export const GPT4O_DIRECT_MODEL_ID: string = 'gpt-4o';
 export const LLAMA_MODEL_ID: string = 'deepseek/deepseek-v3.2';
 export const LLAMA_FALLBACK_MODEL_ID: string = 'qwen/qwen-flash';
 export const CLAUDE_CALL_FREQUENCY: number = 5;
