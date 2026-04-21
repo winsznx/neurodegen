@@ -15,6 +15,26 @@ const BodySchema = z.object({
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60;
 
+function summarizePrivyError(fullDetail: string): string {
+  const lower = fullDetail.toLowerCase();
+  if (lower.includes('not in pem format')) {
+    return 'Server verification key is misconfigured (not a valid PEM). Admin: re-paste the full key from Privy Dashboard → App Settings → Verification Key, including the -----BEGIN PUBLIC KEY----- and -----END PUBLIC KEY----- lines, without surrounding quotes.';
+  }
+  if (lower.includes('keydata') || lower.includes('invalid key')) {
+    return 'Server verification key is malformed (PEM markers present but body is invalid). Admin: re-copy the key from Privy Dashboard without any surrounding quotes or truncation.';
+  }
+  if (lower.includes('privy_verification_key env var is required')) {
+    return 'Server verification key is not set. Admin: set PRIVY_VERIFICATION_KEY in deployment env.';
+  }
+  if (lower.includes('expired')) {
+    return 'Auth token expired. Sign in again.';
+  }
+  if (lower.includes('invalid signature') || lower.includes('signature')) {
+    return 'Auth token signature is invalid. Sign out and back in.';
+  }
+  return 'Auth verification failed. Please sign out and sign in again — if this persists, the admin needs to check Vercel logs.';
+}
+
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -36,9 +56,13 @@ export async function POST(request: NextRequest) {
     const verified = await verifyPrivyAuthToken(parsed.data.authToken);
     privyUserId = verified.userId;
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const fullDetail = err instanceof Error ? err.message : String(err);
+    // Log the full diagnostic (including any PEM preview bytes) to Vercel server logs only.
+    console.error('[auth/session] Privy verification failed:', fullDetail);
+    // Return a short, bytes-free summary to the browser.
+    const clientDetail = summarizePrivyError(fullDetail);
     return NextResponse.json(
-      { error: 'Privy token verification failed', code: 'PRIVY_VERIFY_FAILED', detail },
+      { error: 'Privy token verification failed', code: 'PRIVY_VERIFY_FAILED', detail: clientDetail },
       { status: 401 }
     );
   }
