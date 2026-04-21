@@ -1,14 +1,10 @@
 import type { PositionState } from '@/types/execution';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { cn } from '@/lib/utils/cn';
+import { formatUsd } from '@/lib/utils/format';
 
 interface PositionRowProps {
   position: PositionState;
-}
-
-function formatUsd(v: number | null): string {
-  if (v === null || v === undefined) return '—';
-  return `$${v.toFixed(2)}`;
 }
 
 export function PositionRow({ position }: PositionRowProps) {

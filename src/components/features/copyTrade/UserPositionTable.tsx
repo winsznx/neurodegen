@@ -3,6 +3,7 @@ import type { OrderLifecycleState } from '@/types/execution';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { OrderStatusBadge } from '@/components/features/execution/OrderStatusBadge';
 import { cn } from '@/lib/utils/cn';
+import { formatUsd } from '@/lib/utils/format';
 
 interface UserPositionTableProps {
   positions: UserPosition[];
@@ -48,16 +49,16 @@ export function UserPositionTable({ positions }: UserPositionTableProps) {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-text-secondary">
-                      ${p.entryPrice.toFixed(2)}
+                      {formatUsd(p.entryPrice)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums text-text-secondary">
-                      ${p.collateralUsd.toFixed(2)} · {p.leverage}x
+                      {formatUsd(p.collateralUsd)} · {p.leverage}x
                     </td>
                     <td className="px-3 py-2.5">
                       <OrderStatusBadge status={p.status as OrderLifecycleState} />
                     </td>
                     <td className={cn('px-3 py-2.5 tabular-nums font-semibold', tone)}>
-                      {p.realizedPnlUsd !== null ? `$${p.realizedPnlUsd.toFixed(2)}` : '—'}
+                      {formatUsd(p.realizedPnlUsd)}
                     </td>
                   </tr>
                 );
