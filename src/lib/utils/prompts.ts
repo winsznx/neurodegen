@@ -11,7 +11,7 @@ export interface ClaudeSentimentOutput {
 export interface GPT4oExtractionOutput {
   features: Array<{
     name: string;
-    value: string | number;
+    value: string | number | null;
     direction: 'bullish' | 'bearish' | 'neutral';
     weight: number;
   }>;

@@ -122,6 +122,7 @@ export class FourMemeIngester {
 
       const logs = await logsPublicClient.getLogs({
         address: FOURMEME_TOKEN_MANAGER as `0x${string}`,
+        events: fourMemeTokenManagerAbi,
         fromBlock,
         toBlock,
       });

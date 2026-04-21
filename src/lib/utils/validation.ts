@@ -12,7 +12,7 @@ export const gpt4oExtractionSchema = z.object({
   features: z.array(
     z.object({
       name: z.string(),
-      value: z.union([z.string(), z.number()]),
+      value: z.union([z.string(), z.number(), z.null()]),
       direction: z.enum(['bullish', 'bearish', 'neutral']),
       weight: z.number().min(0).max(1),
     })
