@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { registerSessionFromPrivyToken, setServerSessionCookie } from '@/lib/auth/session';
+import { verifyPrivyAuthToken } from '@/lib/clients/privy';
+import { upsertUser } from '@/lib/queries/users';
+import { setServerSessionCookie } from '@/lib/auth/session';
 import { upsertSubscription, getSubscriptionByUserId } from '@/lib/queries/subscriptions';
 
 const BodySchema = z.object({
@@ -29,26 +31,47 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let privyUserId: string;
   try {
-    const user = await registerSessionFromPrivyToken({
-      authToken: parsed.data.authToken,
+    const verified = await verifyPrivyAuthToken(parsed.data.authToken);
+    privyUserId = verified.userId;
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: 'Privy token verification failed', code: 'PRIVY_VERIFY_FAILED', detail },
+      { status: 401 }
+    );
+  }
+
+  let user;
+  try {
+    user = await upsertUser({
+      privyId: privyUserId,
       walletAddress: parsed.data.walletAddress as `0x${string}`,
       walletId: parsed.data.walletId ?? null,
       email: parsed.data.email ?? null,
       displayName: parsed.data.displayName ?? null,
     });
-
-    const existing = await getSubscriptionByUserId(user.userId);
-    const subscription = existing ?? (await upsertSubscription({ userId: user.userId }));
-
-    await setServerSessionCookie(parsed.data.authToken, SESSION_MAX_AGE_SECONDS);
-
-    return NextResponse.json({ user, subscription });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const detail = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: 'session registration failed', code: 'SESSION_REGISTRATION_FAILED', detail: message },
-      { status: 401 }
+      { error: 'database write failed', code: 'DB_WRITE_FAILED', detail },
+      { status: 503 }
     );
   }
+
+  let subscription;
+  try {
+    const existing = await getSubscriptionByUserId(user.userId);
+    subscription = existing ?? (await upsertSubscription({ userId: user.userId }));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: 'subscription write failed', code: 'DB_WRITE_FAILED', detail },
+      { status: 503 }
+    );
+  }
+
+  await setServerSessionCookie(parsed.data.authToken, SESSION_MAX_AGE_SECONDS);
+  return NextResponse.json({ user, subscription });
 }
