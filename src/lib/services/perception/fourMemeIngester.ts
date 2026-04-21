@@ -10,12 +10,6 @@ const BACKFILL_BLOCKS = 20n;
 const MAX_CONSECUTIVE_ERRORS = 5;
 const BACKOFF_MS = 30_000;
 
-const GRADUATION_EVENT_TYPES = {
-  LiquidityAdded: 'liquidity_added',
-  PairCreated: 'pair_created',
-  PoolCreated: 'pool_created',
-} as const satisfies Record<string, GraduationEvent['eventType']>;
-
 function decodeLog(log: Log): PerceptionEvent | null {
   let decoded: ReturnType<typeof decodeEventLog<typeof fourMemeTokenManagerAbi>>;
   try {
@@ -44,7 +38,7 @@ function decodeLog(log: Log): PerceptionEvent | null {
       creatorAddress: decoded.args.creator,
       tokenName: decoded.args.name,
       tokenSymbol: decoded.args.symbol,
-      initialSupplyOnCurve: decoded.args.initialSupply,
+      initialSupplyOnCurve: decoded.args.totalSupply,
     } satisfies LaunchEvent;
   }
 
@@ -53,22 +47,19 @@ function decodeLog(log: Log): PerceptionEvent | null {
       ...base,
       eventType: 'token_purchase',
       tokenAddress: decoded.args.token,
-      buyerAddress: decoded.args.buyer,
-      bnbAmount: decoded.args.bnbAmount,
-      tokenAmount: decoded.args.tokenAmount,
-      currentCurveBalance: decoded.args.curveBalance,
+      buyerAddress: decoded.args.account,
+      bnbAmount: decoded.args.funds,
+      tokenAmount: decoded.args.amount,
+      currentCurveBalance: decoded.args.offers,
     } satisfies PurchaseEvent;
   }
 
-  const gradType = GRADUATION_EVENT_TYPES[decoded.eventName as keyof typeof GRADUATION_EVENT_TYPES];
-  if (gradType) {
-    const gradArgs = decoded.args as { token: `0x${string}`; bnbAmount?: bigint; lpBurned?: boolean };
+  if (decoded.eventName === 'LiquidityAdded') {
     return {
       ...base,
-      eventType: gradType,
-      tokenAddress: gradArgs.token,
-      bnbAccumulated: gradArgs.bnbAmount ?? 0n,
-      lpTokensBurned: gradArgs.lpBurned ?? false,
+      eventType: 'liquidity_added',
+      tokenAddress: decoded.args.base,
+      bnbAccumulated: decoded.args.funds,
     } satisfies GraduationEvent;
   }
 

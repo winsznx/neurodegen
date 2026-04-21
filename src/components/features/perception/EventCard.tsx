@@ -32,9 +32,7 @@ function describeEvent(event: PerceptionEvent): string {
     case 'token_purchase':
       return `Buy ${Number(event.bnbAmount) / 1e18} BNB → ${truncateAddress(event.tokenAddress)}`;
     case 'liquidity_added':
-    case 'pair_created':
-    case 'pool_created':
-      return `${event.eventType.replace(/_/g, ' ')} ${truncateAddress(event.tokenAddress)}`;
+      return `liquidity added ${truncateAddress(event.tokenAddress)}`;
     case 'market_snapshot':
       return `${event.pair} · ${(Number(event.lastPrice) / 1e30).toFixed(2)}`;
     case 'price_update':

@@ -51,7 +51,7 @@ export class AggregatorService {
       (e): e is PurchaseEvent => e.source === 'fourmeme' && e.eventType === 'token_purchase' && e.timestamp >= capitalWindow
     );
     const graduations = events.filter(
-      (e): e is GraduationEvent => e.source === 'fourmeme' && (e.eventType === 'liquidity_added' || e.eventType === 'pair_created' || e.eventType === 'pool_created') && e.timestamp >= gradWindow
+      (e): e is GraduationEvent => e.source === 'fourmeme' && e.eventType === 'liquidity_added' && e.timestamp >= gradWindow
     );
 
     const launchVelocityPerHour = launches.length / LAUNCH_VELOCITY_WINDOW_HOURS;

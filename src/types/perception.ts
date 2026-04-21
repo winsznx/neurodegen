@@ -21,17 +21,16 @@ export interface PurchaseEvent extends BaseEvent {
   eventType: 'token_purchase';
   tokenAddress: string;
   buyerAddress: string;
-  bnbAmount: bigint;
-  tokenAmount: bigint;
-  currentCurveBalance: bigint;
+  bnbAmount: bigint;   // = funds field from contract
+  tokenAmount: bigint; // = amount field from contract
+  currentCurveBalance: bigint; // = offers field from contract
 }
 
 export interface GraduationEvent extends BaseEvent {
   source: 'fourmeme';
-  eventType: 'liquidity_added' | 'pair_created' | 'pool_created';
+  eventType: 'liquidity_added';
   tokenAddress: string;
   bnbAccumulated: bigint;
-  lpTokensBurned: boolean;
 }
 
 export interface MarketSnapshot extends BaseEvent {

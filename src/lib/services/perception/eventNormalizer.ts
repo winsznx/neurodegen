@@ -81,24 +81,16 @@ export function normalizeFourMemeEvent(
     };
   }
 
-  const graduationTypes = ['LiquidityAdded', 'PairCreated', 'PoolCreated'];
-  if (graduationTypes.includes(eventType)) {
-    const eventTypeMap: Record<string, 'liquidity_added' | 'pair_created' | 'pool_created'> = {
-      LiquidityAdded: 'liquidity_added',
-      PairCreated: 'pair_created',
-      PoolCreated: 'pool_created',
-    };
-
+  if (eventType === 'LiquidityAdded') {
     return {
       eventId: crypto.randomUUID(),
       source: 'fourmeme',
-      eventType: eventTypeMap[eventType],
+      eventType: 'liquidity_added',
       timestamp,
       blockNumber,
       rawHash,
-      tokenAddress: requireArg(args, 'token', eventType),
-      bnbAccumulated: BigInt(getArg(args, 'bnbAmount') ?? '0'),
-      lpTokensBurned: getArg(args, 'lpBurned') === 'true',
+      tokenAddress: requireArg(args, 'base', eventType),
+      bnbAccumulated: BigInt(getArg(args, 'funds') ?? '0'),
     };
   }
 
