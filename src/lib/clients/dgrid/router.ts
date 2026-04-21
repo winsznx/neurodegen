@@ -1,11 +1,13 @@
 import {
   CLAUDE_MODEL_ID,
+  CLAUDE_DIRECT_MODEL_ID,
   GPT4O_MODEL_ID,
   LLAMA_MODEL_ID,
 } from '@/config/cognition';
 import { ENABLE_BYOK_ROUTING } from '@/config/features';
 import { callClaudeNative } from './claude';
 import { callOpenAICompatible, createByokOpenAIClient, createDGridOpenAIClient } from './openai';
+import { callClaudeAnthropicDirect } from '../byok/anthropicDirect';
 
 export interface ModelCallResult {
   responseText: string;
@@ -22,6 +24,7 @@ type TaskType = 'sentiment' | 'extraction' | 'classification';
 function shouldUseBYOK(task: TaskType): boolean {
   if (!ENABLE_BYOK_ROUTING) return false;
   if (task === 'extraction' && process.env.OPENAI_API_KEY) return true;
+  if (task === 'sentiment' && process.env.ANTHROPIC_API_KEY) return true;
   return false;
 }
 
@@ -33,6 +36,23 @@ export async function routeModelCall(
   const startMs = Date.now();
 
   if (task === 'sentiment') {
+    const useBYOK = shouldUseBYOK(task);
+    if (useBYOK) {
+      const result = await callClaudeAnthropicDirect(systemPrompt, userContent, CLAUDE_DIRECT_MODEL_ID);
+      const latencyMs = Date.now() - startMs;
+      console.log(
+        `[dgrid-router] task=${task} model=${CLAUDE_DIRECT_MODEL_ID} format=claude_native route=byok latency=${latencyMs}ms`
+      );
+      return {
+        responseText: result.text,
+        modelId: CLAUDE_DIRECT_MODEL_ID,
+        endpointFormat: 'claude_native',
+        routingDecision: 'byok',
+        latencyMs,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+      };
+    }
     const result = await callClaudeNative(systemPrompt, userContent, CLAUDE_MODEL_ID);
     const latencyMs = Date.now() - startMs;
     console.log(

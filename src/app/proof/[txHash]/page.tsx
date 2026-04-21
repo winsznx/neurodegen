@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Shell } from '@/components/layout/Shell';
 import { Card, CardBody, CardHeader, CardTitle, Badge } from '@/components/ui';
@@ -10,6 +11,28 @@ import { ATTESTATION_CONTRACT_ADDRESS } from '@/config/chains';
 import { ProofVerdict } from './ProofVerdict';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ txHash: string }>;
+}): Promise<Metadata> {
+  const { txHash } = await params;
+  const normalized = txHash.toLowerCase();
+  const position = await getPositionByEntryTxHash(normalized).catch(() => null);
+  if (!position) {
+    return { title: 'Proof not found', robots: { index: false, follow: false } };
+  }
+  const side = position.isLong ? 'LONG' : 'SHORT';
+  const title = `${side} ${position.pair} · ${position.leverage}x · on-chain proof`;
+  const description = `NeuroDegen opened ${side} ${position.pair} at $${position.entryPrice} with $${position.collateralUsd} collateral. Reasoning committed before execution. Verify on BscScan.`;
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: 'article' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
 
 interface PageProps {
   params: Promise<{ txHash: string }>;

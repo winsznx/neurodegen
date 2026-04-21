@@ -1,12 +1,36 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Shell } from '@/components/layout/Shell';
 import { Card, CardBody, Badge } from '@/components/ui';
 import { RegimeIndicator } from '@/components/features/cognition/RegimeIndicator';
 import { ModelCallDetail } from '@/components/features/cognition/ModelCallDetail';
+import { ReasoningNarrative } from '@/components/features/cognition/ReasoningNarrative';
 import { getReasoningChainById } from '@/lib/queries/reasoningChains';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const graph = await getReasoningChainById(id).catch(() => null);
+  if (!graph) {
+    return { title: 'Reasoning chain not found', robots: { index: false, follow: false } };
+  }
+  const action = graph.finalAction.action.replace(/_/g, ' ');
+  const pct = Math.round(graph.finalAction.confidence * 100);
+  const title = `${action.toUpperCase()} ${graph.finalAction.pair} · ${pct}% confidence`;
+  const description = `${graph.regime} regime · ${graph.modelCalls.length} model calls · ${graph.finalAction.rationale.slice(0, 180)}`;
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: 'article' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
 
 const ACTION_TONE = {
   open_long: 'green',
@@ -59,6 +83,8 @@ export default async function ReasoningDetailPage({
             </div>
           </div>
         </header>
+
+        <ReasoningNarrative graph={graph} />
 
         <Card>
           <CardBody className="space-y-4">
