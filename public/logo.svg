@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>NeuroDegen</title>
+  <rect width="64" height="64" rx="14" fill="#0B0E14"/>
+  <rect x="12" y="18" width="32" height="3" rx="1.5" fill="#E5E7EB"/>
+  <rect x="12" y="28" width="22" height="3" rx="1.5" fill="#B1B8BF"/>
+  <rect x="12" y="38" width="14" height="3" rx="1.5" fill="#7E858C"/>
+  <rect x="48" y="18" width="4" height="26" rx="2" fill="#66D9A4"/>
+  <circle cx="50" cy="47" r="2" fill="#66D9A4"/>
+</svg>
