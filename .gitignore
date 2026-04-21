@@ -65,3 +65,6 @@ next-env.d.ts
 .idea
 .vscode/settings.json
 Thumbs.db
+
+# Claude Code session state (local only)
+/.claude
