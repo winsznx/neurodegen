@@ -37,7 +37,7 @@ const COLOR_CLASS: Record<(typeof LAYERS)[number]['color'], string> = {
 export function ArchitectureDiagram() {
   return (
     <section className="border-b border-border">
-      <div className="mx-auto max-w-[1280px] px-6 py-24">
+      <div className="mx-auto max-w-7xl px-6 py-24">
         <div className="mb-12">
           <div className="font-mono text-xs uppercase tracking-wider text-accent-green">Architecture</div>
           <h2 className="mt-3 font-mono text-3xl font-bold tracking-tight md:text-4xl">

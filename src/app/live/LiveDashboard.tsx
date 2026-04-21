@@ -53,7 +53,7 @@ export function LiveDashboard({ initial }: { initial: InitialData }) {
   const sseState = useSSE('/api/events/stream', handlers);
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-6 px-6 py-8">
+    <div className="mx-auto max-w-7xl space-y-6 px-6 py-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-mono text-2xl font-bold tracking-tight">Live Dashboard</h1>

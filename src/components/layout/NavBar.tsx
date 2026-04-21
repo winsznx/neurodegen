@@ -23,7 +23,7 @@ export function NavBar() {
 
   return (
     <nav className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-6">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="flex size-7 items-center justify-center rounded bg-accent-green/10 font-mono text-[11px] font-bold text-accent-green tracking-tighter">
             ND

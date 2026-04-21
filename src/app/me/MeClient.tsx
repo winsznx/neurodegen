@@ -52,7 +52,7 @@ export function MeClient() {
   if (!ready || me.loading) {
     return (
       <Shell>
-        <div className="mx-auto max-w-[1280px] px-6 py-12 font-mono text-sm text-text-muted">
+        <div className="mx-auto max-w-7xl px-6 py-12 font-mono text-sm text-text-muted">
           loading…
         </div>
       </Shell>
@@ -73,7 +73,7 @@ export function MeClient() {
 
   return (
     <Shell>
-      <div className="mx-auto max-w-[1280px] space-y-6 px-6 py-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-6 py-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Your copy-trade</h1>

@@ -17,7 +17,7 @@ export function AgentStatusBanner() {
 
   return (
     <div className="border-y border-border bg-surface/40">
-      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-6 py-4 font-mono text-xs">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4 font-mono text-xs">
         <div className="flex items-center gap-3">
           <span
             className={cn(

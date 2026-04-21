@@ -11,7 +11,7 @@ export default function HomePage() {
       <ArchitectureDiagram />
 
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1280px] px-6 py-24">
+        <div className="mx-auto max-w-7xl px-6 py-24">
           <div className="mb-12">
             <div className="font-mono text-xs uppercase tracking-wider text-accent-green">
               Bounty fit
@@ -57,7 +57,7 @@ export default function HomePage() {
       </section>
 
       <section>
-        <div className="mx-auto max-w-[1280px] px-6 py-24 text-center">
+        <div className="mx-auto max-w-7xl px-6 py-24 text-center">
           <h2 className="font-mono text-3xl font-bold tracking-tight md:text-4xl">
             <span className="text-text-muted">Watch it</span> reason.
             <br />

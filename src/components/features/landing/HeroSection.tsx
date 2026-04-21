@@ -5,9 +5,9 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden border-b border-border">
       <div className="absolute inset-0 grid-bg opacity-40" aria-hidden />
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent-green/60 to-transparent" aria-hidden />
+      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-accent-green/60 to-transparent" aria-hidden />
 
-      <div className="relative mx-auto max-w-[1280px] px-6 pt-24 pb-32">
+      <div className="relative mx-auto max-w-7xl px-6 pt-24 pb-32">
         <div className="mb-10 inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 font-mono text-[11px] text-text-secondary">
           <span className="size-1.5 rounded-full bg-accent-green animate-pulse-dot" />
           <span className="uppercase tracking-wider">four.meme ai sprint · bnb chain</span>

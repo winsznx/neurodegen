@@ -30,7 +30,7 @@ export default async function ReasoningDetailPage({
 
   return (
     <Shell>
-      <div className="mx-auto max-w-[1280px] space-y-6 px-6 py-10">
+      <div className="mx-auto max-w-7xl space-y-6 px-6 py-10">
         <Link
           href="/live"
           className="inline-flex items-center gap-2 font-mono text-xs text-text-muted hover:text-text-primary"
