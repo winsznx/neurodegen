@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-background: hsl(224 30% 6%);
+  --color-surface: hsl(224 25% 10%);
+  --color-surface-hover: hsl(224 25% 14%);
+  --color-border: hsl(224 20% 18%);
+  --color-text-primary: hsl(0 0% 95%);
+  --color-text-secondary: hsl(224 15% 55%);
+  --color-text-muted: hsl(224 12% 40%);
+
+  --color-accent-green: hsl(142 71% 45%);
+  --color-accent-red: hsl(0 72% 51%);
+  --color-accent-blue: hsl(213 94% 58%);
+  --color-accent-yellow: hsl(45 93% 47%);
+  --color-accent-purple: hsl(262 83% 58%);
+
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-ibm-plex-sans), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  scrollbar-gutter: stable;
+}
+
+@layer base {
+  ::selection {
+    background-color: hsl(213 94% 58% / 0.3);
+    color: var(--color-text-primary);
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--color-surface-hover);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@utility animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 200ms ease-out;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(hsl(224 20% 18% / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(224 20% 18% / 0.4) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
