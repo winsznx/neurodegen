@@ -35,7 +35,7 @@ export async function callOpenAICompatible(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
     ],
-    max_tokens: 1024,
+    max_tokens: 2048,
   });
 
   const content = completion.choices[0]?.message?.content;

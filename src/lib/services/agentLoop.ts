@@ -15,7 +15,6 @@ import { ReasoningOrchestrator } from '@/lib/services/cognition/reasoningOrchest
 import { FallbackHandler } from '@/lib/services/cognition/fallbackHandler';
 import { RegimeClassifier } from '@/lib/services/cognition/regimeClassifier';
 import { ReasoningGraphBuilder } from '@/lib/services/cognition/reasoningGraphBuilder';
-import { BitqueryClient } from '@/lib/clients/bitquery';
 import { MYXMarketClient } from '@/lib/clients/myx';
 import { ExecutionGateway } from '@/lib/services/execution/executionGateway';
 import { buildExecutionLayer } from '@/lib/services/execution/executionFactory';
@@ -69,7 +68,6 @@ export class AgentLoop {
     this.coldWriter.start();
 
     this.ingester = new FourMemeIngester(
-      new BitqueryClient(process.env.BITQUERY_API_KEY ?? '', process.env.BITQUERY_WS_TOKEN ?? ''),
       hotState,
       (event) => {
         this.coldWriter?.addEvent(event);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSigners, useWallets, usePrivy } from '@privy-io/react-auth';
 import { Card, CardBody, CardHeader, CardTitle, Button, Badge } from '@/components/ui';
@@ -10,7 +10,7 @@ import { useMe } from '@/hooks/useMe';
 
 const SIGNER_ID = process.env.NEXT_PUBLIC_PRIVY_SIGNER_ID ?? '';
 
-type Step = 'connect' | 'preferences' | 'grant' | 'done';
+type Step = 'connect' | 'grant' | 'update';
 
 async function patchSubscription(input: {
   leverageMultiplier: number;
@@ -36,7 +36,7 @@ export function OnboardClient() {
 
   const [leverageMultiplier, setLeverageMultiplier] = useState(1);
   const [maxPositionUsd, setMaxPositionUsd] = useState(25);
-  const [grantingSigner, setGrantingSigner] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const embeddedWallet = useMemo(
@@ -44,38 +44,51 @@ export function OnboardClient() {
     [wallets]
   );
 
+  const alreadyGranted = !!me.subscription?.sessionSignerGranted;
+
   const step: Step = useMemo(() => {
     if (!authenticated || !embeddedWallet) return 'connect';
-    if (me.subscription?.sessionSignerGranted && me.subscription?.active) return 'done';
-    if (me.subscription?.sessionSignerGranted) return 'preferences';
-    return 'preferences';
-  }, [authenticated, embeddedWallet, me.subscription]);
+    return alreadyGranted ? 'update' : 'grant';
+  }, [authenticated, embeddedWallet, alreadyGranted]);
 
-  const handleGrant = async (): Promise<void> => {
+  // Redirect if fully onboarded
+  useEffect(() => {
+    if (step === 'update' && me.subscription?.active) {
+      router.replace('/me');
+    }
+  }, [step, me.subscription?.active, router]);
+
+  const handleSave = async (): Promise<void> => {
     if (!embeddedWallet || !SIGNER_ID) {
       setError('embedded wallet or signer id not available');
       return;
     }
-    setGrantingSigner(true);
+    setSaving(true);
     setError(null);
     try {
-      await patchSubscription({ leverageMultiplier, maxPositionUsd });
-      await addSigners({
-        address: embeddedWallet.address,
-        signers: [{ signerId: SIGNER_ID, policyIds: [] }],
-      });
-      await patchSubscription({
-        leverageMultiplier,
-        maxPositionUsd,
-        sessionSignerGranted: true,
-        active: true,
-      });
+      if (!alreadyGranted) {
+        // First-time grant: save prefs, register signer, then mark active
+        await patchSubscription({ leverageMultiplier, maxPositionUsd });
+        await addSigners({
+          address: embeddedWallet.address,
+          signers: [{ signerId: SIGNER_ID, policyIds: [] }],
+        });
+        await patchSubscription({
+          leverageMultiplier,
+          maxPositionUsd,
+          sessionSignerGranted: true,
+          active: true,
+        });
+      } else {
+        // Signer already registered — only update preferences, never call addSigners again
+        await patchSubscription({ leverageMultiplier, maxPositionUsd, active: true });
+      }
       await me.refresh();
       router.push('/me');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setGrantingSigner(false);
+      setSaving(false);
     }
   };
 
@@ -141,8 +154,10 @@ export function OnboardClient() {
               )}
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Button variant="primary" onClick={handleGrant} disabled={grantingSigner}>
-                  {grantingSigner ? 'granting…' : 'Grant signer + enable copy-trade'}
+                <Button variant="primary" onClick={handleSave} disabled={saving}>
+                  {saving
+                    ? (alreadyGranted ? 'saving…' : 'granting…')
+                    : (alreadyGranted ? 'Save preferences' : 'Grant signer + enable copy-trade')}
                 </Button>
                 <Button variant="ghost" onClick={() => router.push('/me')}>
                   skip for now
