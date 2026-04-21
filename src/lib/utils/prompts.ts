@@ -51,13 +51,14 @@ Rules:
 - Respond ONLY with the JSON schema below.
 - Each feature has a direction: 'bullish', 'bearish', or 'neutral'.
 - Weight indicates how strongly this feature should influence a trading decision (0.0 = ignore, 1.0 = dominant signal).
+- CRITICAL: value MUST be a single scalar number or short string. NEVER an object, array, or nested structure. If a metric has sub-fields (e.g. baseVolume + quoteVolume), pick ONE representative number as the value.
 
 Output schema:
 {
   "features": [
     {
       "name": "string",
-      "value": "number or string representation",
+      "value": 12345.67,
       "direction": "bullish | bearish | neutral",
       "weight": number
     }
