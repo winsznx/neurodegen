@@ -74,8 +74,20 @@ describe('llamaClassificationSchema', () => {
     expect(() => parseModelOutput(raw, llamaClassificationSchema, 'test')).toThrow();
   });
 
-  it('rejects rationale over 200 characters', () => {
-    const raw = JSON.stringify({ action: 'hold', confidence: 0.5, rationale: 'x'.repeat(201) });
+  it('truncates verbose rationales to 400 chars instead of failing', () => {
+    // #given a rationale that exceeds the old 200-char limit but fits the new 400-char cap
+    const longRationale = 'x'.repeat(800);
+    const raw = JSON.stringify({ action: 'hold', confidence: 0.5, rationale: longRationale });
+
+    // #when parsed
+    const parsed = parseModelOutput(raw, llamaClassificationSchema, 'test');
+
+    // #then it succeeds and rationale is sliced to 400
+    expect(parsed.rationale.length).toBe(400);
+  });
+
+  it('rejects empty rationale', () => {
+    const raw = JSON.stringify({ action: 'hold', confidence: 0.5, rationale: '' });
     expect(() => parseModelOutput(raw, llamaClassificationSchema, 'test')).toThrow();
   });
 });

@@ -19,10 +19,13 @@ export const gpt4oExtractionSchema = z.object({
   ),
 }) satisfies z.ZodType<GPT4oExtractionOutput>;
 
+// rationale is clipped to 400 chars via transform — models (especially DeepSeek) routinely
+// overshoot the prompt's stated limit; clipping is strictly better than parse-fail which
+// silently drops the decision to `hold` and kills the trade.
 export const llamaClassificationSchema = z.object({
   action: z.enum(['open_long', 'open_short', 'close_position', 'adjust_parameters', 'hold']),
   confidence: z.number().min(0).max(1),
-  rationale: z.string().max(200),
+  rationale: z.string().min(1).transform((s) => s.trim().slice(0, 400)),
 }) satisfies z.ZodType<LlamaClassificationOutput>;
 
 export function parseModelOutput<T>(
