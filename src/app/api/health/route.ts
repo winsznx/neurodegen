@@ -12,7 +12,7 @@ const REQUIRED_ENV = [
   'PRIVY_APP_SECRET',
   'PRIVY_AUTH_PRIVATE_KEY',
   'PRIVY_VERIFICATION_KEY',
-  'PRIVY_SIGNER_ID',
+  'NEXT_PUBLIC_PRIVY_SIGNER_ID',
 ] as const;
 
 function envReport() {
