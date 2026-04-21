@@ -47,6 +47,17 @@ export function TelegramConnect() {
     return () => clearInterval(interval);
   }, [expiresAt]);
 
+  // Poll for link completion while a token is live. On Vercel serverless, the bot
+  // webhook's in-memory SSE broadcast can't reach this lambda, so we pull rather than push.
+  // Stops as soon as tg.subscription populates or the token expires.
+  useEffect(() => {
+    if (!expiresAt || tg.subscription) return;
+    const poll = setInterval(() => {
+      void tg.refresh();
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [expiresAt, tg.subscription, tg]);
+
   const handleConnect = async (): Promise<void> => {
     setPending(true);
     setError(null);
