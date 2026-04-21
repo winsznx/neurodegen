@@ -12,8 +12,12 @@ interface ReasoningChainRow {
   execution_result: Record<string, unknown> | null;
 }
 
+function serializeBigInt(_key: string, value: unknown): unknown {
+  return typeof value === 'bigint' ? value.toString() : value;
+}
+
 function toRow(graph: ReasoningGraph): Record<string, unknown> {
-  return {
+  return JSON.parse(JSON.stringify({
     graph_id: graph.graphId,
     regime: graph.regime,
     input_metrics: graph.inputMetrics,
@@ -21,7 +25,7 @@ function toRow(graph: ReasoningGraph): Record<string, unknown> {
     aggregation_logic: graph.aggregationLogic,
     final_action: graph.finalAction,
     execution_result: graph.executionResult,
-  };
+  }, serializeBigInt));
 }
 
 function fromRow(row: ReasoningChainRow): ReasoningGraph {
