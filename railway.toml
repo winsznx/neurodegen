@@ -1,0 +1,12 @@
+# Railway config for the neurodegen-web service (Next.js).
+# For the worker service, point Railway at /railway.worker.toml (Settings → Config-as-code Path).
+
+[build]
+builder = "railpack"
+
+[deploy]
+startCommand = "pnpm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 5

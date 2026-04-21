@@ -1,0 +1,13 @@
+# Railway config for the neurodegen-worker service.
+# In Railway: create a second service on the same repo; in Settings → Config-as-code Path,
+# point it at /railway.worker.toml. Set env vars WORKER_MODE=true, WEB_BROADCAST_URL=https://<web-domain>/api/events/broadcast,
+# ADMIN_SECRET=<shared>, plus all the BITQUERY/DGRID/MYX/PRIVY/SUPABASE keys the agent needs.
+
+[build]
+builder = "railpack"
+
+[deploy]
+startCommand = "pnpm worker:start"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "always"
