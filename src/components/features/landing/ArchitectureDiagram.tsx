@@ -10,20 +10,20 @@ const LAYERS = [
   {
     name: 'Cognition',
     color: 'accent-purple',
-    sources: ['DGrid /messages', 'DGrid /chat', 'DGrid /generate'],
-    produces: 'Claude sentiment + GPT-4o features + Llama classifier → Reasoning Graph',
+    sources: ['Claude Sonnet 4.6', 'GPT-4o', 'DeepSeek v3.2'],
+    produces: 'Sentiment + feature extraction + action classification → Reasoning Graph',
   },
   {
     name: 'Execution',
     color: 'accent-green',
-    sources: ['MYX Router', 'BSC RPC', 'Pyth VAAs'],
-    produces: 'Pre-checks → IncreaseOrder + TP/SL → keeper poll → attestation',
+    sources: ['@myx-trade/sdk', 'BSC RPC', 'Pyth Hermes'],
+    produces: 'Pre-checks → commit → IncreaseOrder + TP/SL → keeper poll → reveal',
   },
   {
     name: 'Monetization',
     color: 'accent-yellow',
-    sources: ['Pieverse SDK', 'x402b', 'pieUSD'],
-    produces: 'Skill webhook → NLP commands → paid monitoring',
+    sources: ['Privy signers', 'x402 + pieUSD', 'Mirror dispatcher'],
+    produces: 'Copy-trade fan-out to users + paid skill commands on BSC',
   },
 ] as const;
 

@@ -12,7 +12,7 @@ function pieUsdAddress(): `0x${string}` {
 }
 
 function revenueAddress(): `0x${string}` | null {
-  const raw = process.env.PIEVERSE_REVENUE_ADDRESS ?? process.env.AGENT_WALLET_ADDRESS;
+  const raw = process.env.PIEVERSE_REVENUE_ADDRESS;
   if (!raw) return null;
   return getAddress(raw) as `0x${string}`;
 }

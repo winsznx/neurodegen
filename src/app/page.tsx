@@ -26,22 +26,22 @@ export default function HomePage() {
               {
                 name: 'MYX Finance',
                 amount: '$5,000 USDT',
-                hook: 'Real createIncreaseOrderWithTpSl calls. Keeper tracking. On-chain attestation.',
+                hook: 'Real createIncreaseOrder calls through the official SDK. Full keeper lifecycle. Per-user copy-trade mirrors.',
               },
               {
                 name: 'DGrid',
                 amount: '$3,000 credits',
-                hook: 'Three endpoint formats in one agent. BYOK+DGrid hybrid routing.',
+                hook: 'Three providers (Claude Sonnet 4.6, GPT-4o, DeepSeek v3.2) across two endpoint formats. Anthropic-direct fallback keeps cognition alive.',
               },
               {
                 name: 'Pieverse',
                 amount: '$2,000 USDT',
-                hook: 'Deployable Skill. x402b + pieUSD. Natural language commands.',
+                hook: 'x402 HTTP endpoint with on-chain pieUSD verification. ClawHub-ready SKILL.md bundled.',
               },
               {
                 name: 'Main Sprint',
                 amount: 'up to $12,000',
-                hook: 'Seven-step execution depth. Published reasoning chains. Verifiable on-chain state.',
+                hook: 'Commit-reveal attestation on BSC. Every trade carries a cryptographic link from reasoning to execution. Verify at /proof.',
               },
             ].map((b) => (
               <div key={b.name} className="bg-surface/40 p-6">

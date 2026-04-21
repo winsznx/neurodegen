@@ -57,3 +57,11 @@ next-env.d.ts
 /scripts/smokeAttestation.ts
 /scripts/smokeCommitReveal.ts
 /scripts/submission
+
+# stray draft notes (DoraHacks copy, outreach templates, anything offline)
+*.txt
+
+# editor + OS
+.idea
+.vscode/settings.json
+Thumbs.db
