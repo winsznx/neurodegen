@@ -25,91 +25,40 @@ Every position open, position close, regime change, reasoning commit, and execut
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph ext["External data"]
-        BQ[Bitquery v2<br/>Four.meme WS]
-        MYXR[MYX Finance<br/>REST + SDK]
-        PY[Pyth Hermes<br/>Price Feeds]
-    end
+flowchart TD
+    BQ["Bitquery WS<br/>Four.meme events"]
+    MYXR["MYX REST<br/>market snapshots"]
+    PY["Pyth Hermes<br/>oracle prices"]
 
-    subgraph llm["LLM providers"]
-        DG[DGrid Router]
-        AN[Anthropic Direct<br/>BYOK Fallback]
-        DG -->|sentiment| CL[Claude Sonnet 4.6]
-        DG -->|extraction| GP[GPT-4o]
-        DG -->|classification| DS[DeepSeek v3.2]
-    end
+    BQ --> PERC["Perception<br/>normalize + aggregate"]
+    MYXR --> PERC
+    PY --> PERC
 
-    subgraph perception["Perception"]
-        EN[Event Normalizer]
-        AGG[Rolling Aggregator]
-        CSW[Cold Storage Writer]
-    end
+    PERC --> COG["Cognition<br/>regime + reasoning graph"]
 
-    subgraph cognition["Cognition"]
-        RC[Regime Classifier]
-        RGB[Reasoning Graph Builder]
-        FB[Fallback Handler]
-    end
+    COG -->|sentiment| CL["Claude Sonnet 4.6"]
+    COG -->|extraction| GP["GPT-4o"]
+    COG -->|classification| DS["DeepSeek v3.2"]
 
-    subgraph execution["Execution"]
-        PEC[Pre-Execution Checker]
-        OB[MYX Order Builder]
-        TS[Transaction Submitter]
-        PT[Position Tracker]
-    end
+    CL --> GRAPH["Reasoning Graph"]
+    GP --> GRAPH
+    DS --> GRAPH
 
-    subgraph monetization["Copy-trade monetization"]
-        MD[Mirror Dispatcher]
-        UMC[Per-user MYX Client]
-    end
+    GRAPH --> PRE["Pre-execution checks<br/>6 safety gates"]
+    PRE --> COMMIT["on-chain commit<br/>ReasoningCommitted"]
+    COMMIT --> MYXTX["MYX perp order<br/>createIncreaseOrder"]
+    MYXTX --> REVEAL["on-chain reveal<br/>ExecutionRevealed"]
 
-    subgraph storage["Storage"]
-        HS[(Hot State<br/>in-memory TTL)]
-        SB[(Supabase Postgres<br/>cold)]
-    end
+    MYXTX --> MIRROR["Mirror dispatcher"]
+    MIRROR --> USR["User Privy wallet<br/>session signer"]
+    USR --> MYXTX
 
-    subgraph users["Users"]
-        PR[Privy Session Signer]
-        EW[Embedded Wallet<br/>BNB + USDT]
-    end
+    PERC -.-> SB[("Supabase<br/>cold storage")]
+    GRAPH -.-> SB
+    MYXTX -.-> SB
 
-    subgraph onchain["BSC Mainnet"]
-        ATT[Attestation Contract<br/>0xe21f…7dc4]
-        MXC[MYX Contracts]
-    end
-
-    BQ --> EN
-    MYXR --> EN
-    PY --> EN
-    EN --> AGG
-    AGG --> HS
-    AGG --> CSW
-    CSW --> SB
-
-    HS --> RC
-    RC --> RGB
-    RGB <--> DG
-    DG -. on failure .-> FB
-    FB --> AN
-
-    RGB --> PEC
-    PY --> PEC
-    MYXR --> PEC
-    PEC --> OB
-    OB --> TS
-    TS --> MXC
-    MXC --> PT
-    PT --> SB
-
-    TS -.commit/reveal.-> ATT
-    PT -.close attest.-> ATT
-
-    TS --> MD
-    MD --> UMC
-    UMC --> PR
-    PR --> EW
-    EW --> MXC
+    COMMIT -.-> ATT["Attestation contract<br/>0xe21f…7dc4 · BSC"]
+    REVEAL -.-> ATT
 ```
 
 ### Layer responsibilities
@@ -142,12 +91,12 @@ This closes the gap that every analytics-tool competitor leaves open: our LLM re
 
 ---
 
-## Bounties targeted
+## How it lands against each track
 
-- **Main Sprint ($12K / $8K / $8K)** — Seven-step execution depth plus verifiable proof chain, neither of which any analytics-only competitor provides.
-- **MYX Finance ($5K)** — Real intent-based orders through the official SDK. No mocked trades; `DRY_RUN_MODE=false` path is live.
-- **DGrid ($3K)** — Three distinct providers (Anthropic + OpenAI + DeepSeek) across two endpoint formats (`/v1/messages` native + `/v1/chat/completions` compatible). Universal Anthropic-direct fallback means the cognition layer survives DGrid downtime.
-- **Pieverse ($2K)** — x402 HTTP payment endpoint with real on-chain pieUSD settlement verification on BSC.
+- **Main Sprint.** An end-to-end pipeline from Four.meme signal to on-chain MYX order, with every trade carrying a cryptographic commit-before-submit and reveal-after-confirmation recorded on BSC. A judge can pick any MYX transaction we produced, open `/proof/<txHash>`, and confirm the reasoning graph behind it without trusting our API.
+- **MYX Finance.** Real perpetual orders through the official `@myx-trade/sdk`. The same execution gateway fans out to Privy-custodied user wallets so one agent trade mirrors to many subscribers.
+- **DGrid.** Three providers wired in production: Claude Sonnet 4.6 on `/v1/messages`, GPT-4o and DeepSeek v3.2 on `/v1/chat/completions`. An Anthropic-direct fallback keeps the cognition loop responsive under gateway outages.
+- **Pieverse.** A proper x402 HTTP endpoint at `/api/skill` that settles in pieUSD on BSC. Payment proof is verified by fetching the tx receipt and inspecting the `Transfer` log — no shared secrets, no facilitator trust.
 
 ---
 
@@ -378,8 +327,7 @@ supabase/migrations/            # 001_initial + 002_copy_trade + 003_add_wallet_
 
 ## Team
 
-- **Winszn** — Architecture, execution layer, on-chain attestation, submission
-- **TheWeirdDee** — Perception, cognition, frontend, copy-trade UX
+- **Winszn** — sole author: architecture, perception, cognition, execution, on-chain attestation, copy-trade layer, frontend, submission
 
 ## License
 
