@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "regions": ["sin1"],
+  "functions": {
+    "src/app/api/events/stream/route.ts": { "maxDuration": 300 },
+    "src/app/api/agent/start/route.ts": { "maxDuration": 60 },
+    "src/app/api/agent/trigger/route.ts": { "maxDuration": 60 },
+    "src/app/api/skill/route.ts": { "maxDuration": 30 }
+  },
+  "headers": [
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }]
+    },
+    {
+      "source": "/api/skill",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "POST, GET, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Payment-Proof" }
+      ]
+    }
+  ]
+}

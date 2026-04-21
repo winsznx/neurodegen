@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      myx-sdk:
+        patterns:
+          - "@myx-trade/*"
+      viem:
+        patterns:
+          - "viem"
+      ai-clients:
+        patterns:
+          - "openai"
+          - "@anthropic-ai/*"
+      next:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+    labels:
+      - dependencies
