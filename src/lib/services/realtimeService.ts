@@ -5,7 +5,8 @@ export type SSEEventType =
   | 'reasoning_complete'
   | 'position_update'
   | 'health_degradation'
-  | 'telegram_linked';
+  | 'telegram_linked'
+  | 'agent_status_snapshot';
 
 export interface SSEEvent {
   type: SSEEventType;

@@ -9,8 +9,8 @@ import {
 } from '@/lib/queries/telegram';
 import { getSubscriptionByUserId, upsertSubscription } from '@/lib/queries/subscriptions';
 import { getOpenPositions } from '@/lib/queries/positions';
-import { agentLoop } from '@/lib/services/agentLoop';
 import { realtimeService } from '@/lib/services/realtimeService';
+import { resolveAgentStatus } from '@/lib/services/workerStatusCache';
 
 function settingsKeyboard(prefs: {
   mirror_opened: boolean;
@@ -108,22 +108,23 @@ export function registerHandlers(bot: Bot<Context>): void {
     }
     await touchLastMessage(ctx.chat.id);
 
-    const [mirror, open, status] = await Promise.all([
+    const [mirror, open, resolved] = await Promise.all([
       getSubscriptionByUserId(sub.userId).catch(() => null),
       getOpenPositions().catch(() => []),
-      Promise.resolve(agentLoop.getStatus()),
+      resolveAgentStatus(),
     ]);
 
     const active = mirror?.active === true;
-    const perception = status.perceptionHealthy ? '🟢' : '🔴';
-    const cognition = status.cognitionHealthy ? '🟢' : '🔴';
-    const execution = status.executionHealthy ? '🟢' : '🔴';
+    const s = resolved.status;
+    const headline = !s
+      ? `⚠️ agent unreachable — ${resolved.error ?? 'no signal'}`
+      : `${s.running ? '🟢 running' : '⏸ stopped'} · cycle ${s.cycleCount} · regime *${s.currentRegime}*${resolved.stale ? ' _(stale)_' : ''}`;
+    const health = !s
+      ? ''
+      : `${s.perceptionHealthy ? '🟢' : '🔴'} perception  ${s.cognitionHealthy ? '🟢' : '🔴'} cognition  ${s.executionHealthy ? '🟢' : '🔴'} execution\n\n`;
 
     await ctx.reply(
-      `*agent*\n` +
-        `${status.running ? '🟢 running' : '⏸ stopped'} · cycle ${status.cycleCount} · regime *${status.currentRegime}*\n` +
-        `${perception} perception  ${cognition} cognition  ${execution} execution\n\n` +
-        `*your mirror*\n` +
+      `*agent*\n${headline}\n${health}*your mirror*\n` +
         `${active ? '🟢 active' : '⚪ paused'} · ${open.length} agent position${open.length === 1 ? '' : 's'} open`,
       { parse_mode: 'Markdown', reply_markup: controlKeyboard(active) }
     );
@@ -219,10 +220,14 @@ export function registerHandlers(bot: Bot<Context>): void {
 
   bot.callbackQuery('ctrl:status', async (ctx) => {
     await ctx.answerCallbackQuery();
-    // re-run /status flow inline
-    const status = agentLoop.getStatus();
+    const resolved = await resolveAgentStatus();
+    if (!resolved.status) {
+      await ctx.reply(`⚠️ agent unreachable — ${resolved.error ?? 'no signal'}`);
+      return;
+    }
+    const s = resolved.status;
     await ctx.reply(
-      `agent ${status.running ? 'running' : 'stopped'} · cycle ${status.cycleCount} · regime ${status.currentRegime}`
+      `agent ${s.running ? 'running' : 'stopped'} · cycle ${s.cycleCount} · regime ${s.currentRegime}${resolved.stale ? ' (stale)' : ''}`
     );
   });
 

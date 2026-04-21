@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { realtimeService, type SSEEvent, type SSEEventType } from '@/lib/services/realtimeService';
+import { setWorkerStatus } from '@/lib/services/workerStatusCache';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -12,6 +13,7 @@ const VALID_TYPES: SSEEventType[] = [
   'position_update',
   'health_degradation',
   'telegram_linked',
+  'agent_status_snapshot',
 ];
 
 function isSSEEvent(value: unknown): value is SSEEvent {
@@ -48,6 +50,10 @@ export async function POST(request: NextRequest) {
       { error: 'invalid event shape', code: 'INVALID_EVENT' },
       { status: 400 }
     );
+  }
+
+  if (payload.type === 'agent_status_snapshot') {
+    setWorkerStatus(payload.data);
   }
 
   realtimeService.receiveFromWorker(payload);
