@@ -5,6 +5,7 @@
 
 [build]
 builder = "railpack"
+buildCommand = "echo 'worker runs via tsx at runtime; no compile step'"
 
 [deploy]
 startCommand = "pnpm worker:start"
