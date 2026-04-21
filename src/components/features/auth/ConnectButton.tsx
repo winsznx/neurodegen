@@ -71,7 +71,7 @@ export function ConnectButton() {
 
   if (!authenticated) {
     return (
-      <Button variant="primary" onClick={() => login()}>
+      <Button variant="primary" onClick={() => login()} className="whitespace-nowrap">
         Connect to copy-trade
       </Button>
     );
@@ -82,10 +82,10 @@ export function ConnectButton() {
 
   return (
     <div className="flex items-center gap-2">
-      <Button variant="secondary" onClick={() => router.push('/me')}>
+      <Button variant="secondary" onClick={() => router.push('/me')} className="whitespace-nowrap">
         {short}
       </Button>
-      <Button variant="ghost" onClick={() => logout()}>
+      <Button variant="ghost" onClick={() => logout()} className="hidden sm:inline-flex">
         disconnect
       </Button>
     </div>
