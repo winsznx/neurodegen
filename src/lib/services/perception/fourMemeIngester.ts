@@ -5,7 +5,7 @@ import { FOURMEME_TOKEN_MANAGER } from '@/config/chains';
 import type { HotStateStore } from '@/lib/stores/hotState';
 import type { PerceptionEvent, LaunchEvent, PurchaseEvent, GraduationEvent } from '@/types/perception';
 
-const POLL_INTERVAL_MS = 3_000;
+const POLL_INTERVAL_MS = 10_000;
 const BACKFILL_BLOCKS = 20n;
 const MAX_CONSECUTIVE_ERRORS = 5;
 const BACKOFF_MS = 30_000;
