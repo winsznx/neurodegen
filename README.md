@@ -24,60 +24,46 @@ Every position open, position close, regime change, reasoning commit, and execut
 
 ## Architecture
 
-NeuroDegen runs as two services sharing one Supabase + one attestation contract. The **worker** (Railway) holds the long-lived agent loop — Bitquery WebSocket, MYX polling, cognition cycles, execution, mirror fan-out. The **web** (Vercel) serves every user-facing surface — `/`, `/live`, `/track-record`, `/reasoning/[id]`, `/me`, `/proof/[txHash]` — plus admin + Telegram webhook endpoints. The worker forwards SSE events to the web over a signed HTTP bridge; the web fans them out to connected browsers and pushes rich notifications to Telegram.
+NeuroDegen runs as two services sharing one Supabase + one attestation contract. The **worker** (Railway) holds the long-lived agent loop — Bitquery WebSocket, MYX polling, cognition cycles, execution, mirror fan-out, Telegram push. The **web** (Vercel) serves every user-facing surface — `/`, `/live`, `/track-record`, `/reasoning/[id]`, `/me`, `/proof/[txHash]` — plus admin + Telegram webhook endpoints. The worker forwards SSE events to the web over an admin-signed HTTP bridge; the web fans them out to connected browsers.
 
 ```mermaid
 flowchart TD
-    subgraph W["Railway worker"]
-      BQ["Bitquery WS<br/>Four.meme events"]
-      MYXR["MYX REST<br/>market snapshots"]
-      PY["Pyth Hermes<br/>oracle prices"]
-      BQ --> PERC["Perception<br/>normalize + aggregate"]
-      MYXR --> PERC
-      PY --> PERC
-      PERC --> COG["Cognition<br/>regime + reasoning graph"]
-      COG -->|sentiment| CL["Claude · DGrid /v1/messages"]
-      COG -->|extraction| GP["GPT-4o · DGrid /v1/chat/completions"]
-      COG -->|classification| DS["DeepSeek v3.2 · DGrid /v1/chat/completions"]
-      CL --> GRAPH["Reasoning Graph"]
-      GP --> GRAPH
-      DS --> GRAPH
-      GRAPH --> PRE["Pre-execution checks · 6 safety gates"]
-      PRE --> COMMIT["on-chain commit<br/>ReasoningCommitted"]
-      COMMIT --> MYXTX["MYX perp order<br/>createIncreaseOrder"]
-      MYXTX --> REVEAL["on-chain reveal<br/>ExecutionRevealed"]
-      REVEAL -.->|keccak match| COMMIT
-      MYXTX --> MIRROR["Mirror dispatcher<br/>per-user sizing"]
-      MIRROR --> USRTX["Per-user MYX tx<br/>Privy session signer"]
-      MIRROR --> NOTIF["Notification dispatcher"]
-    end
+  BQ["Bitquery WS · Four.meme events"] --> PERC
+  MYXR["MYX REST · market snapshots"] --> PERC
+  PY["Pyth Hermes · oracle prices"] --> PERC
 
-    subgraph V["Vercel web"]
-      LIVE["/live · /track-record<br/>/reasoning/[id] · /proof/[txHash]"]
-      ME["/me<br/>onboarding + mirror settings"]
-      TGWEB["/api/telegram/webhook<br/>grammY std/http"]
-      BCAST["/api/events/broadcast<br/>admin-secret gated"]
-      SSE["/api/events/stream<br/>server-sent events"]
-    end
+  PERC["Perception · normalize + aggregate"] --> COG["Cognition · regime + reasoning graph"]
 
-    W -. admin-signed HTTP .-> BCAST
-    BCAST --> SSE
-    SSE --> LIVE
+  COG --> CL["Claude · /v1/messages"]
+  COG --> GP["GPT-4o · /v1/chat/completions"]
+  COG --> DS["DeepSeek v3.2 · /v1/chat/completions"]
+  CL --> GRAPH["Reasoning Graph"]
+  GP --> GRAPH
+  DS --> GRAPH
 
-    NOTIF --> TG["Telegram · grammY<br/>deep-link onboarding"]
-    TGWEB --> TG
+  GRAPH --> PRE["Pre-execution checks"]
+  PRE --> COMMIT["on-chain commit · ReasoningCommitted"]
+  COMMIT --> MYXTX["MYX perp order · createIncreaseOrder"]
+  MYXTX --> REVEAL["on-chain reveal · ExecutionRevealed"]
+  REVEAL -.->|keccak match| COMMIT
 
-    PERC -.-> SB[("Supabase<br/>cold storage")]
-    GRAPH -.-> SB
-    MYXTX -.-> SB
-    MIRROR -.-> SB
+  MYXTX --> MIRROR["Mirror dispatcher · per-user sizing"]
+  MIRROR --> USRTX["Per-user MYX tx · Privy session signer"]
+  MIRROR --> NOTIF["Telegram notifier"]
+  NOTIF --> TG["Telegram bot · grammY"]
 
-    COMMIT -.-> ATT["Attestation contract<br/>0xe21f…7dc4 · BSC"]
-    REVEAL -.-> ATT
+  MYXTX --> BRIDGE["admin-signed HTTP bridge"]
+  BRIDGE --> SSE["/api/events/stream · SSE"]
+  SSE --> UI["/live · /track-record · /me · /proof"]
 
-    LIVE -. reads .-> SB
-    ME -. reads .-> SB
-    LIVE -. reads events .-> ATT
+  PERC -.-> SB[("Supabase · cold storage")]
+  GRAPH -.-> SB
+  MYXTX -.-> SB
+  UI -.->|reads| SB
+
+  COMMIT -.-> ATT["Attestation contract · 0xe21f…7dc4 · BSC"]
+  REVEAL -.-> ATT
+  UI -.->|reads events| ATT
 ```
 
 ### Layer responsibilities
