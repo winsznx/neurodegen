@@ -4,7 +4,17 @@ import {
 } from '@/config/perception';
 
 const BITQUERY_GRAPHQL_URL = 'https://streaming.bitquery.io/graphql';
-const BITQUERY_WS_URL = 'wss://streaming.bitquery.io/graphql';
+const BITQUERY_WS_BASE = 'wss://streaming.bitquery.io/graphql';
+
+// Bitquery requires the OAuth access token as a URL query param at handshake time.
+// Putting it inside `connection_init` (the old Apollo pattern) gets rejected before the
+// WebSocket 101 upgrade, surfacing as "Received network error or non-101 status code".
+// Reference: https://docs.bitquery.io/docs/authorisation/websocket/
+function buildWsUrl(wsToken: string): string {
+  const trimmed = wsToken.trim();
+  if (!trimmed) return BITQUERY_WS_BASE;
+  return `${BITQUERY_WS_BASE}?token=${encodeURIComponent(trimmed)}`;
+}
 
 function extractWsErrorDetail(event: Event | ErrorEvent | unknown): string {
   if (!event || typeof event !== 'object') return String(event);
@@ -45,11 +55,12 @@ export class BitqueryClient {
     const connect = () => {
       if (closed) return;
 
-      ws = new WebSocket(BITQUERY_WS_URL, 'graphql-ws');
+      ws = new WebSocket(buildWsUrl(this.wsToken), 'graphql-ws');
 
       ws.onopen = () => {
         reconnectAttempts = 0;
-        ws?.send(JSON.stringify({ type: 'connection_init', payload: { Authorization: `Bearer ${this.wsToken}` } }));
+        // Token is in the URL; connection_init payload is intentionally empty.
+        ws?.send(JSON.stringify({ type: 'connection_init', payload: {} }));
         ws?.send(JSON.stringify({ id: '1', type: 'start', payload: { query: subscriptionQuery } }));
       };
 
