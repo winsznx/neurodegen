@@ -7,6 +7,8 @@ import { TransactionSubmitter } from '@/lib/services/execution/transactionSubmit
 import { buildDecreaseOrderParams } from '@/lib/services/execution/myxOrderBuilder';
 import { buildUserMyxClient } from './userMyxClient';
 import { BSC_CHAIN_ID } from '@/config/chains';
+import { notify } from '@/lib/services/notifications/dispatcher';
+import { formatUserPositionCloseFromMirror } from '@/lib/services/notifications/formatters';
 
 export interface MirrorExitOutcome {
   userId: string;
@@ -67,13 +69,24 @@ export async function closeMirrorsForSource(agentPosition: PositionState): Promi
         });
 
         const submit = await submitter.submitDecreaseOrder(params);
+        const exitReason = agentPosition.exitReason ?? 'agent_close';
         await updateUserPositionStatus(m.userPositionId, {
           status: 'closed',
           exitTxHash: submit.txHash,
-          exitReason: agentPosition.exitReason ?? 'agent_close',
+          exitReason,
           closedAt: new Date().toISOString(),
         });
         outcomes.push({ userId: m.userId, action: 'closed', txHash: submit.txHash });
+
+        void notify.mirrorClosed(
+          m.userId,
+          formatUserPositionCloseFromMirror({
+            ...m,
+            exitPrice: agentPosition.exitPrice,
+            realizedPnlUsd: agentPosition.realizedPnlUsd,
+            exitReason,
+          })
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[mirror-close] ${m.userPositionId} failed:`, msg);

@@ -20,6 +20,7 @@ import { MYXMarketClient } from '@/lib/clients/myx';
 import { ExecutionGateway } from '@/lib/services/execution/executionGateway';
 import { buildExecutionLayer } from '@/lib/services/execution/executionFactory';
 import { computeReasoningCommitment } from '@/lib/utils/reasoningHash';
+import { notify } from '@/lib/services/notifications/dispatcher';
 
 export interface AgentStatus {
   running: boolean;
@@ -102,6 +103,7 @@ export class AgentLoop {
       void this.runCycle();
     }, MYX_POLL_INTERVAL_MS);
     console.log('[agent-loop] started');
+    void notify.agentStatus({ running: true, reason: 'agent loop started', cycleCount: this.cycleCount });
   }
 
   async stop(): Promise<void> {
@@ -112,6 +114,7 @@ export class AgentLoop {
     this.gateway?.stop();
     if (this.coldWriter) await this.coldWriter.stop();
     console.log('[agent-loop] stopped');
+    void notify.agentStatus({ running: false, reason: 'agent loop stopped', cycleCount: this.cycleCount });
   }
 
   async runSingleCycle(): Promise<ReasoningGraph> {
@@ -165,6 +168,7 @@ export class AgentLoop {
         data: { source: 'agent_loop', message: msg },
         timestamp: Date.now(),
       });
+      void notify.health({ source: 'agent_loop', severity: 'warn', message: msg });
     }
   }
 

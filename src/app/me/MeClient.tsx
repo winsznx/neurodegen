@@ -2,14 +2,21 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { usePrivy, useWallets, getAccessToken } from '@privy-io/react-auth';
 import { Shell } from '@/components/layout/Shell';
 import { Card, CardBody, Button, Badge } from '@/components/ui';
 import { UserPositionTable } from '@/components/features/copyTrade/UserPositionTable';
 import { WalletCard } from '@/components/features/copyTrade/WalletCard';
 import { useMe, useMyPositions } from '@/hooks/useMe';
-import { StatsCard, PreferencesCard } from './MeCards';
+import { useWalletBalances } from '@/hooks/useWalletBalances';
+import { useSSE } from '@/hooks/useSSE';
+import { StatsCard } from './MeCards';
+import { OnboardingProgress } from './OnboardingProgress';
+import { MirrorSettings } from './MirrorSettings';
+import { SkipReasons } from './SkipReasons';
+import { TelegramConnect } from './TelegramConnect';
+
+const FUND_THRESHOLD_USDT = 5;
 
 async function patchSubscription(body: Record<string, unknown>): Promise<void> {
   const res = await fetch('/api/me/subscription', {
@@ -37,7 +44,6 @@ async function registerSession(walletAddress: `0x${string}`): Promise<void> {
 }
 
 export function MeClient() {
-  const router = useRouter();
   const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
   const me = useMe();
@@ -46,19 +52,31 @@ export function MeClient() {
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
 
+  useSSE('/api/events/stream', {
+    telegram_linked: () => {
+      window.dispatchEvent(new CustomEvent('neurodegen:telegram-linked'));
+    },
+    position_update: () => {
+      void mine.refresh();
+    },
+  });
+
   const embedded = wallets.find((w) => w.walletClientType === 'privy');
   const embeddedAddress = embedded?.address as `0x${string}` | undefined;
+  const walletAddress = embeddedAddress ?? (me.user?.walletAddress as `0x${string}` | undefined) ?? null;
+  const balancesState = useWalletBalances(walletAddress);
+  const usdtNum = balancesState.balances?.usdtNum ?? null;
+
   const active = me.subscription?.active === true;
   const signerGranted = me.subscription?.sessionSignerGranted === true;
+  const funded = usdtNum !== null && usdtNum >= FUND_THRESHOLD_USDT;
 
   const realizedPnl = mine.positions.reduce((sum, p) => sum + (p.realizedPnlUsd ?? 0), 0);
-  const open = mine.positions.filter((p) => ['submitted', 'pending', 'filled', 'managed'].includes(p.status));
+  const open = mine.positions.filter((p) =>
+    ['submitted', 'pending', 'filled', 'managed'].includes(p.status)
+  );
 
   const handleToggle = async (): Promise<void> => {
-    if (!signerGranted) {
-      router.push('/onboard');
-      return;
-    }
     setToggling(true);
     try {
       await patchSubscription({ active: !active });
@@ -66,6 +84,15 @@ export function MeClient() {
     } finally {
       setToggling(false);
     }
+  };
+
+  const handleSaveSettings = async (update: {
+    leverageMultiplier: number;
+    maxPositionUsd: number;
+    minConfidence: number;
+  }): Promise<void> => {
+    await patchSubscription(update);
+    await me.refresh();
   };
 
   const handleRetrySetup = async (): Promise<void> => {
@@ -112,7 +139,7 @@ export function MeClient() {
           <h1 className="font-mono text-2xl font-bold">Finish setup</h1>
           <p className="text-text-secondary">
             You signed in with Privy, but your server-side session isn&apos;t registered yet.
-            This usually happens the first time after a fresh deploy. Hit retry to create it.
+            Hit retry to create it.
           </p>
           <Card>
             <CardBody className="space-y-3">
@@ -136,7 +163,7 @@ export function MeClient() {
     );
   }
 
-  const walletAddress = embeddedAddress ?? (me.user.walletAddress as `0x${string}`);
+  const displayAddress = (embeddedAddress ?? me.user.walletAddress) as `0x${string}`;
 
   return (
     <Shell>
@@ -144,7 +171,7 @@ export function MeClient() {
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Your copy-trade</h1>
-            <p className="mt-1 font-mono text-xs text-text-tertiary">{walletAddress}</p>
+            <p className="mt-1 font-mono text-xs text-text-tertiary">{displayAddress}</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge tone={signerGranted ? 'green' : 'yellow'} dot>
@@ -155,29 +182,28 @@ export function MeClient() {
           </div>
         </header>
 
-        {!signerGranted && (
-          <Card>
-            <CardBody className="flex flex-wrap items-center justify-between gap-3">
-              <p className="max-w-2xl text-sm text-text-secondary">
-                Copy-trade is off until you grant a session signer to NeuroDegen on your embedded wallet.
-                That&apos;s a one-time consent so the agent can submit MYX orders on your behalf — you can revoke it any time.
-              </p>
-              <Button variant="primary" onClick={() => router.push('/onboard')}>Grant signer →</Button>
-            </CardBody>
-          </Card>
-        )}
+        <OnboardingProgress
+          connected={authenticated}
+          funded={funded}
+          signerGranted={signerGranted}
+          active={active}
+          usdtBalance={usdtNum}
+          onToggleActive={handleToggle}
+          togglingActive={toggling}
+        />
 
-        <WalletCard address={walletAddress} />
+        <div id="wallet">
+          <WalletCard address={displayAddress} />
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <StatsCard mirrors={mine.positions.length} open={open.length} realizedPnl={realizedPnl} />
-          <PreferencesCard
-            subscription={me.subscription}
-            active={active}
-            toggling={toggling}
-            onToggle={handleToggle}
-          />
+          <MirrorSettings subscription={me.subscription} onSave={handleSaveSettings} />
         </div>
+
+        <TelegramConnect />
+
+        <SkipReasons positions={mine.positions} />
 
         <UserPositionTable positions={mine.positions} />
       </div>

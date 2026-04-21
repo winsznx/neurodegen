@@ -12,6 +12,7 @@ import { sizeMirrorForUser } from './copyTradeSizing';
 import { buildUserMyxClient } from './userMyxClient';
 import { closeMirrorsForSource, type MirrorExitOutcome } from './mirrorExit';
 import { BSC_CHAIN_ID } from '@/config/chains';
+import { notify } from '@/lib/services/notifications/dispatcher';
 
 export interface MirrorOutcome {
   userId: string;
@@ -44,16 +45,30 @@ export class MirrorDispatcher {
           const sized = sizeMirrorForUser(agentPosition, sub, recommendation, indexPrice);
           if (sized.skipReason) {
             await recordSkipped(sub.userId, agentPosition, sized.skipReason);
+            void notify.mirrorSkipped(sub.userId, {
+              pair: agentPosition.pair,
+              isLong: agentPosition.isLong,
+              reason: sized.skipReason,
+              action: recommendation.action,
+              confidence: recommendation.confidence,
+            });
             outcomes.push({ userId: sub.userId, action: 'skipped', reason: sized.skipReason });
             return;
           }
           const user = await getUserById(sub.userId);
           if (!user || !user.walletId) {
             await recordSkipped(sub.userId, agentPosition, 'no_wallet_id');
+            void notify.mirrorSkipped(sub.userId, {
+              pair: agentPosition.pair,
+              isLong: agentPosition.isLong,
+              reason: 'no_wallet_id',
+              action: recommendation.action,
+              confidence: recommendation.confidence,
+            });
             outcomes.push({ userId: sub.userId, action: 'skipped', reason: 'no_wallet_id' });
             return;
           }
-          const outcome = await mirrorOne(user, agentPosition, sized, pool, indexPrice);
+          const outcome = await mirrorOne(user, agentPosition, sized, pool, indexPrice, recommendation);
           outcomes.push(outcome);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -75,7 +90,8 @@ async function mirrorOne(
   agentPosition: PositionState,
   sized: { collateralUsd: number; leverage: number; sizeAmount: number },
   pool: PoolEntry,
-  indexPrice: number
+  indexPrice: number,
+  recommendation: ActionRecommendation
 ): Promise<MirrorOutcome> {
   const sdk = buildUserMyxClient(user);
   const submitter = new TransactionSubmitter(sdk);
@@ -140,6 +156,18 @@ async function mirrorOne(
     closedAt: null,
   };
   await insertUserPosition(record);
+
+  void notify.mirrorOpened(user.userId, {
+    pair: agentPosition.pair,
+    isLong: agentPosition.isLong,
+    collateralUsd: sized.collateralUsd,
+    leverage: sized.leverage,
+    entryPrice: indexPrice,
+    txHash: submit.txHash,
+    confidence: recommendation.confidence,
+    regime: null,
+  });
+
   return { userId: user.userId, action: 'opened', txHash: submit.txHash };
 }
 
