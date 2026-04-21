@@ -22,20 +22,15 @@ export function HeroSection() {
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/live"><Button variant="primary">View live dashboard →</Button></Link>
+          <Link href="/me"><Button variant="primary">Start mirroring →</Button></Link>
+          <Link href="/live"><Button variant="secondary">View live dashboard</Button></Link>
+          <Link href="/track-record"><Button variant="ghost">Track record</Button></Link>
           <Link
             href="https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4#events"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Button variant="secondary">Verify on BscScan ↗</Button>
-          </Link>
-          <Link
-            href="https://github.com/winsznx/neurodegen/blob/main/SKILL.md"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button variant="ghost">Read the skill</Button>
+            <Button variant="ghost">Verify on BscScan ↗</Button>
           </Link>
         </div>
       </header>
@@ -66,7 +61,14 @@ export function HeroSection() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-y-2 border-t border-border px-5 py-3.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text-tertiary">
-            <span>contract · 0xe21f…7dc4</span>
+            <a
+              href="https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition-colors hover:text-accent"
+            >
+              contract · 0xe21f…7dc4 ↗
+            </a>
             <span>events · ReasoningCommitted / ExecutionRevealed</span>
             <span>chain · bnb · 56</span>
           </div>

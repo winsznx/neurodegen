@@ -9,6 +9,7 @@ import { ConnectButton } from '@/components/features/auth/ConnectButton';
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard' },
   { href: '/live', label: 'Live' },
+  { href: '/track-record', label: 'Track record' },
   { href: 'https://github.com/winsznx/neurodegen/blob/main/SKILL.md', label: 'Skill', external: true },
 ];
 

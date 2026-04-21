@@ -74,6 +74,8 @@ body::after {
   z-index: 0;
 }
 
+html.no-bg-grid body::after { display: none; }
+
 main, nav, footer, section { position: relative; z-index: 1; }
 
 .font-display { font-family: var(--font-display); letter-spacing: -0.02em; font-weight: 500; }
