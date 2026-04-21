@@ -1,51 +1,42 @@
 'use client';
 
 import { useAgentStatus } from '@/hooks/useAgentStatus';
-import { Badge } from '@/components/ui';
 import { cn } from '@/lib/utils/cn';
 
 export function AgentStatusBanner() {
   const { data, loading, error } = useAgentStatus();
 
   const running = data?.status === 'running';
-  const tone = error ? 'red' : running ? 'green' : 'yellow';
+  const dotClass = error ? 'bg-negative' : running ? 'bg-accent' : 'bg-text-tertiary';
   const label = error ? 'disconnected' : loading ? 'loading' : running ? 'running' : 'stopped';
 
   const lastCycleDisplay = data?.lastCycleAt
-    ? `${Math.max(1, Math.round((Date.now() - data.lastCycleAt) / 1000))}s ago`
+    ? `${Math.max(1, Math.round((Date.now() - data.lastCycleAt) / 1000))}s`
     : '—';
 
+  const stats: { label: string; value: string | number }[] = [
+    { label: 'regime', value: data?.regime ?? '—' },
+    { label: 'cycles', value: data?.cycleCount ?? 0 },
+    { label: 'open positions', value: data?.openPositions ?? 0 },
+    { label: 'last cycle', value: lastCycleDisplay },
+  ];
+
   return (
-    <div className="border-y border-border bg-surface/40">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4 font-mono text-xs">
-        <div className="flex items-center gap-3">
-          <span
-            className={cn(
-              'inline-flex size-2 rounded-full animate-pulse-dot',
-              error ? 'bg-accent-red' : running ? 'bg-accent-green' : 'bg-accent-yellow'
-            )}
-          />
-          <span className="uppercase tracking-wider text-text-secondary">agent</span>
-          <Badge tone={tone}>{label}</Badge>
+    <div className="border-t border-border bg-background">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-10 gap-y-3 px-6 py-3.5 font-mono text-[11px]">
+        <div className="flex items-center gap-2 uppercase tracking-wider text-text-secondary">
+          <span className={cn('inline-flex size-1.5 rounded-full animate-pulse-dot', dotClass)} />
+          <span>agent</span>
+          <span className="text-text-primary">{label}</span>
         </div>
 
-        <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 text-text-secondary">
-          <div className="flex items-center gap-2">
-            <dt className="text-text-muted uppercase tracking-wider">regime</dt>
-            <dd className="text-text-primary">{data?.regime ?? '—'}</dd>
-          </div>
-          <div className="flex items-center gap-2">
-            <dt className="text-text-muted uppercase tracking-wider">cycles</dt>
-            <dd className="text-text-primary">{data?.cycleCount ?? 0}</dd>
-          </div>
-          <div className="flex items-center gap-2">
-            <dt className="text-text-muted uppercase tracking-wider">open positions</dt>
-            <dd className="text-text-primary">{data?.openPositions ?? 0}</dd>
-          </div>
-          <div className="flex items-center gap-2">
-            <dt className="text-text-muted uppercase tracking-wider">last cycle</dt>
-            <dd className="text-text-primary">{lastCycleDisplay}</dd>
-          </div>
+        <dl className="flex flex-wrap items-center gap-x-10 gap-y-2">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-center gap-2">
+              <dt className="uppercase tracking-wider text-text-tertiary">{s.label}</dt>
+              <dd className="text-text-primary">{s.value}</dd>
+            </div>
+          ))}
         </dl>
       </div>
     </div>

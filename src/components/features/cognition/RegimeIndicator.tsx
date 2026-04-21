@@ -20,7 +20,7 @@ export function RegimeIndicator({ regime }: RegimeIndicatorProps) {
       <Badge tone={config.tone} dot>
         {regime.replace(/_/g, ' ')}
       </Badge>
-      <span className="font-mono text-xs text-text-muted">{config.description}</span>
+      <span className="font-mono text-xs text-text-tertiary">{config.description}</span>
     </div>
   );
 }

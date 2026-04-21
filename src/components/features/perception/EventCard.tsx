@@ -45,7 +45,7 @@ function describeEvent(event: PerceptionEvent): string {
 export function EventCard({ event }: EventCardProps) {
   return (
     <div className="group animate-fade-in flex items-center gap-3 border-b border-border/60 px-4 py-2.5 font-mono text-xs hover:bg-surface-hover/40">
-      <span className="w-20 shrink-0 tabular-nums text-text-muted">
+      <span className="w-20 shrink-0 tabular-nums text-text-tertiary">
         {formatTimestamp(event.timestamp)}
       </span>
       <Badge tone={SOURCE_TONE[event.source]}>{event.source}</Badge>

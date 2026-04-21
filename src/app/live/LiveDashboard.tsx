@@ -57,7 +57,7 @@ export function LiveDashboard({ initial }: { initial: InitialData }) {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-mono text-2xl font-bold tracking-tight">Live Dashboard</h1>
-          <p className="mt-1 font-mono text-xs text-text-muted">
+          <p className="mt-1 font-mono text-xs text-text-tertiary">
             real-time perception → cognition → execution · sse stream
           </p>
         </div>

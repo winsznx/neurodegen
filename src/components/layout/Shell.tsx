@@ -11,7 +11,7 @@ export function Shell({ children }: ShellProps) {
       <NavBar />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-6 py-4 font-mono text-[11px] text-text-muted">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-6 py-4 font-mono text-[11px] text-text-tertiary">
           <span>
             neurodegen v1.0.0 · four.meme ai sprint · bnb chain
           </span>

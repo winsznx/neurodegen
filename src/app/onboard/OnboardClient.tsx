@@ -83,7 +83,7 @@ export function OnboardClient() {
     <Shell>
       <div className="mx-auto max-w-2xl space-y-6 px-6 py-12">
         <header>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-accent-green">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-accent">
             onboarding
           </div>
           <h1 className="mt-2 font-mono text-3xl font-bold tracking-tight">
@@ -160,7 +160,7 @@ export function OnboardClient() {
             </CardHeader>
             <CardBody className="space-y-4">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-text-muted">your address</div>
+                <div className="text-[10px] uppercase tracking-wider text-text-tertiary">your address</div>
                 <div className="mt-1 break-all font-mono text-xs text-text-secondary">
                   {embeddedWallet.address}
                 </div>
@@ -177,17 +177,17 @@ export function OnboardClient() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded border border-border/60 bg-surface/40 p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-text-muted">for gas</div>
+                  <div className="text-[10px] uppercase tracking-wider text-text-tertiary">for gas</div>
                   <div className="mt-1 font-mono text-sm">~0.01 BNB</div>
-                  <div className="mt-1 text-[11px] text-text-muted">covers many mirror trades at BSC fees</div>
+                  <div className="mt-1 text-[11px] text-text-tertiary">covers many mirror trades at BSC fees</div>
                 </div>
                 <div className="rounded border border-border/60 bg-surface/40 p-3">
-                  <div className="text-[10px] uppercase tracking-wider text-text-muted">for collateral</div>
+                  <div className="text-[10px] uppercase tracking-wider text-text-tertiary">for collateral</div>
                   <div className="mt-1 font-mono text-sm">{Math.max(maxPositionUsd * 2, 10)} USDT+</div>
-                  <div className="mt-1 text-[11px] text-text-muted">2+ × your max position to allow rotations</div>
+                  <div className="mt-1 text-[11px] text-text-tertiary">2+ × your max position to allow rotations</div>
                 </div>
               </div>
-              <p className="text-[11px] text-text-muted">
+              <p className="text-[11px] text-text-tertiary">
                 Your keys stay with Privy. NeuroDegen never custodies your funds — the session signer can only submit MYX orders on your behalf.
               </p>
             </CardBody>

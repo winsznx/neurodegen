@@ -52,7 +52,7 @@ export function MeClient() {
   if (!ready || me.loading) {
     return (
       <Shell>
-        <div className="mx-auto max-w-7xl px-6 py-12 font-mono text-sm text-text-muted">
+        <div className="mx-auto max-w-7xl px-6 py-12 font-mono text-sm text-text-tertiary">
           loading…
         </div>
       </Shell>
@@ -77,7 +77,7 @@ export function MeClient() {
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="font-mono text-2xl font-bold tracking-tight">Your copy-trade</h1>
-            <p className="mt-1 font-mono text-xs text-text-muted">
+            <p className="mt-1 font-mono text-xs text-text-tertiary">
               {embedded?.address ?? me.user.walletAddress}
             </p>
           </div>
@@ -123,7 +123,7 @@ function StatsCard({ mirrors, open, realizedPnl }: { mirrors: number; open: numb
 function Tile({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="flex flex-col justify-between gap-2 border-r border-border/60 p-4 last:border-r-0">
-      <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">{label}</span>
       <span className={cn('font-mono text-2xl font-bold tabular-nums', tone ?? 'text-text-primary')}>
         {value}
       </span>
@@ -167,7 +167,7 @@ function PreferencesCard({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-text-muted">{label}</span>
+      <span className="text-text-tertiary">{label}</span>
       <span className="text-text-primary">{value}</span>
     </div>
   );

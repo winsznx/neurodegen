@@ -42,7 +42,7 @@ export default async function ProofPage({ params }: PageProps) {
               <p className="font-mono text-sm text-text-secondary">
                 No NeuroDegen position recorded against this MYX transaction hash.
               </p>
-              <p className="mt-3 text-xs text-text-muted">
+              <p className="mt-3 text-xs text-text-tertiary">
                 This page only verifies trades the agent submitted through its own execution gateway.
               </p>
             </CardBody>
@@ -74,7 +74,7 @@ export default async function ProofPage({ params }: PageProps) {
     <Shell>
       <div className="mx-auto max-w-4xl space-y-6 px-6 py-12">
         <header>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-accent-green">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-accent">
             proof · neurodegen
           </div>
           <h1 className="mt-2 break-all font-mono text-2xl font-bold tracking-tight">
@@ -129,7 +129,7 @@ export default async function ProofPage({ params }: PageProps) {
                 <Row label="reasoning hash" value={commit.reasoningHash} />
               </>
             ) : (
-              <p className="text-text-muted">No ReasoningCommitted event found for this reasoning hash.</p>
+              <p className="text-text-tertiary">No ReasoningCommitted event found for this reasoning hash.</p>
             )}
           </CardBody>
         </Card>
@@ -150,13 +150,13 @@ export default async function ProofPage({ params }: PageProps) {
                 <Row label="reasoning hash" value={reveal.reasoningHash} />
               </>
             ) : (
-              <p className="text-text-muted">No ExecutionRevealed event found for this reasoning hash.</p>
+              <p className="text-text-tertiary">No ExecutionRevealed event found for this reasoning hash.</p>
             )}
           </CardBody>
         </Card>
 
         <Card>
-          <CardBody className="space-y-1 font-mono text-[11px] text-text-muted">
+          <CardBody className="space-y-1 font-mono text-[11px] text-text-tertiary">
             <div>attestation contract: <a className="text-accent-blue hover:underline" target="_blank" rel="noreferrer" href={`https://bscscan.com/address/${ATTESTATION_CONTRACT_ADDRESS}`}>{ATTESTATION_CONTRACT_ADDRESS}</a></div>
             <div>this page verifies the link from reasoning → commit → MYX execution → reveal by recomputing the keccak256 of the stored reasoning graph and matching it against the on-chain indexed events.</div>
           </CardBody>
@@ -169,7 +169,7 @@ export default async function ProofPage({ params }: PageProps) {
 function Row({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
     <div className="grid grid-cols-[130px_1fr] gap-3">
-      <div className="text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-text-tertiary">{label}</div>
       {href ? (
         <a href={href} target="_blank" rel="noreferrer" className="break-all text-accent-blue hover:underline">
           {value}

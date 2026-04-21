@@ -26,7 +26,7 @@ export function RiskGauge({ currentExposure, maxExposure }: RiskGaugeProps) {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
+        <div className="flex items-center justify-between font-mono text-[10px] text-text-tertiary">
           <span>{pct.toFixed(0)}% deployed</span>
           <span>cap · 80% of wallet</span>
         </div>

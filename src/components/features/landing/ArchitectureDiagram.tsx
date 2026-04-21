@@ -30,7 +30,7 @@ const LAYERS = [
 const COLOR_CLASS: Record<(typeof LAYERS)[number]['color'], string> = {
   'accent-blue': 'text-accent-blue border-accent-blue/40 bg-accent-blue/5',
   'accent-purple': 'text-accent-purple border-accent-purple/40 bg-accent-purple/5',
-  'accent-green': 'text-accent-green border-accent-green/40 bg-accent-green/5',
+  'accent-green': 'text-accent border-accent-border/40 bg-accent/5',
   'accent-yellow': 'text-accent-yellow border-accent-yellow/40 bg-accent-yellow/5',
 };
 
@@ -39,7 +39,7 @@ export function ArchitectureDiagram() {
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-6 py-24">
         <div className="mb-12">
-          <div className="font-mono text-xs uppercase tracking-wider text-accent-green">Architecture</div>
+          <div className="font-mono text-xs uppercase tracking-wider text-accent">Architecture</div>
           <h2 className="mt-3 font-mono text-3xl font-bold tracking-tight md:text-4xl">
             Four layers. Unidirectional flow.
           </h2>
@@ -83,7 +83,7 @@ export function ArchitectureDiagram() {
                     </span>
                   ))}
                 </div>
-                <div className="shrink-0 text-text-muted md:w-6">→</div>
+                <div className="shrink-0 text-text-tertiary md:w-6">→</div>
                 <div className="text-text-primary">{layer.produces}</div>
               </div>
             </div>

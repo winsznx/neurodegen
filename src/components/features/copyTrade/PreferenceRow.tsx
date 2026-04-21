@@ -29,7 +29,7 @@ export function PreferenceRow({ label, hint, value, min, max, step, onChange, su
         onChange={(e) => onChange(parseFloat(e.target.value))}
         className="mt-2 w-full accent-accent-green"
       />
-      <p className="mt-1 font-mono text-[10px] text-text-muted">{hint}</p>
+      <p className="mt-1 font-mono text-[10px] text-text-tertiary">{hint}</p>
     </div>
   );
 }

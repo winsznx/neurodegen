@@ -33,7 +33,7 @@ export function PositionRow({ position }: PositionRowProps) {
       <td className="px-3 py-2.5 tabular-nums text-text-secondary">
         {formatUsd(position.collateralUsd)} · {position.leverage}x
       </td>
-      <td className="px-3 py-2.5 tabular-nums text-text-muted">
+      <td className="px-3 py-2.5 tabular-nums text-text-tertiary">
         {formatUsd(position.tpPrice)} / {formatUsd(position.slPrice)}
       </td>
       <td className="px-3 py-2.5">

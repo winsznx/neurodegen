@@ -24,7 +24,7 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
           <CardTitle>Latest Reasoning</CardTitle>
         </CardHeader>
         <CardBody>
-          <div className="font-mono text-xs text-text-muted">
+          <div className="font-mono text-xs text-text-tertiary">
             No reasoning cycles yet. First cycle runs after perception warms up.
           </div>
         </CardBody>
@@ -52,7 +52,7 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
             <Badge tone={ACTION_TONE[graph.finalAction.action]}>
               {graph.finalAction.action.replace(/_/g, ' ')}
             </Badge>
-            <span className="font-mono text-[10px] text-text-muted">
+            <span className="font-mono text-[10px] text-text-tertiary">
               {confidencePct}% confidence
             </span>
           </div>
@@ -63,7 +63,7 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
         </div>
 
         <div className="space-y-2 pt-2">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
             Model pipeline ({graph.modelCalls.length} calls)
           </div>
           <div className="space-y-2">

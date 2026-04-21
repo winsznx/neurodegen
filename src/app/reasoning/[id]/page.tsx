@@ -33,13 +33,13 @@ export default async function ReasoningDetailPage({
       <div className="mx-auto max-w-7xl space-y-6 px-6 py-10">
         <Link
           href="/live"
-          className="inline-flex items-center gap-2 font-mono text-xs text-text-muted hover:text-text-primary"
+          className="inline-flex items-center gap-2 font-mono text-xs text-text-tertiary hover:text-text-primary"
         >
           ← back to live dashboard
         </Link>
 
         <header className="space-y-4">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
             reasoning graph · {graph.graphId}
           </div>
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -63,7 +63,7 @@ export default async function ReasoningDetailPage({
         <Card>
           <CardBody className="space-y-4">
             <div>
-              <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
                 rationale
               </div>
               <p className="mt-2 text-sm leading-relaxed text-text-primary">
@@ -80,7 +80,7 @@ export default async function ReasoningDetailPage({
         </Card>
 
         <div>
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
             aggregation logic
           </div>
           <Card>
@@ -93,7 +93,7 @@ export default async function ReasoningDetailPage({
         </div>
 
         <div>
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
             model pipeline · {graph.modelCalls.length} calls
           </div>
           <div className="space-y-4">
@@ -110,7 +110,7 @@ export default async function ReasoningDetailPage({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-text-tertiary">{label}</div>
       <div className="mt-1 text-text-primary">{value}</div>
     </div>
   );

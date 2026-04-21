@@ -19,7 +19,7 @@ export function ModelCallDetail({ call, order }: ModelCallDetailProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-text-muted">#{order}</span>
+          <span className="font-mono text-xs text-text-tertiary">#{order}</span>
           <CardTitle>{call.modelId}</CardTitle>
         </div>
         <div className="flex items-center gap-2">
@@ -52,7 +52,7 @@ export function ModelCallDetail({ call, order }: ModelCallDetailProps) {
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-3">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">{label}</div>
       <div className="mt-1 font-mono text-sm font-semibold tabular-nums text-text-primary">{value}</div>
     </div>
   );
@@ -61,7 +61,7 @@ function MetricCell({ label, value }: { label: string; value: string }) {
 function CodeBlock({ label, content }: { label: string; content: string }) {
   return (
     <div className="p-4">
-      <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-tertiary">{label}</div>
       <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-text-secondary">
         {content || '(empty)'}
       </pre>

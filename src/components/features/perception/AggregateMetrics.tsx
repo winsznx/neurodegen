@@ -15,7 +15,7 @@ interface MetricTileProps {
 function MetricTile({ label, value, unit, hint }: MetricTileProps) {
   return (
     <div className="flex flex-col justify-between gap-2 border-r border-border/60 p-4 last:border-r-0">
-      <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
         {label}
       </span>
       <div className="flex items-baseline gap-1.5">
@@ -27,7 +27,7 @@ function MetricTile({ label, value, unit, hint }: MetricTileProps) {
         )}
       </div>
       {hint && (
-        <span className="font-mono text-[10px] text-text-muted">{hint}</span>
+        <span className="font-mono text-[10px] text-text-tertiary">{hint}</span>
       )}
     </div>
   );
@@ -38,7 +38,7 @@ export function AggregateMetrics({ metrics }: AggregateMetricsProps) {
     return (
       <Card>
         <CardBody>
-          <div className="font-mono text-xs text-text-muted">Waiting for first cycle…</div>
+          <div className="font-mono text-xs text-text-tertiary">Waiting for first cycle…</div>
         </CardBody>
       </Card>
     );

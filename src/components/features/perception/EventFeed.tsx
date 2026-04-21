@@ -18,7 +18,7 @@ export function EventFeed({ events, maxItems = 50 }: EventFeedProps) {
       </CardHeader>
       <div className="flex-1 overflow-y-auto" aria-live="polite">
         {displayed.length === 0 ? (
-          <div className="flex h-full items-center justify-center font-mono text-xs text-text-muted">
+          <div className="flex h-full items-center justify-center font-mono text-xs text-text-tertiary">
             No events yet — agent is initializing
           </div>
         ) : (

@@ -16,14 +16,14 @@ export function UserPositionTable({ positions }: UserPositionTableProps) {
         <Badge tone="neutral">{positions.length}</Badge>
       </CardHeader>
       {positions.length === 0 ? (
-        <div className="px-4 py-10 text-center font-mono text-xs text-text-muted">
+        <div className="px-4 py-10 text-center font-mono text-xs text-text-tertiary">
           No mirrors yet. When the agent opens a position and your subscription is active, it appears here.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="border-b border-border font-mono text-[10px] uppercase tracking-wider text-text-muted">
+              <tr className="border-b border-border font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
                 <th className="px-3 py-2 font-medium">Pair</th>
                 <th className="px-3 py-2 font-medium">Side</th>
                 <th className="px-3 py-2 font-medium">Entry</th>

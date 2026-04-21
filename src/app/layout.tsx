@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { JetBrains_Mono, IBM_Plex_Sans } from 'next/font/google';
+import { JetBrains_Mono, IBM_Plex_Sans, Space_Grotesk } from 'next/font/google';
 import { DarkModeApplier } from '@/components/layout/DarkModeApplier';
 import { PrivyAuthProvider } from '@/components/providers/PrivyAuthProvider';
 import './globals.css';
@@ -12,6 +12,12 @@ const jetbrainsMono = JetBrains_Mono({
 
 const ibmPlexSans = IBM_Plex_Sans({
   variable: '--font-ibm-plex-sans',
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: '--font-space-grotesk',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
 });
@@ -64,7 +70,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${jetbrainsMono.variable} ${ibmPlexSans.variable} h-full`}
+      className={`${jetbrainsMono.variable} ${ibmPlexSans.variable} ${spaceGrotesk.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

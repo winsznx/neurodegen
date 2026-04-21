@@ -26,11 +26,11 @@ export function ReasoningNodeCard({ call }: ReasoningNodeCardProps) {
             {shortModel}
           </span>
         </div>
-        <span className="shrink-0 font-mono text-[10px] text-text-muted">
+        <span className="shrink-0 font-mono text-[10px] text-text-tertiary">
           {call.latencyMs}ms
         </span>
       </div>
-      <div className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
+      <div className="flex items-center gap-2 font-mono text-[10px] text-text-tertiary">
         <span>{FORMAT_LABEL[call.endpointFormat]}</span>
         <span>·</span>
         <span>{call.routingDecision}</span>
