@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePrivy, useWallets, getAccessToken } from '@privy-io/react-auth';
+import { usePrivy, useWallets, useSigners, getAccessToken } from '@privy-io/react-auth';
 import { Shell } from '@/components/layout/Shell';
 import { Card, CardBody, Button, Badge } from '@/components/ui';
 import { UserPositionTable } from '@/components/features/copyTrade/UserPositionTable';
@@ -46,11 +46,14 @@ async function registerSession(walletAddress: `0x${string}`): Promise<void> {
 export function MeClient() {
   const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
+  const { removeSigners } = useSigners();
   const me = useMe();
   const mine = useMyPositions();
   const [toggling, setToggling] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
 
   useSSE('/api/events/stream', {
     telegram_linked: () => {
@@ -106,6 +109,21 @@ export function MeClient() {
       setRetryError(err instanceof Error ? err.message : String(err));
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleRevoke = async (): Promise<void> => {
+    if (!embeddedAddress) return;
+    setRevoking(true);
+    setRevokeError(null);
+    try {
+      await removeSigners({ address: embeddedAddress });
+      await patchSubscription({ sessionSignerGranted: false, active: false });
+      await me.refresh();
+    } catch (err) {
+      setRevokeError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -173,11 +191,23 @@ export function MeClient() {
             <h1 className="font-mono text-2xl font-bold tracking-tight">Your copy-trade</h1>
             <p className="mt-1 font-mono text-xs text-text-tertiary">{displayAddress}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge tone={signerGranted ? 'green' : 'yellow'} dot>
               {signerGranted ? 'signer granted' : 'signer not granted'}
             </Badge>
             <Badge tone={active ? 'green' : 'neutral'}>{active ? 'mirroring' : 'paused'}</Badge>
+            {signerGranted && (
+              <Button
+                variant="ghost"
+                onClick={() => void handleRevoke()}
+                disabled={revoking}
+              >
+                {revoking ? 'revoking…' : 'revoke signer'}
+              </Button>
+            )}
+            {revokeError && (
+              <span className="font-mono text-[11px] text-negative">{revokeError}</span>
+            )}
             <Button variant="ghost" onClick={() => logout()}>disconnect</Button>
           </div>
         </header>
