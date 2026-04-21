@@ -142,6 +142,41 @@ export class ExecutionGateway {
     }
   }
 
+  async closeSinglePosition(
+    position: PositionState,
+    reason: 'manual' | 'admin' = 'manual'
+  ): Promise<{ closed: boolean; txHash: string | null; error: string | null }> {
+    try {
+      const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
+      const params = buildDecreaseOrderParams(position, context);
+      const submit = await this.submitter.submitDecreaseOrder(params);
+
+      await updatePositionStatus(position.positionId, {
+        status: 'closed',
+        exitTxHash: submit.txHash,
+        exitReason: reason,
+        closedAt: new Date().toISOString(),
+      });
+
+      void this.attestation.attestPositionClose(
+        position.reasoningGraphId,
+        context.contractIndex,
+        position.isLong,
+        toCollateralScale(position.realizedPnlUsd ?? 0)
+      );
+
+      void mirrorDispatcher.onAgentExit({ ...position, exitReason: reason }).catch((err) =>
+        console.error('[execution-gateway] mirror onAgentExit failed:', err instanceof Error ? err.message : String(err))
+      );
+
+      return { closed: true, txHash: submit.txHash, error: null };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[execution-gateway] closeSinglePosition ${position.positionId} failed:`, msg);
+      return { closed: false, txHash: null, error: msg };
+    }
+  }
+
   async checkAndClosePositions(
     currentRegime: RegimeLabel,
     previousRegime: RegimeLabel | null

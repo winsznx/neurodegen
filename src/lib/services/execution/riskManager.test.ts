@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { RiskManager } from './riskManager';
 import type { PositionState } from '@/types/execution';
+import {
+  BASE_POSITION_SIZE_USD,
+  PER_POSITION_SIZE_CAP_USD,
+  MAX_CONCURRENT_POSITIONS,
+  MAX_DAILY_LOSS_USD,
+} from '@/config/risk';
 
 function makePosition(overrides: Partial<PositionState> = {}): PositionState {
   return {
     positionId: crypto.randomUUID(),
     pair: 'BTC/USDT', pairIndex: 0, isLong: true,
-    entryPrice: 65000, exitPrice: null, collateralUsd: 20, sizeAmount: 200,
+    entryPrice: 65000, exitPrice: null, collateralUsd: BASE_POSITION_SIZE_USD, sizeAmount: 200,
     leverage: 10, tpPrice: null, slPrice: null, status: 'managed',
     orderId: null, entryTxHash: null, exitTxHash: null, exitReason: null,
     realizedPnlUsd: null, reasoningGraphId: 'rg1',
@@ -18,46 +24,72 @@ function makePosition(overrides: Partial<PositionState> = {}): PositionState {
 describe('RiskManager', () => {
   const rm = new RiskManager();
 
-  it('allows position when no open positions and small size', () => {
-    const result = rm.canOpenPosition(20, [], 1000, 0);
+  it('allows a within-cap position when the book is empty and no daily loss', () => {
+    // #given
+    const size = BASE_POSITION_SIZE_USD;
+    // #when
+    const result = rm.canOpenPosition(size, [], 1000, 0);
+    // #then
     expect(result.allowed).toBe(true);
   });
 
-  it('rejects when at MAX_CONCURRENT_POSITIONS', () => {
-    const positions = [makePosition(), makePosition(), makePosition()];
-    const result = rm.canOpenPosition(20, positions, 1000, 0);
+  it('rejects when open positions equal MAX_CONCURRENT_POSITIONS', () => {
+    // #given
+    const positions = Array.from({ length: MAX_CONCURRENT_POSITIONS }, () => makePosition());
+    // #when
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, positions, 1000, 0);
+    // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Max concurrent positions');
   });
 
-  it('rejects when size exceeds PER_POSITION_SIZE_CAP_USD', () => {
-    const result = rm.canOpenPosition(100, [], 1000, 0);
+  it('rejects when requested size exceeds PER_POSITION_SIZE_CAP_USD', () => {
+    // #given
+    const oversized = PER_POSITION_SIZE_CAP_USD + 1;
+    // #when
+    const result = rm.canOpenPosition(oversized, [], 1000, 0);
+    // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('exceeds cap');
   });
 
-  it('rejects when daily loss exceeds MAX_DAILY_LOSS_USD', () => {
-    const result = rm.canOpenPosition(20, [], 1000, 150);
+  it('rejects when daily realized loss has crossed MAX_DAILY_LOSS_USD', () => {
+    // #given
+    const over = MAX_DAILY_LOSS_USD + 0.01;
+    // #when
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, [], 1000, over);
+    // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Daily loss');
   });
 
-  it('rejects at exact daily loss limit', () => {
-    const result = rm.canOpenPosition(20, [], 1000, 100);
+  it('rejects at exactly the daily loss limit', () => {
+    // #given
+    const atLimit = MAX_DAILY_LOSS_USD;
+    // #when
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, [], 1000, atLimit);
+    // #then
     expect(result.allowed).toBe(false);
   });
 
   describe('isInCooldown', () => {
     it('returns false when lastLossTimestamp is null', () => {
+      // #given / #when / #then
       expect(rm.isInCooldown(null, 900_000)).toBe(false);
     });
 
-    it('returns true within cooldown period', () => {
-      expect(rm.isInCooldown(Date.now() - 100, 900_000)).toBe(true);
+    it('returns true within the cooldown window', () => {
+      // #given
+      const justNow = Date.now() - 100;
+      // #when / #then
+      expect(rm.isInCooldown(justNow, 900_000)).toBe(true);
     });
 
-    it('returns false after cooldown expires', () => {
-      expect(rm.isInCooldown(Date.now() - 1_000_000, 900_000)).toBe(false);
+    it('returns false once the cooldown has elapsed', () => {
+      // #given
+      const longAgo = Date.now() - 1_000_000;
+      // #when / #then
+      expect(rm.isInCooldown(longAgo, 900_000)).toBe(false);
     });
   });
 });

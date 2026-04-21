@@ -143,3 +143,15 @@ export async function getPositionByEntryTxHash(
   if (error) throw new Error(`Failed to fetch position by entry tx: ${error.message}`);
   return data ? fromRow(data as PositionRow) : null;
 }
+
+export async function getPositionById(positionId: string): Promise<PositionState | null> {
+  const { data, error } = await getSupabaseClient()
+    .schema('neurodegen')
+    .from('positions')
+    .select('*')
+    .eq('position_id', positionId)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to fetch position by id: ${error.message}`);
+  return data ? fromRow(data as PositionRow) : null;
+}
