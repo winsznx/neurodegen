@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'NeuroDegen — autonomous on-chain execution agent';
+export const alt = 'NeuroDegen — on-chain proof of AI reasoning';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -64,11 +64,11 @@ export default function OpenGraphImage() {
             zIndex: 1,
           }}
         >
-          <div style={{ fontSize: 78, fontWeight: 700, letterSpacing: -2, color: '#F4F5F7' }}>
-            on-chain execution agent
+          <div style={{ fontSize: 76, fontWeight: 700, letterSpacing: -2, color: '#F4F5F7' }}>
+            the agent you don&apos;t have to trust
           </div>
-          <div style={{ fontSize: 30, color: '#B1B8BF', maxWidth: 960 }}>
-            four.meme signals · multi-LLM reasoning · MYX perps · verifiable on-chain proof
+          <div style={{ fontSize: 28, color: '#B1B8BF', maxWidth: 960 }}>
+            reasoning committed on-chain before every trade · execution revealed after confirmation · verify on BscScan
           </div>
         </div>
 

@@ -10,7 +10,7 @@ const LAYERS = [
   {
     name: 'Cognition',
     color: 'accent-purple',
-    sources: ['Claude Sonnet 4.6', 'GPT-4o', 'DeepSeek v3.2'],
+    sources: ['Claude · /v1/messages', 'GPT-4o · /v1/chat', 'DeepSeek v3.2 · /v1/chat'],
     produces: 'Sentiment + feature extraction + action classification → Reasoning Graph',
   },
   {

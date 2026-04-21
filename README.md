@@ -1,6 +1,6 @@
 # NeuroDegen
 
-An autonomous execution agent for BNB Chain. Ingests Four.meme bonding-curve signals, reasons across three LLM providers, executes hedged perpetual positions on MYX Finance, mirrors to user wallets via Privy session signers, and emits every decision as a verifiable on-chain attestation.
+NeuroDegen commits its reasoning hash on-chain **before** submitting each trade, then reveals the execution pointer **after** confirmation. Any observer can reconstruct the full decision-to-action chain from BscScan alone, without trusting our database, our dashboard, or our demo. The agent ingests Four.meme bonding-curve signals, reasons across three LLM providers via DGrid, executes MYX perpetual orders through the official SDK, and mirrors those orders to user wallets via Privy session signers.
 
 The product is the composition, not the alpha. NeuroDegen does not claim profitable trading. It demonstrates end-to-end agentic execution under real conditions with a cryptographically verifiable link between each reasoning graph and the MYX order it produced.
 
@@ -36,9 +36,9 @@ flowchart TD
 
     PERC --> COG["Cognition<br/>regime + reasoning graph"]
 
-    COG -->|sentiment| CL["Claude Sonnet 4.6"]
-    COG -->|extraction| GP["GPT-4o"]
-    COG -->|classification| DS["DeepSeek v3.2"]
+    COG -->|sentiment| CL["Claude<br/>DGrid /v1/messages"]
+    COG -->|extraction| GP["GPT-4o<br/>DGrid /v1/chat/completions"]
+    COG -->|classification| DS["DeepSeek v3.2<br/>DGrid /v1/chat/completions"]
 
     CL --> GRAPH["Reasoning Graph"]
     GP --> GRAPH
@@ -48,10 +48,10 @@ flowchart TD
     PRE --> COMMIT["on-chain commit<br/>ReasoningCommitted"]
     COMMIT --> MYXTX["MYX perp order<br/>createIncreaseOrder"]
     MYXTX --> REVEAL["on-chain reveal<br/>ExecutionRevealed"]
+    REVEAL -.->|keccak match| COMMIT
 
     MYXTX --> MIRROR["Mirror dispatcher"]
-    MIRROR --> USR["User Privy wallet<br/>session signer"]
-    USR --> MYXTX
+    MIRROR --> USRTX["Per-user MYX tx<br/>Privy session signer"]
 
     PERC -.-> SB[("Supabase<br/>cold storage")]
     GRAPH -.-> SB
@@ -65,7 +65,7 @@ flowchart TD
 
 **Perception** — Bitquery v2 WebSocket subscriptions for five Four.meme events (TokenCreate, TokenPurchase, LiquidityAdded, PairCreated, PoolCreated). MYX REST polling for market snapshots every 15s. Pyth Hermes for BTC/ETH/BNB oracle prices. All events normalized to typed domain objects, pushed through rolling-window aggregators, flushed to Supabase in 5s batches.
 
-**Cognition** — Three-model mixture routed through DGrid. Claude Sonnet 4.6 (Anthropic native `/v1/messages` format) scores narrative sentiment. GPT-4o (OpenAI-compatible `/v1/chat/completions`) extracts structured features. DeepSeek v3.2 (OpenAI-compatible) makes the binary action call. If any DGrid call fails, the fallback handler retries via Anthropic direct with the user's own key, so cognition never hangs waiting on a gateway. Every cycle produces a `ReasoningGraph` capturing all three model calls, inputs, outputs, latencies, and aggregation logic.
+**Cognition** — Three-model mixture routed through DGrid. Claude (Anthropic native `/v1/messages` format) scores narrative sentiment. GPT-4o (OpenAI-compatible `/v1/chat/completions`) extracts structured features. DeepSeek v3.2 (OpenAI-compatible) makes the binary action call. If any DGrid call fails, the fallback handler retries via direct provider APIs using operator-configured BYOK keys, so cognition never hangs on a gateway outage. Every cycle produces a `ReasoningGraph` capturing all three model calls, inputs, outputs, latencies, and aggregation logic.
 
 **Execution** — MYX v2 perpetuals via the official `@myx-trade/sdk` (pinned `1.0.18`, single-adapter pattern). Pre-execution gate runs six sequential checks (oracle divergence, crowd score from funding rate, slippage headroom, collateral sufficiency, concurrent-position cap, cooldown). Orders are built as `PlaceOrderParams` with SDK-native decimal handling, submitted through `MyxClient.order.createIncreaseOrder`, then tracked through the full keeper state machine (submitted → pending → filled → managed → closed/expired/liquidated).
 
@@ -93,10 +93,10 @@ This closes the gap that every analytics-tool competitor leaves open: our LLM re
 
 ## How it lands against each track
 
-- **Main Sprint.** An end-to-end pipeline from Four.meme signal to on-chain MYX order, with every trade carrying a cryptographic commit-before-submit and reveal-after-confirmation recorded on BSC. A judge can pick any MYX transaction we produced, open `/proof/<txHash>`, and confirm the reasoning graph behind it without trusting our API.
+- **Main Sprint.** A cryptographic chain of custody from LLM reasoning to on-chain action. Every trade carries a commit-before-submit on attestation contract [`0xe21f…7dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) and a reveal-after-confirmation referencing the same `reasoningHash`. Pick any MYX tx we produced, open `/proof/<txHash>`, and verify the entire decision in one click, with no API trust.
 - **MYX Finance.** Real perpetual orders through the official `@myx-trade/sdk`. The same execution gateway fans out to Privy-custodied user wallets so one agent trade mirrors to many subscribers.
-- **DGrid.** Three providers wired in production: Claude Sonnet 4.6 on `/v1/messages`, GPT-4o and DeepSeek v3.2 on `/v1/chat/completions`. An Anthropic-direct fallback keeps the cognition loop responsive under gateway outages.
-- **Pieverse.** A proper x402 HTTP endpoint at `/api/skill` that settles in pieUSD on BSC. Payment proof is verified by fetching the tx receipt and inspecting the `Transfer` log — no shared secrets, no facilitator trust.
+- **DGrid.** Three providers wired in production: Claude on `/v1/messages`, GPT-4o and DeepSeek v3.2 on `/v1/chat/completions`. A direct-provider fallback keeps the cognition loop responsive under gateway outages.
+- **Pieverse.** A proper x402 HTTP endpoint at `/api/skill` that settles in pieUSD on BSC. Payment proof is verified by fetching the tx receipt and inspecting the `Transfer` log — no shared secrets, no facilitator trust. [SKILL.md](./SKILL.md) manifest is ready for ClawHub publication pending Pieverse merchant credential verification.
 
 ---
 
@@ -139,6 +139,18 @@ pnpm attestation:deploy    # deploys to BSC, prints address
 curl -X POST http://localhost:3000/api/agent/start \
   -H "X-Admin-Secret: $ADMIN_SECRET"
 ```
+
+### Verify a trade end-to-end
+
+After the first real cycle produces a MYX order:
+
+```bash
+curl https://neurodegen.xyz/api/positions | head -n 1
+# Grab a myxTxHash from the response, then visit:
+# https://neurodegen.xyz/proof/<myxTxHash>
+```
+
+The proof page fetches the `ReasoningCommitted` + `ExecutionRevealed` events for that `reasoningHash`, recomputes `keccak256` of the stored reasoning graph, and confirms the on-chain hash matches — no API trust required.
 
 ### Onboard a user for copy-trade
 
@@ -331,4 +343,4 @@ supabase/migrations/            # 001_initial + 002_copy_trade + 003_add_wallet_
 
 ## License
 
-MIT
+[AGPL-3.0](./LICENSE) — if you run a modified copy as a network service, you must make the source available to its users. Chosen over MIT so a forked agent can't privatize the commit-reveal attestation system behind a closed dashboard.

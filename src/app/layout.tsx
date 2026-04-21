@@ -19,12 +19,12 @@ const ibmPlexSans = IBM_Plex_Sans({
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://neurodegen.xyz';
 
 const DESCRIPTION =
-  'Autonomous on-chain execution agent for BNB Chain. Four.meme signals, three-model reasoning via DGrid, MYX perpetual orders, and cryptographically verifiable trade attestations.';
+  'Every trade is committed on-chain before execution. Reasoning hash → MYX order → execution reveal, all verifiable on BscScan. No trust required.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: 'NeuroDegen — on-chain execution agent',
+    default: 'NeuroDegen — On-Chain Proof of AI Reasoning',
     template: '%s · NeuroDegen',
   },
   description: DESCRIPTION,
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'NeuroDegen',
-    title: 'NeuroDegen — on-chain execution agent',
+    title: 'NeuroDegen — On-Chain Proof of AI Reasoning',
     description: DESCRIPTION,
     images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'NeuroDegen' }],
   },

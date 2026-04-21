@@ -31,7 +31,7 @@ export default function HomePage() {
               {
                 name: 'DGrid',
                 amount: '$3,000 credits',
-                hook: 'Three providers (Claude Sonnet 4.6, GPT-4o, DeepSeek v3.2) across two endpoint formats. Anthropic-direct fallback keeps cognition alive.',
+                hook: 'Three providers wired: Claude on /v1/messages, GPT-4o and DeepSeek v3.2 on /v1/chat/completions. Direct-provider fallback keeps cognition responsive under gateway outages.',
               },
               {
                 name: 'Pieverse',

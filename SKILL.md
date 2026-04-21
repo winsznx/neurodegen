@@ -1,9 +1,9 @@
 ---
 name: neurodegen
 version: 0.1.0
-description: Autonomous on-chain execution agent for Four.meme — real-time bonding-curve sensing, multi-LLM reasoning, and MYX perpetual execution with verifiable on-chain proof.
+description: The only BNB Chain execution agent that commits its reasoning hash on-chain before every trade and reveals execution after confirmation. Verifiable on BscScan without trusting our database or demo.
 author: NeuroDegen Team
-license: MIT
+license: AGPL-3.0-only
 category: trading
 tags:
   - bnb-chain
@@ -12,6 +12,7 @@ tags:
   - myx
   - copy-trade
   - autonomous-agent
+  - on-chain-proof
 protocol: x402
 payment:
   token: pieUSD
@@ -25,7 +26,7 @@ commands:
   - name: monitor
     paid: true
     price: "0.50"
-    description: Start the agent's attention on the current market regime. Opens the managed position pipeline on your behalf.
+    description: Activates continuous agent monitoring for your session. The agent surfaces regime changes, reasoning chains, and position updates via the subscribed stream for one hour. The agent trades its own wallet, not yours — you pay for attention and access to the live decision feed.
   - name: positions
     paid: false
     description: List open positions managed by the agent.
@@ -47,14 +48,14 @@ proof:
 
 # NeuroDegen
 
-NeuroDegen is an autonomous execution agent for BNB Chain. Most AI agents in this space stop at analytics. NeuroDegen composes analytics with real on-chain execution and verifiable proof.
+NeuroDegen is an autonomous execution agent for BNB Chain. Every trade is cryptographically bound to its reasoning: the agent commits a hash of its decision on-chain **before** submitting the trade, then reveals the execution pointer on-chain **after** confirmation. Any observer can verify the causal chain on BscScan without trusting our dashboard, our database, or our demo video.
 
 ## What it does
 
 - **Senses** Four.meme bonding-curve activity through Bitquery v2 WebSockets.
-- **Reasons** across three LLM providers (Claude Sonnet 4.6, GPT-4o, DeepSeek v3.2) via DGrid, with an Anthropic-direct fallback.
+- **Reasons** across three distinct DGrid endpoint formats — native Claude `/v1/messages` for sentiment, OpenAI-compatible `/v1/chat/completions` for feature extraction, and a third provider on the same format for binary classification — with BYOK fallback to direct provider APIs when any gateway call fails.
 - **Executes** hedged perpetual positions on MYX Finance through the official SDK.
-- **Attests** every decision on-chain — reasoning-commit before submission, execution-reveal after confirmation — so any observer can cryptographically verify the chain of custody on BscScan.
+- **Attests** every decision on-chain — reasoning commit before submission, execution reveal after confirmation — so any observer can cryptographically verify the chain of custody on BscScan.
 
 ## How to call it
 

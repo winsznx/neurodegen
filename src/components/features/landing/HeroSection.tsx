@@ -14,38 +14,43 @@ export function HeroSection() {
         </div>
 
         <h1 className="max-w-4xl font-mono text-[44px] font-bold leading-[1.05] tracking-tight md:text-[72px]">
-          The agent that <span className="text-accent-green">acts</span>,
+          The agent you <span className="text-text-muted">don&apos;t</span>
           <br />
-          not the dashboard that <span className="text-text-muted">watches</span>.
+          have to <span className="text-accent-green">trust</span>.
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-text-secondary">
-          NeuroDegen ingests Four.meme signals, reasons across three LLMs via DGrid,
-          executes hedged perpetual positions on MYX Finance, and publishes every decision
-          on-chain. Seven steps where others stop at one.
+          Every AI decision is committed on-chain before the trade. Every trade is revealed
+          on-chain after confirmation. Verify any decision on BscScan without touching our
+          dashboard.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Link href="/live">
-            <Button variant="primary">
-              Watch it run →
-            </Button>
+            <Button variant="primary">View live dashboard →</Button>
           </Link>
           <Link
-            href="https://github.com"
+            href="https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4#events"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Button variant="secondary">Read the source</Button>
+            <Button variant="secondary">Verify on BscScan</Button>
+          </Link>
+          <Link
+            href="https://github.com/winsznx/neurodegen/blob/main/SKILL.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="ghost">Read the skill</Button>
           </Link>
         </div>
 
         <div className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-4">
           {[
-            { label: 'Source protocols', value: '4' },
+            { label: 'Commit → Reveal', value: '2-step' },
             { label: 'DGrid formats', value: '3' },
             { label: 'LLMs per cycle', value: '3' },
-            { label: 'Execution steps', value: '7' },
+            { label: 'On-chain proof', value: 'BSC' },
           ].map((stat) => (
             <div key={stat.label} className="bg-surface/50 px-6 py-5">
               <div className="font-mono text-3xl font-bold text-text-primary">{stat.value}</div>
