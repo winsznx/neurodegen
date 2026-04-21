@@ -37,7 +37,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
-    "solc": "0.8.28",
+    "solc": "0.8.34",
     "tailwindcss": "^4",
     "tsx": "4.19.2",
     "typescript": "^5",
