@@ -1,14 +1,13 @@
-import type { PublicClient, Transport, Chain } from 'viem';
 import type { PositionState } from '@/types/execution';
 import type { HotStateStore } from '@/lib/stores/hotState';
 import type { PythHermesClient } from '@/lib/clients/pyth';
 import type { RiskManager } from './riskManager';
+import { getDailyRealizedLoss } from '@/lib/queries/positions';
 import {
   ORACLE_DIVERGENCE_MAX,
   OI_IMBALANCE_MAX,
   FUNDING_RATE_MAX,
   MAX_SLIPPAGE,
-  GAS_BUFFER_BNB,
 } from '@/config/execution';
 import { PYTH_FEED_IDS } from '@/config/chains';
 
@@ -93,31 +92,28 @@ export function slippageCheck(pair: string, proposedSizeUsd: number, hotState: H
   return { name: 'slippage', passed, value: estimated, threshold: MAX_SLIPPAGE, message: passed ? 'ok' : `estimated slippage ${(estimated * 100).toFixed(2)}% exceeds max` };
 }
 
-export async function collateralCheck(
+export function collateralCheck(
   proposedSizeUsd: number,
-  publicClient: PublicClient<Transport, Chain>,
-  agentAddress: `0x${string}`,
-  pyth: PythHermesClient
-): Promise<CheckEntry> {
-  try {
-    const balance = await publicClient.getBalance({ address: agentAddress });
-    const balanceBnb = Number(balance) / 1e18;
-    const bnbPrice = await pythPrice(pyth, PYTH_FEED_IDS.BNB_USD);
-    const walletUsd = balanceBnb * bnbPrice;
-    const needed = proposedSizeUsd + GAS_BUFFER_BNB * bnbPrice;
-    const passed = walletUsd >= needed;
-    return { name: 'collateral', passed, value: walletUsd, threshold: needed, message: passed ? 'ok' : `wallet $${walletUsd.toFixed(2)} below required $${needed.toFixed(2)}` };
-  } catch (err) {
-    return { name: 'collateral', passed: false, value: 'error', threshold: proposedSizeUsd, message: err instanceof Error ? err.message : String(err) };
-  }
+  walletBalanceUsd: number
+): CheckEntry {
+  const passed = walletBalanceUsd >= proposedSizeUsd;
+  return {
+    name: 'collateral',
+    passed,
+    value: walletBalanceUsd,
+    threshold: proposedSizeUsd,
+    message: passed ? 'ok' : `wallet $${walletBalanceUsd.toFixed(2)} below required $${proposedSizeUsd.toFixed(2)}`,
+  };
 }
 
-export function riskManagerCheck(
-  proposedSizeUsd: number,
+export async function riskManagerCheck(
+  proposedNotionalUsd: number,
   openPositions: PositionState[],
+  walletBalanceUsd: number,
   riskManager: RiskManager
-): CheckEntry {
-  const result = riskManager.canOpenPosition(proposedSizeUsd, openPositions, 10000, 0);
+): Promise<CheckEntry> {
+  const dailyLoss = await getDailyRealizedLoss().catch(() => 0);
+  const result = riskManager.canOpenPosition(proposedNotionalUsd, openPositions, walletBalanceUsd, dailyLoss);
   return {
     name: 'risk_manager',
     passed: result.allowed,

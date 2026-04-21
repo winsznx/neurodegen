@@ -8,7 +8,7 @@ import type { PositionState } from '@/types/execution';
 
 export class RiskManager {
   canOpenPosition(
-    proposedSizeUsd: number,
+    proposedNotionalUsd: number,
     openPositions: PositionState[],
     walletBalanceUsd: number,
     dailyRealizedLossUsd: number
@@ -20,10 +20,10 @@ export class RiskManager {
       };
     }
 
-    if (proposedSizeUsd > PER_POSITION_SIZE_CAP_USD) {
+    if (proposedNotionalUsd > PER_POSITION_SIZE_CAP_USD) {
       return {
         allowed: false,
-        reason: `Position size $${proposedSizeUsd} exceeds cap of $${PER_POSITION_SIZE_CAP_USD}`,
+        reason: `Position notional $${proposedNotionalUsd.toFixed(2)} exceeds cap of $${PER_POSITION_SIZE_CAP_USD}`,
       };
     }
 
@@ -32,10 +32,10 @@ export class RiskManager {
       0
     );
     const maxExposure = walletBalanceUsd * MAX_TOTAL_EXPOSURE_RATIO;
-    if (currentExposure + proposedSizeUsd > maxExposure) {
+    if (currentExposure + proposedNotionalUsd > maxExposure) {
       return {
         allowed: false,
-        reason: `Total exposure $${currentExposure + proposedSizeUsd} exceeds limit $${maxExposure}`,
+        reason: `Total exposure $${(currentExposure + proposedNotionalUsd).toFixed(2)} exceeds limit $${maxExposure.toFixed(2)}`,
       };
     }
 

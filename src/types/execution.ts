@@ -14,6 +14,7 @@ export type OrderLifecycleState =
   | 'pending'
   | 'filled'
   | 'managed'
+  | 'closing'
   | 'closed'
   | 'expired'
   | 'liquidated';

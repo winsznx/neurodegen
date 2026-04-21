@@ -111,7 +111,7 @@ export async function getOpenPositions(): Promise<PositionState[]> {
     .schema('neurodegen')
     .from('positions')
     .select('*')
-    .in('status', ['submitted', 'pending', 'filled', 'managed'])
+    .in('status', ['submitted', 'pending', 'filled', 'managed', 'closing'])
     .order('opened_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch open positions: ${error.message}`);
@@ -142,6 +142,21 @@ export async function getPositionByEntryTxHash(
 
   if (error) throw new Error(`Failed to fetch position by entry tx: ${error.message}`);
   return data ? fromRow(data as PositionRow) : null;
+}
+
+export async function getDailyRealizedLoss(): Promise<number> {
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const { data, error } = await getSupabaseClient()
+    .schema('neurodegen')
+    .from('positions')
+    .select('realized_pnl_usd')
+    .eq('status', 'closed')
+    .gte('closed_at', startOfDay.toISOString())
+    .lt('realized_pnl_usd', 0);
+  if (error) throw new Error(`Failed to fetch daily realized loss: ${error.message}`);
+  return (data ?? []).reduce((sum: number, row: { realized_pnl_usd: number | null }) =>
+    sum + Math.abs(row.realized_pnl_usd ?? 0), 0);
 }
 
 export async function getPositionById(positionId: string): Promise<PositionState | null> {

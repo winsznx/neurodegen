@@ -15,6 +15,7 @@ import { getSinglePrice } from '@/lib/clients/myxSdk';
 import { getOpenPositions, updatePositionStatus } from '@/lib/queries/positions';
 import { toCollateralScale } from '@/lib/utils/decimalScaling';
 import { BSC_CHAIN_ID } from '@/config/chains';
+import { DEFAULT_LEVERAGE } from '@/config/execution';
 
 interface ExecutionResult {
   executed: boolean;
@@ -45,14 +46,17 @@ export class ExecutionGateway {
     }
 
     if (recommendation.action === 'close_position') {
+      console.log('[execution-gateway] close_position action received — handled by checkAndClosePositions, skipping here');
       return { executed: false, orderId: null, txHash: null, failureReason: null };
     }
 
     try {
       const openPositions = await getOpenPositions();
+      const leverage = recommendation.leverageMultiplier ?? regimeParameters.maxLeverage ?? DEFAULT_LEVERAGE;
       const checks = await this.preChecker.runChecks(
         recommendation.pair,
         recommendation.positionSizeUSD ?? 0,
+        leverage,
         regimeParameters,
         openPositions
       );
@@ -73,7 +77,10 @@ export class ExecutionGateway {
       );
 
       const networkFee = await this.sdk.utils.getNetworkFee(context.marketId, BSC_CHAIN_ID);
-      const feeAmount = typeof networkFee === 'string' ? networkFee : String(networkFee?.volScale ?? '0');
+      const feeAmount = typeof networkFee === 'string' ? networkFee : '0';
+      if (feeAmount === '0' && networkFee !== '0') {
+        console.warn('[execution-gateway] unexpected networkFee shape, defaulting to 0:', networkFee);
+      }
 
       const commitTx = await this.attestation.commitReasoning(
         commitment.reasoningHash,
@@ -115,13 +122,13 @@ export class ExecutionGateway {
           context.contractIndex,
           positionState.isLong,
           toCollateralScale(positionState.sizeAmount)
-        );
+        ).catch((err) => console.warn('[execution-gateway] attestPositionOpen failed:', err instanceof Error ? err.message : String(err)));
         const orderIdBytes = keccak256(stringToBytes(submit.orderId ?? positionId));
         void this.attestation.revealExecution(
           commitment.reasoningHash,
           submit.txHash as `0x${string}`,
           orderIdBytes
-        );
+        ).catch((err) => console.warn('[execution-gateway] revealExecution failed:', err instanceof Error ? err.message : String(err)));
       }
 
       void mirrorDispatcher.onAgentEntry(positionState, recommendation).catch((err) =>
@@ -186,6 +193,8 @@ export class ExecutionGateway {
 
     for (const { position, reason } of exits) {
       try {
+        // mark closing before submitting to prevent a second close attempt on the next poll
+        await updatePositionStatus(position.positionId, { status: 'closing' as PositionState['status'] });
         const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
         const params = buildDecreaseOrderParams(position, context);
         const submit = await this.submitter.submitDecreaseOrder(params);

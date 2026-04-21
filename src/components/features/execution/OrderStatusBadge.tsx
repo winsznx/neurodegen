@@ -10,6 +10,7 @@ const STATUS_TONE: Record<OrderLifecycleState, 'yellow' | 'blue' | 'green' | 'pu
   pending: 'yellow',
   filled: 'blue',
   managed: 'green',
+  closing: 'yellow',
   closed: 'neutral',
   expired: 'red',
   liquidated: 'red',

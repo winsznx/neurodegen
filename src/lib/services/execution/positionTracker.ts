@@ -61,7 +61,7 @@ export class PositionTracker {
     const onChainPositions = await this.listAllPositions();
 
     for (const pos of openPositions) {
-      if (pos.status !== 'managed') continue;
+      if (pos.status !== 'managed') continue; // skip pending/submitted/closing positions
 
       const openedTime = new Date(pos.openedAt).getTime();
       if (Date.now() - openedTime > MAX_POSITION_DURATION_MS) {
