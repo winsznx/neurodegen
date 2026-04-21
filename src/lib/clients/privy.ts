@@ -38,14 +38,35 @@ export interface VerifiedAuthToken {
   expiresAt: number;
 }
 
+function normalizePemKey(raw: string): string {
+  const withNewlines = raw
+    .replace(/\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .trim();
+
+  if (withNewlines.includes('\n')) return withNewlines;
+
+  const match = withNewlines.match(/^-----BEGIN ([A-Z0-9 ]+)-----(.+)-----END \1-----$/);
+  if (!match) {
+    throw new Error(
+      'PRIVY_VERIFICATION_KEY is not in PEM format. Expected -----BEGIN PUBLIC KEY----- ... -----END PUBLIC KEY----- from Privy Dashboard → App Settings → Verification Key.'
+    );
+  }
+  const label = match[1].trim();
+  const body = match[2].replace(/\s+/g, '');
+  const chunks = body.match(/.{1,64}/g) ?? [body];
+  return `-----BEGIN ${label}-----\n${chunks.join('\n')}\n-----END ${label}-----`;
+}
+
 export async function verifyPrivyAuthToken(authToken: string): Promise<VerifiedAuthToken> {
   const raw = process.env.PRIVY_VERIFICATION_KEY;
   if (!raw) {
     throw new Error(
-      'PRIVY_VERIFICATION_KEY env var is required (Privy Dashboard -> App settings -> Verify with key)'
+      'PRIVY_VERIFICATION_KEY env var is required (Privy Dashboard → App Settings → Verification Key)'
     );
   }
-  const verificationKey = raw.replace(/\\n/g, '\n');
+  const verificationKey = normalizePemKey(raw);
 
   const result = await verifyAuthToken({
     auth_token: authToken,
