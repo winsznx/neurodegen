@@ -8,7 +8,7 @@ export default function HomePage() {
   return (
     <>
       <LandingBackground />
-      <Shell>
+      <Shell backgroundVariant="none">
         <HeroSection />
         <WhyTrustThis />
         <PartnerLogos />

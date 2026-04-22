@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react';
 import { NavBar } from './NavBar';
+import { AppBackground } from './AppBackground';
 
 interface ShellProps {
   children: ReactNode;
+  backgroundVariant?: 'app' | 'none';
 }
 
-export function Shell({ children }: ShellProps) {
+export function Shell({ children, backgroundVariant = 'app' }: ShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {backgroundVariant === 'app' ? <AppBackground /> : null}
       <NavBar />
       <main className="flex-1">{children}</main>
       <footer className="border-t border-border">

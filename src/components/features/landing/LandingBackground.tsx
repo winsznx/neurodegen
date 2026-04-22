@@ -1,14 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
 import { ShapeGrid } from '@/components/ui/ShapeGrid';
 
 export function LandingBackground() {
-  useEffect(() => {
-    document.documentElement.classList.add('no-bg-grid');
-    return () => document.documentElement.classList.remove('no-bg-grid');
-  }, []);
-
   return (
     <div
       aria-hidden

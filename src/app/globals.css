@@ -7,8 +7,6 @@
   --color-surface-elevated: hsl(240 10% 11%);
   --color-border: hsl(240 8% 15%);
   --color-border-strong: hsl(240 8% 22%);
-  --color-grid: hsl(240 8% 11%);
-
   --color-text-primary: hsl(40 18% 92%);
   --color-text-secondary: hsl(35 6% 62%);
   --color-text-tertiary: hsl(35 6% 42%);
@@ -60,21 +58,6 @@ body::before {
     radial-gradient(40% 30% at 100% 100%, hsl(35 92% 52% / 0.035), transparent 70%);
   z-index: 0;
 }
-
-body::after {
-  content: "";
-  position: fixed; inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--color-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 55% at 50% 40%, black 40%, transparent 85%);
-  opacity: 0.35;
-  z-index: 0;
-}
-
-html.no-bg-grid body::after { display: none; }
 
 main, nav, footer, section { position: relative; z-index: 1; }
 
