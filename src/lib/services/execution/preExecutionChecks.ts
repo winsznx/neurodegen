@@ -51,7 +51,7 @@ export async function oracleDivergenceCheck(
     const myxPrice = (snap as { lastPrice: number }).lastPrice;
     const myxIndexPrice = (snap as { indexPrice: number }).indexPrice;
     let referencePrice = 0;
-    let source: 'pyth' | 'myx_index' = 'pyth';
+    let source: 'pyth' | 'myx_index' | 'myx_last' = 'pyth';
 
     try {
       referencePrice = await pythPrice(pyth, feedId);
@@ -61,7 +61,12 @@ export async function oracleDivergenceCheck(
     }
 
     if (!Number.isFinite(referencePrice) || referencePrice === 0) {
-      return { name: 'oracle_divergence', passed: false, value: 'N/A', threshold: ORACLE_DIVERGENCE_MAX, message: 'Pyth price unavailable and MYX index price unavailable' };
+      if (Number.isFinite(myxPrice) && myxPrice > 0) {
+        referencePrice = myxPrice;
+        source = 'myx_last';
+      } else {
+        return { name: 'oracle_divergence', passed: false, value: 'N/A', threshold: ORACLE_DIVERGENCE_MAX, message: 'Pyth price unavailable and MYX index price unavailable' };
+      }
     }
     const divergence = Math.abs(myxPrice - referencePrice) / referencePrice;
     const passed = divergence < ORACLE_DIVERGENCE_MAX;
