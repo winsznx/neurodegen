@@ -138,7 +138,6 @@ export class ReasoningGraphBuilder {
     regime: RegimeLabel
   ): LlamaClassificationOutput | null {
     if (classification.action !== 'hold') return null;
-    if (classification.confidence < MIN_CONFIDENCE_TO_ACT) return null;
     if (regime === 'volatile') return null;
     if (extraction.features.length < 4) return null;
 
@@ -146,6 +145,16 @@ export class ReasoningGraphBuilder {
     const bearishEdge = directionalTotals.bearish - directionalTotals.bullish;
     const positiveSentiment = sentiment.sentimentScore >= 0.5 && sentiment.confidenceLevel >= 0.65;
     const negativeSentiment = sentiment.sentimentScore <= -0.5 && sentiment.confidenceLevel >= 0.65;
+    const bullishProbeFallback =
+      sentiment.sentimentScore >= 0.2 &&
+      sentiment.confidenceLevel >= 0.8 &&
+      bullishEdge >= 2.0 &&
+      directionalTotals.bearish <= 0.25;
+    const bearishProbeFallback =
+      sentiment.sentimentScore <= -0.2 &&
+      sentiment.confidenceLevel >= 0.8 &&
+      bearishEdge >= 2.0 &&
+      directionalTotals.bullish <= 0.25;
 
     if (positiveSentiment && bullishEdge >= 1.25) {
       return {
@@ -156,12 +165,30 @@ export class ReasoningGraphBuilder {
       };
     }
 
+    if (bullishProbeFallback) {
+      return {
+        action: 'open_long',
+        confidence: Math.max(classification.confidence, 0.28),
+        rationale:
+          `Fallback probe long: feature edge ${bullishEdge.toFixed(2)} stayed strongly bullish despite cautious classifier hold; sentiment remained positive at ${sentiment.sentimentScore.toFixed(2)} with ${sentiment.confidenceLevel.toFixed(2)} confidence.`.slice(0, 400),
+      };
+    }
+
     if (negativeSentiment && bearishEdge >= 1.25) {
       return {
         action: 'open_short',
         confidence: Math.max(classification.confidence, 0.35),
         rationale:
           `Probe short override: bearish features ${directionalTotals.bearish.toFixed(2)} vs bullish ${directionalTotals.bullish.toFixed(2)} with sentiment ${sentiment.sentimentScore.toFixed(2)} (${sentiment.confidenceLevel.toFixed(2)} conf).`.slice(0, 400),
+      };
+    }
+
+    if (bearishProbeFallback) {
+      return {
+        action: 'open_short',
+        confidence: Math.max(classification.confidence, 0.28),
+        rationale:
+          `Fallback probe short: feature edge ${bearishEdge.toFixed(2)} stayed strongly bearish despite cautious classifier hold; sentiment remained negative at ${sentiment.sentimentScore.toFixed(2)} with ${sentiment.confidenceLevel.toFixed(2)} confidence.`.slice(0, 400),
       };
     }
 
