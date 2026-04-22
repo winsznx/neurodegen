@@ -71,6 +71,7 @@ export class FourMemeIngester {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private lastBlock: bigint | null = null;
   private consecutiveErrors = 0;
+  private currentMaxRange = Math.max(FOURMEME_GET_LOGS_MAX_RANGE, 1);
 
   constructor(
     private readonly hotState: HotStateStore,
@@ -99,22 +100,57 @@ export class FourMemeIngester {
     this.timer = setTimeout(() => void this.poll(), delayMs);
   }
 
+  private isRangeLimitError(detail: string): boolean {
+    const normalized = detail.toLowerCase();
+    return (
+      normalized.includes('block range is too large') ||
+      normalized.includes('requested block range exceeds the limits') ||
+      normalized.includes('eth_getlogs is limited to a')
+    );
+  }
+
+  private extractProviderRangeLimit(detail: string): number | null {
+    const quickNodeMatch = detail.match(/limited to a\s+(\d+)\s+range/i);
+    if (quickNodeMatch) return parseInt(quickNodeMatch[1], 10);
+
+    const blockLimitMatch = detail.match(/limits?\s*\((\d+)\s*blocks?\)/i);
+    if (blockLimitMatch) return parseInt(blockLimitMatch[1], 10);
+
+    return null;
+  }
+
   private async fetchLogsInChunks(fromBlock: bigint, toBlock: bigint): Promise<Log[]> {
-    const maxRange = BigInt(Math.max(FOURMEME_GET_LOGS_MAX_RANGE, 1));
-    const maxSpan = maxRange > 0n ? maxRange - 1n : 0n;
     const allLogs: Log[] = [];
     let cursor = fromBlock;
 
     while (cursor <= toBlock) {
+      const maxRange = BigInt(Math.max(this.currentMaxRange, 1));
+      const maxSpan = maxRange - 1n;
       const chunkTo = cursor + maxSpan < toBlock ? cursor + maxSpan : toBlock;
-      const logs = await logsPublicClient.getLogs({
-        address: FOURMEME_TOKEN_MANAGER as `0x${string}`,
-        events: fourMemeTokenManagerAbi,
-        fromBlock: cursor,
-        toBlock: chunkTo,
-      });
-      allLogs.push(...logs);
-      cursor = chunkTo + 1n;
+
+      try {
+        const logs = await logsPublicClient.getLogs({
+          address: FOURMEME_TOKEN_MANAGER as `0x${string}`,
+          events: fourMemeTokenManagerAbi,
+          fromBlock: cursor,
+          toBlock: chunkTo,
+        });
+        allLogs.push(...logs);
+        cursor = chunkTo + 1n;
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        if (!this.isRangeLimitError(detail)) throw err;
+
+        const providerLimit = this.extractProviderRangeLimit(detail);
+        const nextRange = providerLimit ?? Math.max(1, Math.floor(this.currentMaxRange / 2));
+
+        if (nextRange >= this.currentMaxRange) throw err;
+
+        this.currentMaxRange = nextRange;
+        console.warn(
+          `[four-meme-ingester] reducing eth_getLogs chunk range to ${this.currentMaxRange} blocks based on provider limit`
+        );
+      }
     }
 
     return allLogs;
