@@ -147,13 +147,13 @@ export class ReasoningGraphBuilder {
     const negativeSentiment = sentiment.sentimentScore <= -0.5 && sentiment.confidenceLevel >= 0.65;
     const bullishProbeFallback =
       sentiment.sentimentScore >= 0.2 &&
-      sentiment.confidenceLevel >= 0.8 &&
-      bullishEdge >= 2.0 &&
+      sentiment.confidenceLevel >= 0.6 &&
+      bullishEdge >= 1.5 &&
       directionalTotals.bearish <= 0.25;
     const bearishProbeFallback =
       sentiment.sentimentScore <= -0.2 &&
-      sentiment.confidenceLevel >= 0.8 &&
-      bearishEdge >= 2.0 &&
+      sentiment.confidenceLevel >= 0.6 &&
+      bearishEdge >= 1.5 &&
       directionalTotals.bullish <= 0.25;
 
     if (positiveSentiment && bullishEdge >= 1.25) {
