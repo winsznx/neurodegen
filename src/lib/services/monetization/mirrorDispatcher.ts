@@ -72,8 +72,15 @@ export class MirrorDispatcher {
           outcomes.push(outcome);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[mirror] user ${sub.userId} failed:`, msg);
-          outcomes.push({ userId: sub.userId, action: 'failed', reason: msg });
+          // NotOrderOwner means Privy server-side signing sent the tx from the
+          // wrong wallet. Skip gracefully instead of spamming logs every cycle.
+          if (msg.includes('NotOrderOwner')) {
+            await recordSkipped(sub.userId, agentPosition, 'privy_signing_mismatch');
+            outcomes.push({ userId: sub.userId, action: 'skipped', reason: 'privy_signing_mismatch' });
+          } else {
+            console.error(`[mirror] user ${sub.userId} failed:`, msg);
+            outcomes.push({ userId: sub.userId, action: 'failed', reason: msg });
+          }
         }
       })
     );
