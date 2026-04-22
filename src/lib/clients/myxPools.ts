@@ -33,6 +33,10 @@ let cache: Map<string, PoolEntry> | null = null;
 let cacheLoadedAt = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
+function normalizeTickerKey(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 async function fetchMarketList(): Promise<MarketInfo[]> {
   const response = await getMarketList();
   if (response.code !== 9200 || !response.data) {
@@ -60,9 +64,10 @@ async function buildPoolMap(): Promise<Map<string, PoolEntry>> {
     fetchContractIndexMap(),
   ]);
 
+  const contractTickers = [...contractIndices.keys()];
   const map = new Map<string, PoolEntry>();
   for (const market of markets) {
-    const ticker = `${extractBaseSymbol(market)}_${market.quoteSymbol}`;
+    const ticker = resolveTickerForMarket(market, contractTickers);
     const entry: PoolEntry = {
       ticker,
       poolId: market.poolId,
@@ -79,8 +84,85 @@ async function buildPoolMap(): Promise<Map<string, PoolEntry>> {
 }
 
 function extractBaseSymbol(market: MarketInfo): string {
-  const parts = market.marketId.split(/[-_]/);
+  const quote = market.quoteSymbol.toUpperCase();
+  const cleaned = market.marketId
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+
+  if (!cleaned) return 'UNKNOWN';
+
+  if (cleaned.endsWith(`_${quote}`)) {
+    return cleaned.slice(0, -(`_${quote}`).length) || 'UNKNOWN';
+  }
+
+  if (cleaned.endsWith(quote)) {
+    return cleaned.slice(0, -quote.length).replace(/_+$/g, '') || 'UNKNOWN';
+  }
+
+  const quoteIndex = cleaned.indexOf(`_${quote}_`);
+  if (quoteIndex !== -1) {
+    return cleaned.slice(0, quoteIndex) || 'UNKNOWN';
+  }
+
+  const parts = cleaned.split(/[-_]/);
   return parts[0] ?? 'UNKNOWN';
+}
+
+function resolveTickerForMarket(market: MarketInfo, contractTickers: string[]): string {
+  const quote = market.quoteSymbol.toUpperCase();
+  const base = extractBaseSymbol(market);
+  const candidates = new Set<string>();
+
+  candidates.add(`${base}_${quote}`);
+
+  const cleanedMarketId = market.marketId
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+
+  if (cleanedMarketId) {
+    candidates.add(cleanedMarketId);
+
+    if (cleanedMarketId.endsWith(quote)) {
+      const inferredBase = cleanedMarketId
+        .slice(0, -quote.length)
+        .replace(/_+$/g, '');
+      if (inferredBase) {
+        candidates.add(`${inferredBase}_${quote}`);
+        candidates.add(`${inferredBase.replace(/_/g, '')}_${quote}`);
+      }
+    }
+
+    const quoteIndex = cleanedMarketId.indexOf(`_${quote}_`);
+    if (quoteIndex !== -1) {
+      const inferredBase = cleanedMarketId.slice(0, quoteIndex);
+      if (inferredBase) {
+        candidates.add(`${inferredBase}_${quote}`);
+        candidates.add(`${inferredBase.replace(/_/g, '')}_${quote}`);
+      }
+    }
+  }
+
+  for (const candidate of candidates) {
+    const exact = contractTickers.find((ticker) => ticker === candidate);
+    if (exact) return exact;
+
+    const caseInsensitive = contractTickers.find(
+      (ticker) => ticker.toUpperCase() === candidate.toUpperCase()
+    );
+    if (caseInsensitive) return caseInsensitive;
+
+    const normalized = normalizeTickerKey(candidate);
+    const canonical = contractTickers.find(
+      (ticker) => normalizeTickerKey(ticker) === normalized
+    );
+    if (canonical) return canonical;
+  }
+
+  return `${base}_${quote}`;
 }
 
 export async function getPoolRegistry(): Promise<Map<string, PoolEntry>> {
@@ -93,7 +175,16 @@ export async function getPoolRegistry(): Promise<Map<string, PoolEntry>> {
 
 export async function getPoolByTicker(ticker: string): Promise<PoolEntry | null> {
   const registry = await getPoolRegistry();
-  return registry.get(ticker) ?? null;
+  const exact = registry.get(ticker);
+  if (exact) return exact;
+
+  const upper = ticker.toUpperCase();
+  for (const [candidate, entry] of registry.entries()) {
+    if (candidate.toUpperCase() === upper) return entry;
+    if (normalizeTickerKey(candidate) === normalizeTickerKey(ticker)) return entry;
+  }
+
+  return null;
 }
 
 export async function getPoolByPair(pair: string): Promise<PoolEntry | null> {
