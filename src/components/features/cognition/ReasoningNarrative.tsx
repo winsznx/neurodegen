@@ -7,6 +7,7 @@ import {
   detectTask,
   sentimentLabel,
 } from './reasoningHelpers';
+import { getDisplayedAction, getExecutionSummary, formatActionLabel } from '@/lib/utils/reasoningDisplay';
 
 interface ReasoningNarrativeProps {
   graph: ReasoningGraph;
@@ -40,12 +41,17 @@ export function ReasoningNarrative({ graph }: ReasoningNarrativeProps) {
     : 'Classifier did not return parseable output.';
 
   const finalAction = graph.finalAction;
+  const displayedAction = getDisplayedAction(graph);
+  const executionSummary = getExecutionSummary(graph);
   const verdict =
-    finalAction.action === 'hold'
-      ? 'Final verdict: hold (no order submitted).'
-      : `Final verdict: ${finalAction.action.replace(/_/g, ' ')} ${finalAction.pair}` +
-        (finalAction.positionSizeUSD !== null ? ` with $${finalAction.positionSizeUSD} collateral` : '') +
-        (finalAction.leverageMultiplier !== null ? ` at ${finalAction.leverageMultiplier}x.` : '.');
+    displayedAction === 'hold'
+      ? `Final verdict: hold. ${executionSummary.body}`
+      : displayedAction === 'close_position'
+        ? `Final verdict: ${formatActionLabel(displayedAction)} ${finalAction.pair}. ${executionSummary.body}`
+        : `Final verdict: ${formatActionLabel(displayedAction)} ${finalAction.pair}` +
+          (finalAction.positionSizeUSD !== null ? ` with $${finalAction.positionSizeUSD} collateral` : '') +
+          (finalAction.leverageMultiplier !== null ? ` at ${finalAction.leverageMultiplier}x.` : '.') +
+          ` ${executionSummary.body}`;
 
   return (
     <Card>

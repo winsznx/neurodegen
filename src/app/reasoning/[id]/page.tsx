@@ -7,6 +7,7 @@ import { RegimeIndicator } from '@/components/features/cognition/RegimeIndicator
 import { ModelCallDetail } from '@/components/features/cognition/ModelCallDetail';
 import { ReasoningNarrative } from '@/components/features/cognition/ReasoningNarrative';
 import { getReasoningChainById } from '@/lib/queries/reasoningChains';
+import { formatActionLabel, getDisplayedAction, getExecutionSummary } from '@/lib/utils/reasoningDisplay';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export async function generateMetadata({
   if (!graph) {
     return { title: 'Reasoning chain not found', robots: { index: false, follow: false } };
   }
-  const action = graph.finalAction.action.replace(/_/g, ' ');
+  const action = formatActionLabel(getDisplayedAction(graph));
   const pct = Math.round(graph.finalAction.confidence * 100);
   const title = `${action.toUpperCase()} ${graph.finalAction.pair} · ${pct}% confidence`;
   const description = `${graph.regime} regime · ${graph.modelCalls.length} model calls · ${graph.finalAction.rationale.slice(0, 180)}`;
@@ -49,6 +50,10 @@ export default async function ReasoningDetailPage({
   const graph = await getReasoningChainById(id).catch(() => null);
   if (!graph) notFound();
 
+  const displayedAction = getDisplayedAction(graph);
+  const displayedActionLabel = formatActionLabel(displayedAction);
+  const executionSummary = getExecutionSummary(graph);
+  const isEntryAction = displayedAction === 'open_long' || displayedAction === 'open_short';
   const confidencePct = Math.round(graph.finalAction.confidence * 100);
   const createdAt = new Date(graph.createdAt).toLocaleString();
 
@@ -69,20 +74,36 @@ export default async function ReasoningDetailPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="font-mono text-3xl font-bold tracking-tight">
-                {graph.finalAction.action.replace(/_/g, ' ').toUpperCase()}
+                {displayedActionLabel.toUpperCase()}
               </h1>
               <p className="mt-2 font-mono text-xs text-text-secondary">
                 {graph.finalAction.pair} · {confidencePct}% confidence · {createdAt}
               </p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Badge tone={ACTION_TONE[graph.finalAction.action]} dot>
-                {graph.finalAction.action.replace(/_/g, ' ')}
+              <Badge tone={ACTION_TONE[displayedAction]} dot>
+                {displayedActionLabel}
               </Badge>
               <RegimeIndicator regime={graph.regime} />
             </div>
           </div>
         </header>
+
+        <Card>
+          <CardBody className="space-y-2">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
+              execution outcome
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={executionSummary.tone} dot>
+                {executionSummary.title}
+              </Badge>
+            </div>
+            <p className="text-sm leading-relaxed text-text-primary">
+              {executionSummary.body}
+            </p>
+          </CardBody>
+        </Card>
 
         <ReasoningNarrative graph={graph} />
 
@@ -97,10 +118,10 @@ export default async function ReasoningDetailPage({
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 font-mono text-xs sm:grid-cols-4">
-              <Field label="size" value={graph.finalAction.positionSizeUSD ? `$${graph.finalAction.positionSizeUSD}` : '—'} />
-              <Field label="leverage" value={graph.finalAction.leverageMultiplier ? `${graph.finalAction.leverageMultiplier}x` : '—'} />
-              <Field label="tp" value={graph.finalAction.tpPercentage ? `${(graph.finalAction.tpPercentage * 100).toFixed(1)}%` : '—'} />
-              <Field label="sl" value={graph.finalAction.slPercentage ? `${(graph.finalAction.slPercentage * 100).toFixed(1)}%` : '—'} />
+              <Field label="size" value={isEntryAction && graph.finalAction.positionSizeUSD ? `$${graph.finalAction.positionSizeUSD}` : '—'} />
+              <Field label="leverage" value={isEntryAction && graph.finalAction.leverageMultiplier ? `${graph.finalAction.leverageMultiplier}x` : '—'} />
+              <Field label="tp" value={isEntryAction && graph.finalAction.tpPercentage ? `${(graph.finalAction.tpPercentage * 100).toFixed(1)}%` : '—'} />
+              <Field label="sl" value={isEntryAction && graph.finalAction.slPercentage ? `${(graph.finalAction.slPercentage * 100).toFixed(1)}%` : '—'} />
             </div>
           </CardBody>
         </Card>

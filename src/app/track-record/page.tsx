@@ -1,8 +1,9 @@
+import { Suspense } from 'react';
 import type { PositionState } from '@/types/execution';
 import { Shell } from '@/components/layout/Shell';
-import { Card, CardBody, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { Card, CardBody, CardHeader, CardTitle, Badge, Skeleton } from '@/components/ui';
 import { getPositionHistory } from '@/lib/queries/positions';
-import { getAttestationHistory } from '@/lib/services/attestationHistory';
+import { getAttestationHistory, type AttestationHistory } from '@/lib/services/attestationHistory';
 import { TrackRecordHeader } from './TrackRecordHeader';
 import { TrackRecordStats } from './TrackRecordStats';
 import { TrackRecordPairs } from './TrackRecordPairs';
@@ -47,10 +48,8 @@ function rollupByPair(positions: PositionState[]): PairRollup[] {
 }
 
 export default async function TrackRecordPage() {
-  const [history, attestation] = await Promise.all([
-    getPositionHistory(200).catch(() => [] as PositionState[]),
-    getAttestationHistory().catch(() => null),
-  ]);
+  const history = await getPositionHistory(200).catch(() => [] as PositionState[]);
+  const attestationPromise: Promise<AttestationHistory | null> = getAttestationHistory().catch(() => null);
 
   const closed = history.filter((p) => CLOSED_STATES.has(p.status) && p.closedAt !== null);
 
@@ -69,14 +68,9 @@ export default async function TrackRecordPage() {
     <Shell>
       <LiveRefresh />
       <div className="mx-auto max-w-7xl space-y-6 px-6 py-10">
-        <TrackRecordHeader
-          indexedAt={attestation?.indexedAt ?? 0}
-          contractAddress={attestation?.contractAddress ?? null}
-          onChainOpens={attestation?.opens.length ?? 0}
-          onChainCloses={attestation?.closes.length ?? 0}
-          fromBlock={attestation?.fromBlock ?? 0n}
-          toBlock={attestation?.toBlock ?? 0n}
-        />
+        <Suspense fallback={<TrackRecordHeaderSkeleton />}>
+          <TrackRecordHeaderAsync attestationPromise={attestationPromise} />
+        </Suspense>
 
         {closed.length === 0 ? <EmptyState /> : null}
 
@@ -96,9 +90,80 @@ export default async function TrackRecordPage() {
 
         {recent.length > 0 ? <TrackRecordTable positions={recent} /> : null}
 
-        <Disclaimer verifiedOnChainEvents={(attestation?.opens.length ?? 0) + (attestation?.closes.length ?? 0)} />
+        <Suspense fallback={<Disclaimer verifiedOnChainEvents={0} />}>
+          <DisclaimerAsync attestationPromise={attestationPromise} />
+        </Suspense>
       </div>
     </Shell>
+  );
+}
+
+async function TrackRecordHeaderAsync({
+  attestationPromise,
+}: {
+  attestationPromise: Promise<AttestationHistory | null>;
+}) {
+  const attestation = await attestationPromise;
+
+  return (
+    <TrackRecordHeader
+      indexedAt={attestation?.indexedAt ?? 0}
+      contractAddress={attestation?.contractAddress ?? null}
+      onChainOpens={attestation?.opens.length ?? 0}
+      onChainCloses={attestation?.closes.length ?? 0}
+      fromBlock={attestation?.fromBlock ?? 0n}
+      toBlock={attestation?.toBlock ?? 0n}
+    />
+  );
+}
+
+async function DisclaimerAsync({
+  attestationPromise,
+}: {
+  attestationPromise: Promise<AttestationHistory | null>;
+}) {
+  const attestation = await attestationPromise;
+  return <Disclaimer verifiedOnChainEvents={(attestation?.opens.length ?? 0) + (attestation?.closes.length ?? 0)} />;
+}
+
+function TrackRecordHeaderSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
+          track record
+        </div>
+        <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-text-primary">
+          Every position the agent has taken.
+        </h1>
+        <p className="mt-2 max-w-3xl font-mono text-xs leading-relaxed text-text-secondary">
+          No cherry-picking. No backtest. Real trades, real P&amp;L, committed on-chain before execution and revealed after.
+        </p>
+      </div>
+
+      <Card>
+        <CardBody>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">attestation contract</div>
+              <Skeleton className="h-4 w-28" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">on-chain events</div>
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">blocks indexed</div>
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">indexed at</div>
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
 

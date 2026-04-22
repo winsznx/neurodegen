@@ -3,6 +3,7 @@ import type { ReasoningGraph } from '@/types/cognition';
 import { Card, CardHeader, CardTitle, CardBody, Badge } from '@/components/ui';
 import { RegimeIndicator } from './RegimeIndicator';
 import { ReasoningNodeCard } from './ReasoningNodeCard';
+import { formatActionLabel, getDisplayedAction, getExecutionSummary } from '@/lib/utils/reasoningDisplay';
 
 interface ReasoningChainViewProps {
   graph: ReasoningGraph | null;
@@ -32,6 +33,8 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
     );
   }
 
+  const displayedAction = getDisplayedAction(graph);
+  const executionSummary = getExecutionSummary(graph);
   const confidencePct = Math.round(graph.finalAction.confidence * 100);
 
   return (
@@ -49,8 +52,8 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
         <div className="flex items-start justify-between gap-3">
           <RegimeIndicator regime={graph.regime} />
           <div className="flex flex-col items-end gap-1">
-            <Badge tone={ACTION_TONE[graph.finalAction.action]}>
-              {graph.finalAction.action.replace(/_/g, ' ')}
+            <Badge tone={ACTION_TONE[displayedAction]}>
+              {formatActionLabel(displayedAction)}
             </Badge>
             <span className="font-mono text-[10px] text-text-tertiary">
               {confidencePct}% confidence
@@ -58,8 +61,13 @@ export function ReasoningChainView({ graph }: ReasoningChainViewProps) {
           </div>
         </div>
 
-        <div className="font-mono text-xs leading-relaxed text-text-secondary">
-          {graph.finalAction.rationale}
+        <div className="space-y-2">
+          <div className="font-mono text-xs leading-relaxed text-text-secondary">
+            {graph.finalAction.rationale}
+          </div>
+          <div className="font-mono text-[11px] leading-relaxed text-text-tertiary">
+            {executionSummary.title}: {executionSummary.body}
+          </div>
         </div>
 
         <div className="space-y-2 pt-2">

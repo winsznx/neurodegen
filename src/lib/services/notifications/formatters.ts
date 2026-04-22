@@ -157,6 +157,7 @@ function humanExitReason(reason: string): string {
     external_close: 'closed externally on MYX',
     manual: 'manual close',
     admin: 'admin close',
+    signal_exit: 'agent signal close',
     liquidated: 'liquidated',
   };
   return map[reason] ?? reason;

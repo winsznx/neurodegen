@@ -17,6 +17,7 @@ import { toCollateralScale } from '@/lib/utils/decimalScaling';
 import { BSC_CHAIN_ID } from '@/config/chains';
 import { DEFAULT_LEVERAGE } from '@/config/execution';
 import { MAX_LEVERAGE_HARD_CAP } from '@/config/risk';
+import { NO_OPEN_MANAGED_POSITION_TO_CLOSE } from './executionMessages';
 
 interface ExecutionResult {
   executed: boolean;
@@ -47,8 +48,53 @@ export class ExecutionGateway {
     }
 
     if (recommendation.action === 'close_position') {
-      console.log('[execution-gateway] close_position action received — handled by checkAndClosePositions, skipping here');
-      return { executed: false, orderId: null, txHash: null, failureReason: null };
+      try {
+        const openPositions = await getOpenPositions();
+        const closablePositions = openPositions.filter((position) => position.status === 'managed');
+
+        if (closablePositions.length === 0) {
+          return {
+            executed: false,
+            orderId: null,
+            txHash: null,
+            failureReason: NO_OPEN_MANAGED_POSITION_TO_CLOSE,
+          };
+        }
+
+        const failures: string[] = [];
+        let lastTxHash: string | null = null;
+        let closedCount = 0;
+
+        for (const position of closablePositions) {
+          const result = await this.closeSinglePosition(position, 'signal_exit');
+          if (result.closed) {
+            closedCount += 1;
+            lastTxHash = result.txHash ?? lastTxHash;
+          } else if (result.error) {
+            failures.push(`${position.pair}: ${result.error}`);
+          }
+        }
+
+        if (closedCount === 0) {
+          return {
+            executed: false,
+            orderId: null,
+            txHash: null,
+            failureReason: failures.join('; ') || 'Failed to close managed positions',
+          };
+        }
+
+        return {
+          executed: true,
+          orderId: null,
+          txHash: lastTxHash,
+          failureReason: failures.length > 0 ? `Closed ${closedCount}/${closablePositions.length} positions. ${failures.join('; ')}` : null,
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[execution-gateway] close_position error:', msg);
+        return { executed: false, orderId: null, txHash: null, failureReason: msg };
+      }
     }
 
     try {
@@ -162,7 +208,7 @@ export class ExecutionGateway {
 
   async closeSinglePosition(
     position: PositionState,
-    reason: 'manual' | 'admin' = 'manual'
+    reason: 'manual' | 'admin' | 'signal_exit' = 'manual'
   ): Promise<{ closed: boolean; txHash: string | null; error: string | null }> {
     try {
       await updatePositionStatus(position.positionId, { status: 'pending' });
