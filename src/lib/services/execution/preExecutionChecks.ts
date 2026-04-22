@@ -45,17 +45,33 @@ export async function oracleDivergenceCheck(
   try {
     const snapshots = hotState.getRecentEvents('myx');
     const snap = snapshots.find((e) => 'pair' in e && (e as { pair: string }).pair === pair);
-    if (!snap || !('lastPrice' in snap)) {
+    if (!snap || !('lastPrice' in snap) || !('indexPrice' in snap)) {
       return { name: 'oracle_divergence', passed: false, value: 'N/A', threshold: ORACLE_DIVERGENCE_MAX, message: 'no MYX snapshot yet' };
     }
     const myxPrice = (snap as { lastPrice: number }).lastPrice;
-    const price = await pythPrice(pyth, feedId);
-    if (!Number.isFinite(price) || price === 0) {
-      return { name: 'oracle_divergence', passed: false, value: 'N/A', threshold: ORACLE_DIVERGENCE_MAX, message: 'Pyth price unavailable' };
+    const myxIndexPrice = (snap as { indexPrice: number }).indexPrice;
+    let referencePrice = 0;
+    let source: 'pyth' | 'myx_index' = 'pyth';
+
+    try {
+      referencePrice = await pythPrice(pyth, feedId);
+    } catch {
+      referencePrice = myxIndexPrice;
+      source = 'myx_index';
     }
-    const divergence = Math.abs(myxPrice - price) / price;
+
+    if (!Number.isFinite(referencePrice) || referencePrice === 0) {
+      return { name: 'oracle_divergence', passed: false, value: 'N/A', threshold: ORACLE_DIVERGENCE_MAX, message: 'Pyth price unavailable and MYX index price unavailable' };
+    }
+    const divergence = Math.abs(myxPrice - referencePrice) / referencePrice;
     const passed = divergence < ORACLE_DIVERGENCE_MAX;
-    return { name: 'oracle_divergence', passed, value: divergence, threshold: ORACLE_DIVERGENCE_MAX, message: passed ? 'ok' : `divergence ${(divergence * 100).toFixed(2)}% exceeds max` };
+    return {
+      name: 'oracle_divergence',
+      passed,
+      value: divergence,
+      threshold: ORACLE_DIVERGENCE_MAX,
+      message: passed ? `ok (${source})` : `divergence ${(divergence * 100).toFixed(2)}% exceeds max (${source})`,
+    };
   } catch (err) {
     return { name: 'oracle_divergence', passed: false, value: 'error', threshold: ORACLE_DIVERGENCE_MAX, message: err instanceof Error ? err.message : String(err) };
   }
@@ -88,9 +104,20 @@ export function slippageCheck(pair: string, proposedSizeUsd: number, hotState: H
     return { name: 'slippage', passed: true, value: 0, threshold: MAX_SLIPPAGE, message: 'no OI data, skipping' };
   }
   const oiUsd = (snap as { openInterestUsd: number }).openInterestUsd;
-  const estimated = oiUsd > 0 ? proposedSizeUsd / oiUsd : 1;
+  const quoteVolumeUsd = 'quoteVolume' in snap ? (snap as { quoteVolume: number }).quoteVolume : 0;
+  const liquidityBasisUsd = Math.max(oiUsd, quoteVolumeUsd);
+  if (liquidityBasisUsd <= 0) {
+    return { name: 'slippage', passed: true, value: 0, threshold: MAX_SLIPPAGE, message: 'no liquidity basis, skipping' };
+  }
+  const estimated = proposedSizeUsd / liquidityBasisUsd;
   const passed = estimated <= MAX_SLIPPAGE;
-  return { name: 'slippage', passed, value: estimated, threshold: MAX_SLIPPAGE, message: passed ? 'ok' : `estimated slippage ${(estimated * 100).toFixed(2)}% exceeds max` };
+  return {
+    name: 'slippage',
+    passed,
+    value: estimated,
+    threshold: MAX_SLIPPAGE,
+    message: passed ? 'ok' : `estimated slippage ${(estimated * 100).toFixed(2)}% exceeds max`,
+  };
 }
 
 export function collateralCheck(

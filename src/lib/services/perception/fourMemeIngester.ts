@@ -2,11 +2,11 @@ import { decodeEventLog, type Log } from 'viem';
 import { logsPublicClient } from '@/lib/clients/chain';
 import { fourMemeTokenManagerAbi } from '@/lib/abis/fourMemeTokenManager';
 import { FOURMEME_TOKEN_MANAGER } from '@/config/chains';
+import { FOURMEME_BACKFILL_BLOCKS } from '@/config/perception';
 import type { HotStateStore } from '@/lib/stores/hotState';
 import type { PerceptionEvent, LaunchEvent, PurchaseEvent, GraduationEvent } from '@/types/perception';
 
 const POLL_INTERVAL_MS = 10_000;
-const BACKFILL_BLOCKS = 20n;
 const MAX_CONSECUTIVE_ERRORS = 5;
 const BACKOFF_MS = 30_000;
 
@@ -104,7 +104,12 @@ export class FourMemeIngester {
 
     try {
       const toBlock = await logsPublicClient.getBlockNumber();
-      const fromBlock = this.lastBlock !== null ? this.lastBlock + 1n : toBlock - BACKFILL_BLOCKS;
+      const backfillBlocks = BigInt(Math.max(FOURMEME_BACKFILL_BLOCKS, 1));
+      const fromBlock = this.lastBlock !== null
+        ? this.lastBlock + 1n
+        : toBlock > backfillBlocks
+          ? toBlock - backfillBlocks
+          : 0n;
 
       if (fromBlock > toBlock) {
         this.scheduleNext();

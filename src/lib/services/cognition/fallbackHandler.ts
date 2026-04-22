@@ -13,7 +13,7 @@ import {
   MODEL_CALL_TIMEOUT_MS,
   MODEL_RETRY_DELAY_MS,
 } from '@/config/cognition';
-import { ENABLE_BYOK_ROUTING } from '@/config/features';
+import { DISABLE_DGRID_ROUTING, ENABLE_BYOK_ROUTING, PREFER_BYOK_ROUTING } from '@/config/features';
 
 export interface ModelCallAttempt {
   modelId: string;
@@ -77,6 +77,24 @@ function byokAllowed(envKey: string): boolean {
   return !!process.env[envKey];
 }
 
+function dgridAllowed(): boolean {
+  return !DISABLE_DGRID_ROUTING && !!process.env.DGRID_API_KEY;
+}
+
+function shouldStopDgrid(attempt: ModelCallAttempt | undefined): boolean {
+  if (!attempt || attempt.routingDecision !== 'dgrid' || attempt.success) return false;
+  const message = (attempt.error ?? '').toLowerCase();
+  return (
+    message.includes('status=402') ||
+    message.includes('status=429') ||
+    message.includes('payment required') ||
+    message.includes('quota') ||
+    message.includes('credit') ||
+    message.includes('rate limit') ||
+    message.includes('api key environment variable is not set')
+  );
+}
+
 export class FallbackHandler {
   async callWithFallback(
     task: 'sentiment' | 'extraction' | 'classification',
@@ -100,26 +118,78 @@ export class FallbackHandler {
     return a.success ? this.result(a, attempts) : null;
   }
 
-  // Sentiment: exhaust every DGrid option before touching Anthropic BYOK.
+  private lastAttempt(attempts: ModelCallAttempt[]): ModelCallAttempt | undefined {
+    return attempts[attempts.length - 1];
+  }
+
+  private async maybeRunDgridCandidate(
+    attempts: ModelCallAttempt[],
+    dgridState: { available: boolean },
+    fn: () => Promise<{ text: string; inputTokens: number; outputTokens: number }>,
+    modelId: string,
+    endpointFormat: ModelCallAttempt['endpointFormat']
+  ): Promise<FallbackResult | null> {
+    if (!dgridState.available) return null;
+    const result = await this.runCandidate(attempts, fn, modelId, endpointFormat, 'dgrid');
+    if (result) return result;
+    if (shouldStopDgrid(this.lastAttempt(attempts))) {
+      dgridState.available = false;
+    }
+    return null;
+  }
+
   private async sentimentChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
+    const dgridState = { available: dgridAllowed() };
 
-    const r1 = await this.runCandidate(attempts,
-      () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID), CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
+    if (PREFER_BYOK_ROUTING && byokAllowed('ANTHROPIC_API_KEY')) {
+      const byok = await this.runCandidate(
+        attempts,
+        () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID),
+        CLAUDE_DIRECT_MODEL_ID,
+        'claude_native',
+        'byok'
+      );
+      if (byok) return byok;
+    }
+
+    const r1 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
+      () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID),
+      CLAUDE_MODEL_ID,
+      'claude_native'
+    );
     if (r1) return r1;
 
-    await delay(MODEL_RETRY_DELAY_MS);
-    const r2 = await this.runCandidate(attempts,
-      () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID), CLAUDE_MODEL_ID, 'claude_native', 'dgrid');
-    if (r2) return r2;
+    if (dgridState.available) {
+      await delay(MODEL_RETRY_DELAY_MS);
+      const r2 = await this.maybeRunDgridCandidate(
+        attempts,
+        dgridState,
+        () => callClaudeNative(sp, uc, CLAUDE_MODEL_ID),
+        CLAUDE_MODEL_ID,
+        'claude_native'
+      );
+      if (r2) return r2;
+    }
 
-    const r3 = await this.runCandidate(attempts,
-      () => callClaudeNative(sp, uc, CLAUDE_FALLBACK_MODEL_ID), CLAUDE_FALLBACK_MODEL_ID, 'claude_native', 'dgrid');
+    const r3 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
+      () => callClaudeNative(sp, uc, CLAUDE_FALLBACK_MODEL_ID),
+      CLAUDE_FALLBACK_MODEL_ID,
+      'claude_native'
+    );
     if (r3) return r3;
 
-    const r4 = await this.runCandidate(attempts,
+    const r4 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+      GPT4O_MODEL_ID,
+      'openai_compatible'
+    );
     if (r4) return r4;
 
     if (byokAllowed('ANTHROPIC_API_KEY')) {
@@ -136,26 +206,56 @@ export class FallbackHandler {
   // Extraction: DGrid-first across multiple models + providers before BYOK.
   private async extractionChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
+    const dgridState = { available: dgridAllowed() };
 
-    const r1 = await this.runCandidate(attempts,
+    if (PREFER_BYOK_ROUTING && byokAllowed('OPENAI_API_KEY')) {
+      const byok = await this.runCandidate(
+        attempts,
+        () => callOpenAICompatible(GPT4O_DIRECT_MODEL_ID, sp, uc, createByokOpenAIClient()),
+        GPT4O_DIRECT_MODEL_ID,
+        'openai_compatible',
+        'byok'
+      );
+      if (byok) return byok;
+    }
+
+    const r1 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+      GPT4O_MODEL_ID,
+      'openai_compatible'
+    );
     if (r1) return r1;
 
-    await delay(MODEL_RETRY_DELAY_MS);
-    const r2 = await this.runCandidate(attempts,
-      () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
-    if (r2) return r2;
+    if (dgridState.available) {
+      await delay(MODEL_RETRY_DELAY_MS);
+      const r2 = await this.maybeRunDgridCandidate(
+        attempts,
+        dgridState,
+        () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+        GPT4O_MODEL_ID,
+        'openai_compatible'
+      );
+      if (r2) return r2;
+    }
 
-    const r3 = await this.runCandidate(attempts,
+    const r3 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(GPT4O_FALLBACK_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      GPT4O_FALLBACK_MODEL_ID, 'openai_compatible', 'dgrid');
+      GPT4O_FALLBACK_MODEL_ID,
+      'openai_compatible'
+    );
     if (r3) return r3;
 
-    const r4 = await this.runCandidate(attempts,
+    const r4 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
+      LLAMA_MODEL_ID,
+      'openai_compatible'
+    );
     if (r4) return r4;
 
     if (byokAllowed('OPENAI_API_KEY')) {
@@ -179,26 +279,56 @@ export class FallbackHandler {
   // Classification: DGrid-first across DeepSeek, Qwen, GPT-4o before BYOK.
   private async classificationChain(sp: string, uc: string): Promise<FallbackResult> {
     const attempts: ModelCallAttempt[] = [];
+    const dgridState = { available: dgridAllowed() };
 
-    const r1 = await this.runCandidate(attempts,
+    if (PREFER_BYOK_ROUTING && byokAllowed('ANTHROPIC_API_KEY')) {
+      const byok = await this.runCandidate(
+        attempts,
+        () => callClaudeAnthropicDirect(sp, uc, CLAUDE_DIRECT_MODEL_ID),
+        CLAUDE_DIRECT_MODEL_ID,
+        'claude_native',
+        'byok'
+      );
+      if (byok) return byok;
+    }
+
+    const r1 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
+      LLAMA_MODEL_ID,
+      'openai_compatible'
+    );
     if (r1) return r1;
 
-    await delay(MODEL_RETRY_DELAY_MS);
-    const r2 = await this.runCandidate(attempts,
-      () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      LLAMA_MODEL_ID, 'openai_compatible', 'dgrid');
-    if (r2) return r2;
+    if (dgridState.available) {
+      await delay(MODEL_RETRY_DELAY_MS);
+      const r2 = await this.maybeRunDgridCandidate(
+        attempts,
+        dgridState,
+        () => callOpenAICompatible(LLAMA_MODEL_ID, sp, uc, createDGridOpenAIClient()),
+        LLAMA_MODEL_ID,
+        'openai_compatible'
+      );
+      if (r2) return r2;
+    }
 
-    const r3 = await this.runCandidate(attempts,
+    const r3 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(LLAMA_FALLBACK_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      LLAMA_FALLBACK_MODEL_ID, 'openai_compatible', 'dgrid');
+      LLAMA_FALLBACK_MODEL_ID,
+      'openai_compatible'
+    );
     if (r3) return r3;
 
-    const r4 = await this.runCandidate(attempts,
+    const r4 = await this.maybeRunDgridCandidate(
+      attempts,
+      dgridState,
       () => callOpenAICompatible(GPT4O_MODEL_ID, sp, uc, createDGridOpenAIClient()),
-      GPT4O_MODEL_ID, 'openai_compatible', 'dgrid');
+      GPT4O_MODEL_ID,
+      'openai_compatible'
+    );
     if (r4) return r4;
 
     if (byokAllowed('ANTHROPIC_API_KEY')) {

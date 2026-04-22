@@ -8,7 +8,7 @@ function envNumber(name: string, fallback: number): number {
 export const ORACLE_DIVERGENCE_MAX: number = envNumber('ORACLE_DIVERGENCE_MAX', 0.005);
 export const OI_IMBALANCE_MAX: number = envNumber('OI_IMBALANCE_MAX', 0.7);
 export const FUNDING_RATE_MAX: number = envNumber('FUNDING_RATE_MAX', 0.001);
-export const MAX_SLIPPAGE: number = envNumber('MAX_SLIPPAGE', 0.005);
+export const MAX_SLIPPAGE: number = envNumber('MAX_SLIPPAGE', 0.02);
 export const GAS_BUFFER_BNB: number = envNumber('GAS_BUFFER_BNB', 0.01);
 export const GAS_HARD_CAP: number = 1_000_000;
 export const KEEPER_POLL_INTERVAL_MS: number = parseInt(process.env.KEEPER_POLL_INTERVAL_MS ?? '2000', 10);

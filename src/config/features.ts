@@ -20,6 +20,10 @@ export const ENABLE_PIEVERSE_SKILL: boolean = envBool('ENABLE_PIEVERSE_SKILL', t
 // BYOK (your own OpenAI/Anthropic keys) routing. Off by default so sponsor DGrid
 // credits carry the load and your paid keys only fire if explicitly enabled AND DGrid fails.
 export const ENABLE_BYOK_ROUTING: boolean = envBool('ENABLE_BYOK_ROUTING', false);
+// When true, funded BYOK routes are tried before DGrid. Useful when DGrid quota is exhausted.
+export const PREFER_BYOK_ROUTING: boolean = envBool('PREFER_BYOK_ROUTING', false);
+// When true, skip DGrid entirely and use only funded BYOK / degraded fallbacks.
+export const DISABLE_DGRID_ROUTING: boolean = envBool('DISABLE_DGRID_ROUTING', false);
 
 // Gemini third format path. Off by default.
 export const ENABLE_GEMINI_FORMAT: boolean = envBool('ENABLE_GEMINI_FORMAT', false);
