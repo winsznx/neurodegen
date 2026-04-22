@@ -13,6 +13,7 @@ import { RiskManager } from './riskManager';
 export interface ExecutionLayer {
   sdk: MyxClient;
   gateway: ExecutionGateway;
+  tracker: PositionTracker;
   agentAddress: `0x${string}`;
 }
 
@@ -30,5 +31,5 @@ export function buildExecutionLayer(): ExecutionLayer {
   const attestation = new AttestationEmitter();
   const gateway = new ExecutionGateway(sdk, preChecker, submitter, tracker, attestation, agentAddress);
 
-  return { sdk, gateway, agentAddress };
+  return { sdk, gateway, tracker, agentAddress };
 }

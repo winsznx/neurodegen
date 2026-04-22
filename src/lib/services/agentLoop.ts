@@ -92,6 +92,7 @@ export class AgentLoop {
       try {
         const layer = buildExecutionLayer();
         this.gateway = layer.gateway;
+        await layer.tracker.reconcileOnBoot();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn('[agent-loop] execution layer not initialized:', msg);
