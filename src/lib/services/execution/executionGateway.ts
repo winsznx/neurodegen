@@ -126,7 +126,7 @@ export class ExecutionGateway {
       const context = await resolveOrderContext(recommendation.pair, this.agentAddress, positionId);
       const indexPrice = await getSinglePrice(context.poolId);
 
-      const placeParams = buildIncreaseOrderParams(
+      const { params: placeParams, meta: orderMeta } = buildIncreaseOrderParams(
         executableRecommendation,
         regimeParameters,
         indexPrice,
@@ -157,10 +157,10 @@ export class ExecutionGateway {
         entryPrice: indexPrice,
         exitPrice: null,
         collateralUsd: effectiveCollateralUsd,
-        sizeAmount: effectiveCollateralUsd * leverage / indexPrice,
+        sizeAmount: orderMeta.sizeAmount,
         leverage,
-        tpPrice: parseFloat(placeParams.tpPrice ?? '0') || null,
-        slPrice: parseFloat(placeParams.slPrice ?? '0') || null,
+        tpPrice: orderMeta.tpPrice || null,
+        slPrice: orderMeta.slPrice || null,
         status: submit.dryRun ? 'submitted' : 'pending',
         orderId: submit.orderId,
         entryTxHash: submit.txHash,

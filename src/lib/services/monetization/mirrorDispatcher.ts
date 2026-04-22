@@ -116,7 +116,7 @@ async function mirrorOne(
     cooldownAfterLossMs: 900_000,
   };
 
-  const params = buildIncreaseOrderParams(mirrorAction, regimeParams, indexPrice, {
+  const { params: placeParams } = buildIncreaseOrderParams(mirrorAction, regimeParams, indexPrice, {
     pair: agentPosition.pair,
     poolId: pool.poolId,
     marketId: pool.marketId,
@@ -129,7 +129,7 @@ async function mirrorOne(
 
   const networkFee = await sdk.utils.getNetworkFee(pool.marketId, BSC_CHAIN_ID).catch(() => '0');
   const feeAmount = typeof networkFee === 'string' ? networkFee : String(networkFee?.volScale ?? '0');
-  const submit = await submitter.submitIncreaseOrder(params, feeAmount);
+  const submit = await submitter.submitIncreaseOrder(placeParams, feeAmount);
 
   const record: UserPosition = {
     userPositionId,

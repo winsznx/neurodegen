@@ -5,6 +5,7 @@ import type { ActionRecommendation } from '@/types/cognition';
 import type { MyxOrderContext } from '@/types/myx';
 import type { PositionState } from '@/types/execution';
 import type { RegimeParameters } from '@/lib/services/cognition/regimeClassifier';
+import { toCollateralScale, toPriceScale } from '@/lib/utils/decimalScaling';
 
 const AGENT_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`;
 const POOL_ID = '0xabc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abc1';
@@ -45,49 +46,78 @@ function action(overrides: Partial<ActionRecommendation> = {}): ActionRecommenda
 
 describe('buildIncreaseOrderParams', () => {
   it('marks open_long as Direction.LONG', () => {
-    const params = buildIncreaseOrderParams(action({ action: 'open_long' }), DEFAULT_PARAMS, 65000, CONTEXT);
+    const { params } = buildIncreaseOrderParams(action({ action: 'open_long' }), DEFAULT_PARAMS, 65000, CONTEXT);
     expect(params.direction).toBe(Direction.LONG);
   });
 
   it('marks open_short as Direction.SHORT', () => {
-    const params = buildIncreaseOrderParams(action({ action: 'open_short' }), DEFAULT_PARAMS, 65000, CONTEXT);
+    const { params } = buildIncreaseOrderParams(action({ action: 'open_short' }), DEFAULT_PARAMS, 65000, CONTEXT);
     expect(params.direction).toBe(Direction.SHORT);
   });
 
   it('sets orderType MARKET and triggerType NONE', () => {
-    const params = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
+    const { params } = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
     expect(params.orderType).toBe(OrderType.MARKET);
     expect(params.triggerType).toBe(TriggerType.NONE);
   });
 
   it('price is "0" for market orders', () => {
-    const params = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
+    const { params } = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
     expect(params.price).toBe('0');
   });
 
-  it('computes size from notional / index price', () => {
-    const params = buildIncreaseOrderParams(action({ positionSizeUSD: 20, leverageMultiplier: 10 }), DEFAULT_PARAMS, 100, CONTEXT);
-    expect(parseFloat(params.size)).toBeCloseTo(2, 5);
+  it('all numeric fields are BigInt-compatible integer strings', () => {
+    const { params } = buildIncreaseOrderParams(action({ positionSizeUSD: 1 }), DEFAULT_PARAMS, 100, CONTEXT);
+    // This is the exact crash scenario: $1 collateral was emitted as "1.00000000"
+    expect(() => BigInt(params.collateralAmount)).not.toThrow();
+    expect(() => BigInt(params.size)).not.toThrow();
+    expect(() => BigInt(params.tpPrice!)).not.toThrow();
+    expect(() => BigInt(params.slPrice!)).not.toThrow();
+    expect(() => BigInt(params.tpSize!)).not.toThrow();
+    expect(() => BigInt(params.slSize!)).not.toThrow();
   });
 
-  it('sets long TP above and SL below index price', () => {
-    const params = buildIncreaseOrderParams(action({ action: 'open_long' }), DEFAULT_PARAMS, 1000, CONTEXT);
-    expect(parseFloat(params.tpPrice!)).toBeCloseTo(1050, 2);
-    expect(parseFloat(params.slPrice!)).toBeCloseTo(970, 2);
+  it('collateralAmount is scaled to 18 decimals', () => {
+    const { params } = buildIncreaseOrderParams(action({ positionSizeUSD: 20 }), DEFAULT_PARAMS, 100, CONTEXT);
+    expect(BigInt(params.collateralAmount)).toBe(toCollateralScale(20));
   });
 
-  it('sets short TP below and SL above index price', () => {
-    const params = buildIncreaseOrderParams(action({ action: 'open_short' }), DEFAULT_PARAMS, 1000, CONTEXT);
-    expect(parseFloat(params.tpPrice!)).toBeCloseTo(950, 2);
-    expect(parseFloat(params.slPrice!)).toBeCloseTo(1030, 2);
+  it('size is scaled to 18 decimals from notional / price', () => {
+    // $20 collateral * 10x leverage = $200 notional / $100 price = 2 units
+    const { params } = buildIncreaseOrderParams(action({ positionSizeUSD: 20, leverageMultiplier: 10 }), DEFAULT_PARAMS, 100, CONTEXT);
+    expect(BigInt(params.size)).toBe(toCollateralScale(2));
+  });
+
+  it('returns human-readable meta alongside scaled params', () => {
+    const { meta } = buildIncreaseOrderParams(action({ positionSizeUSD: 20, leverageMultiplier: 10 }), DEFAULT_PARAMS, 100, CONTEXT);
+    expect(meta.collateralUsd).toBe(20);
+    expect(meta.sizeAmount).toBeCloseTo(2, 5);
+    expect(meta.tpPrice).toBeCloseTo(105, 2);
+    expect(meta.slPrice).toBeCloseTo(97, 2);
+  });
+
+  it('sets long TP above and SL below index price (scaled)', () => {
+    const { params } = buildIncreaseOrderParams(action({ action: 'open_long' }), DEFAULT_PARAMS, 1000, CONTEXT);
+    expect(BigInt(params.tpPrice!)).toBe(toPriceScale(1050));
+    expect(BigInt(params.slPrice!)).toBe(toPriceScale(970));
+  });
+
+  it('sets short TP below and SL above index price (scaled)', () => {
+    const { params } = buildIncreaseOrderParams(action({ action: 'open_short' }), DEFAULT_PARAMS, 1000, CONTEXT);
+    expect(BigInt(params.tpPrice!)).toBe(toPriceScale(950));
+    expect(BigInt(params.slPrice!)).toBe(toPriceScale(1030));
+  });
+
+  it('positionId is empty for fresh opens (SDK uses salt path)', () => {
+    const { params } = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
+    expect(params.positionId).toBe('');
   });
 
   it('passes through context fields', () => {
-    const params = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
+    const { params } = buildIncreaseOrderParams(action(), DEFAULT_PARAMS, 65000, CONTEXT);
     expect(params.poolId).toBe(POOL_ID);
     expect(params.address).toBe(AGENT_ADDRESS);
     expect(params.chainId).toBe(56);
-    expect(params.positionId).toBe('pos-001');
   });
 });
 
@@ -118,11 +148,12 @@ describe('buildDecreaseOrderParams', () => {
   it('collateralAmount is "0" for full close', () => {
     const params = buildDecreaseOrderParams(position, CONTEXT);
     expect(params.collateralAmount).toBe('0');
+    expect(() => BigInt(params.collateralAmount)).not.toThrow();
   });
 
-  it('size matches position sizeAmount', () => {
+  it('size is scaled to 18 decimals', () => {
     const params = buildDecreaseOrderParams(position, CONTEXT);
-    expect(parseFloat(params.size)).toBeCloseTo(2, 5);
+    expect(BigInt(params.size)).toBe(toCollateralScale(2));
   });
 
   it('direction matches position isLong', () => {

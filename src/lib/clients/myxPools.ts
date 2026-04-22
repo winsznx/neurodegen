@@ -5,6 +5,8 @@ export interface PoolEntry {
   poolId: string;
   marketId: string;
   contractIndex: number;
+  baseSymbol: string;
+  baseDecimals: number;
   quoteSymbol: string;
   quoteToken: string;
   quoteDecimals: number;
@@ -82,6 +84,8 @@ async function buildPoolMap(): Promise<Map<string, PoolEntry>> {
       poolId: market.poolId,
       marketId: market.marketId,
       contractIndex: contract?.contractIndex ?? -1,
+      baseSymbol: market.baseSymbol,
+      baseDecimals: market.baseDecimals,
       quoteSymbol: market.quoteSymbol,
       quoteToken: market.quoteToken,
       quoteDecimals: market.quoteDecimals,

@@ -4,10 +4,22 @@ import type { PlaceOrderParams, MyxOrderContext } from '@/types/myx';
 import type { RegimeParameters } from '@/lib/services/cognition/regimeClassifier';
 import { OrderType, TriggerType, Direction, TimeInForce, ChainId } from '@myx-trade/sdk';
 import { MAX_SLIPPAGE, DEFAULT_LEVERAGE } from '@/config/execution';
+import { toCollateralScale, toPriceScale } from '@/lib/utils/decimalScaling';
 
-function toFixedString(value: number, decimals = 8): string {
-  if (!Number.isFinite(value)) return '0';
-  return value.toFixed(decimals);
+/**
+ * Scale a human-readable USD/token amount to its 18-decimal integer string
+ * representation required by the MYX SDK (BigInt-compatible).
+ */
+function scaleAmount(value: number): string {
+  return toCollateralScale(value).toString();
+}
+
+/**
+ * Scale a human-readable price to its 30-decimal integer string
+ * representation required by the MYX SDK (BigInt-compatible).
+ */
+function scalePrice(value: number): string {
+  return toPriceScale(value).toString();
 }
 
 function directionFor(action: ActionRecommendation['action']): Direction {
@@ -16,12 +28,19 @@ function directionFor(action: ActionRecommendation['action']): Direction {
   throw new Error(`Cannot derive direction from action "${action}"`);
 }
 
+export interface HumanReadableOrderMeta {
+  collateralUsd: number;
+  sizeAmount: number;
+  tpPrice: number;
+  slPrice: number;
+}
+
 export function buildIncreaseOrderParams(
   action: ActionRecommendation,
   regime: RegimeParameters,
   currentIndexPrice: number,
   context: MyxOrderContext
-): PlaceOrderParams {
+): { params: PlaceOrderParams; meta: HumanReadableOrderMeta } {
   const collateralUsd = action.positionSizeUSD ?? 0;
   const leverage = action.leverageMultiplier ?? regime.maxLeverage ?? DEFAULT_LEVERAGE;
   const notionalUsd = collateralUsd * leverage;
@@ -37,27 +56,39 @@ export function buildIncreaseOrderParams(
     ? currentIndexPrice * (1 - slPct)
     : currentIndexPrice * (1 + slPct);
 
-  return {
+  const params: PlaceOrderParams = {
     chainId: context.chainId,
     address: context.address,
     poolId: context.poolId,
-    positionId: context.positionId,
+    // Empty string for fresh opens → SDK uses placeOrderWithSalt (new position).
+    // Non-empty triggers placeOrderWithPosition (existing position), which is wrong
+    // for fresh opens — our local UUID is not a valid MYX on-chain position ID.
+    positionId: '',
     orderType: OrderType.MARKET,
     triggerType: TriggerType.NONE,
     direction: directionFor(action.action),
-    collateralAmount: toFixedString(collateralUsd),
-    size: toFixedString(size),
+    collateralAmount: scaleAmount(collateralUsd),
+    size: scaleAmount(size),
     price: '0',
     timeInForce: TimeInForce.IOC,
     postOnly: false,
     slippagePct: (MAX_SLIPPAGE * 100).toString(),
     executionFeeToken: context.executionFeeToken,
     leverage,
-    tpSize: toFixedString(size),
-    tpPrice: toFixedString(tpPrice),
-    slSize: toFixedString(size),
-    slPrice: toFixedString(slPrice),
+    tpSize: scaleAmount(size),
+    tpPrice: scalePrice(tpPrice),
+    slSize: scaleAmount(size),
+    slPrice: scalePrice(slPrice),
   };
+
+  const meta: HumanReadableOrderMeta = {
+    collateralUsd,
+    sizeAmount: size,
+    tpPrice,
+    slPrice,
+  };
+
+  return { params, meta };
 }
 
 export function buildDecreaseOrderParams(
@@ -73,7 +104,7 @@ export function buildDecreaseOrderParams(
     triggerType: TriggerType.NONE,
     direction: position.isLong ? Direction.LONG : Direction.SHORT,
     collateralAmount: '0',
-    size: toFixedString(position.sizeAmount),
+    size: scaleAmount(position.sizeAmount),
     price: '0',
     timeInForce: TimeInForce.IOC,
     postOnly: false,
