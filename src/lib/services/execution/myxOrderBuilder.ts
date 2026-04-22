@@ -69,10 +69,10 @@ export function buildIncreaseOrderParams(
     direction: directionFor(action.action),
     collateralAmount: scaleAmount(collateralUsd),
     size: scaleAmount(size),
-    price: '0',
+    price: scalePrice(currentIndexPrice),
     timeInForce: TimeInForce.IOC,
     postOnly: false,
-    slippagePct: (MAX_SLIPPAGE * 100).toString(),
+    slippagePct: Math.floor(MAX_SLIPPAGE * 10000).toString(),
     executionFeeToken: context.executionFeeToken,
     leverage,
     tpSize: scaleAmount(size),
@@ -93,7 +93,8 @@ export function buildIncreaseOrderParams(
 
 export function buildDecreaseOrderParams(
   position: PositionState,
-  context: MyxOrderContext
+  context: MyxOrderContext,
+  currentIndexPrice: number
 ): PlaceOrderParams {
   return {
     chainId: context.chainId,
@@ -105,10 +106,10 @@ export function buildDecreaseOrderParams(
     direction: position.isLong ? Direction.LONG : Direction.SHORT,
     collateralAmount: '0',
     size: scaleAmount(position.sizeAmount),
-    price: '0',
+    price: scalePrice(currentIndexPrice),
     timeInForce: TimeInForce.IOC,
     postOnly: false,
-    slippagePct: (MAX_SLIPPAGE * 100).toString(),
+    slippagePct: Math.floor(MAX_SLIPPAGE * 10000).toString(),
     executionFeeToken: context.executionFeeToken,
     leverage: position.leverage,
   };

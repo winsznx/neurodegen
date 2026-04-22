@@ -7,6 +7,7 @@ import { TransactionSubmitter } from '@/lib/services/execution/transactionSubmit
 import { buildDecreaseOrderParams } from '@/lib/services/execution/myxOrderBuilder';
 import { buildUserMyxClient } from './userMyxClient';
 import { BSC_CHAIN_ID } from '@/config/chains';
+import { getSinglePrice } from '@/lib/clients/myxSdk';
 import { notify } from '@/lib/services/notifications/dispatcher';
 import { formatUserPositionCloseFromMirror } from '@/lib/services/notifications/formatters';
 
@@ -57,6 +58,7 @@ export async function closeMirrorsForSource(agentPosition: PositionState): Promi
         const pool = await getPoolByPair(m.pair);
         if (!pool) throw new Error('pool not found');
 
+        const currentIndexPrice = await getSinglePrice(m.pair);
         const params = buildDecreaseOrderParams(toPositionState(m), {
           pair: m.pair,
           poolId: pool.poolId,
@@ -66,7 +68,7 @@ export async function closeMirrorsForSource(agentPosition: PositionState): Promi
           address: user.walletAddress,
           executionFeeToken: pool.quoteToken,
           chainId: BSC_CHAIN_ID,
-        });
+        }, currentIndexPrice);
 
         const submit = await submitter.submitDecreaseOrder(params);
         const exitReason = agentPosition.exitReason ?? 'agent_close';

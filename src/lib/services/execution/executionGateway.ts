@@ -213,7 +213,8 @@ export class ExecutionGateway {
     try {
       await updatePositionStatus(position.positionId, { status: 'pending' });
       const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
-      const params = buildDecreaseOrderParams(position, context);
+      const currentIndexPrice = await getSinglePrice(position.pair);
+      const params = buildDecreaseOrderParams(position, context, currentIndexPrice);
       const submit = await this.submitter.submitDecreaseOrder(params);
 
       await updatePositionStatus(position.positionId, {
@@ -267,7 +268,8 @@ export class ExecutionGateway {
 
         await updatePositionStatus(position.positionId, { status: 'pending' });
         const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
-        const params = buildDecreaseOrderParams(position, context);
+        const currentIndexPrice = await getSinglePrice(position.pair);
+        const params = buildDecreaseOrderParams(position, context, currentIndexPrice);
         const submit = await this.submitter.submitDecreaseOrder(params);
 
         await updatePositionStatus(position.positionId, {
