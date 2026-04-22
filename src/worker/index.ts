@@ -55,11 +55,13 @@ async function handleAdmin(
         return sendJson(res, 200, { stopped: true, status: agentLoop.getStatus() });
       }
       case 'trigger': {
-        const graph = await agentLoop.runSingleCycle();
+        const graph = await agentLoop.runSingleCycle({ execute: true });
         return sendJson(res, 200, {
           triggered: true,
           graphId: graph.graphId,
           action: graph.finalAction.action,
+          executed: graph.executionResult?.executed ?? false,
+          executionResult: graph.executionResult,
         });
       }
       case 'close': {

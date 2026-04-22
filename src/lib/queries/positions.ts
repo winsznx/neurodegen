@@ -111,7 +111,7 @@ export async function getOpenPositions(): Promise<PositionState[]> {
     .schema('neurodegen')
     .from('positions')
     .select('*')
-    .in('status', ['submitted', 'pending', 'filled', 'managed', 'closing'])
+    .in('status', ['submitted', 'pending', 'filled', 'managed'])
     .order('opened_at', { ascending: false });
 
   if (error) throw new Error(`Failed to fetch open positions: ${error.message}`);

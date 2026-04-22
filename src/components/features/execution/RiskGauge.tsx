@@ -28,7 +28,7 @@ export function RiskGauge({ currentExposure, maxExposure }: RiskGaugeProps) {
         </div>
         <div className="flex items-center justify-between font-mono text-[10px] text-text-tertiary">
           <span>{pct.toFixed(0)}% deployed</span>
-          <span>cap · 80% of wallet</span>
+          <span>configured collateral cap</span>
         </div>
       </CardBody>
     </Card>

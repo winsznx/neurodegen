@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { agentLoop } from '@/lib/services/agentLoop';
 import { getLatestMetrics } from '@/lib/queries/metrics';
+import { fetchWorkerStatusRaw } from '@/lib/services/workerAdminProxy';
 
 const REQUIRED_ENV = [
   'BSC_RPC_URL',
@@ -27,7 +28,10 @@ function envReport() {
 }
 
 export async function GET() {
-  const status = agentLoop.getStatus();
+  const resolvedWorkerStatus = await fetchWorkerStatusRaw();
+  const status = resolvedWorkerStatus.ok
+    ? (resolvedWorkerStatus.status as ReturnType<typeof agentLoop.getStatus>)
+    : agentLoop.getStatus();
   const { missing } = envReport();
 
   let databaseHealthy = false;
@@ -54,6 +58,8 @@ export async function GET() {
     diagnostics: {
       missingEnv: missing,
       databaseError,
+      workerStatusSource: resolvedWorkerStatus.ok ? 'worker' : 'local-web-process',
+      workerStatusError: resolvedWorkerStatus.ok ? null : resolvedWorkerStatus.detail,
       attestationContract: process.env.ATTESTATION_CONTRACT_ADDRESS ?? null,
       executionEnabled: process.env.NODE_ENV === 'production' ? undefined : undefined,
     },

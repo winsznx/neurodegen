@@ -8,6 +8,7 @@ import {
   OI_IMBALANCE_MAX,
   FUNDING_RATE_MAX,
   MAX_SLIPPAGE,
+  GAS_BUFFER_BNB,
 } from '@/config/execution';
 import { PYTH_FEED_IDS } from '@/config/chains';
 
@@ -94,26 +95,44 @@ export function slippageCheck(pair: string, proposedSizeUsd: number, hotState: H
 
 export function collateralCheck(
   proposedSizeUsd: number,
-  walletBalanceUsd: number
+  availableCollateralUsd: number
 ): CheckEntry {
-  const passed = walletBalanceUsd >= proposedSizeUsd;
+  const passed = availableCollateralUsd >= proposedSizeUsd;
   return {
     name: 'collateral',
     passed,
-    value: walletBalanceUsd,
+    value: availableCollateralUsd,
     threshold: proposedSizeUsd,
-    message: passed ? 'ok' : `wallet $${walletBalanceUsd.toFixed(2)} below required $${proposedSizeUsd.toFixed(2)}`,
+    message: passed ? 'ok' : `USDT collateral $${availableCollateralUsd.toFixed(2)} below required $${proposedSizeUsd.toFixed(2)}`,
+  };
+}
+
+export function gasBalanceCheck(gasBalanceBnb: number): CheckEntry {
+  const passed = gasBalanceBnb >= GAS_BUFFER_BNB;
+  return {
+    name: 'gas_balance',
+    passed,
+    value: gasBalanceBnb,
+    threshold: GAS_BUFFER_BNB,
+    message: passed ? 'ok' : `BNB gas buffer ${gasBalanceBnb.toFixed(4)} below required ${GAS_BUFFER_BNB.toFixed(4)}`,
   };
 }
 
 export async function riskManagerCheck(
-  proposedNotionalUsd: number,
+  proposedCollateralUsd: number,
+  leverage: number,
   openPositions: PositionState[],
-  walletBalanceUsd: number,
+  walletCollateralUsd: number,
   riskManager: RiskManager
 ): Promise<CheckEntry> {
   const dailyLoss = await getDailyRealizedLoss().catch(() => 0);
-  const result = riskManager.canOpenPosition(proposedNotionalUsd, openPositions, walletBalanceUsd, dailyLoss);
+  const result = riskManager.canOpenPosition(
+    proposedCollateralUsd,
+    leverage,
+    openPositions,
+    walletCollateralUsd,
+    dailyLoss
+  );
   return {
     name: 'risk_manager',
     passed: result.allowed,

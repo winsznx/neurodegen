@@ -63,7 +63,7 @@ export function registerHandlers(bot: Bot<Context>): void {
         return;
       }
 
-      const subscription = await upsertTelegramSubscription({
+      await upsertTelegramSubscription({
         userId: linked.userId,
         chatId: ctx.chat.id,
         username: from.username ?? null,
@@ -73,7 +73,7 @@ export function registerHandlers(bot: Bot<Context>): void {
 
       realtimeService.broadcast({
         type: 'telegram_linked',
-        data: { userId: linked.userId, username: subscription.username, chatId: subscription.chatId },
+        data: { linked: true },
         timestamp: Date.now(),
         userId: linked.userId,
       });

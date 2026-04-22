@@ -6,6 +6,7 @@ import {
   PER_POSITION_SIZE_CAP_USD,
   MAX_CONCURRENT_POSITIONS,
   MAX_DAILY_LOSS_USD,
+  MAX_LEVERAGE_HARD_CAP,
 } from '@/config/risk';
 
 function makePosition(overrides: Partial<PositionState> = {}): PositionState {
@@ -28,7 +29,7 @@ describe('RiskManager', () => {
     // #given
     const size = BASE_POSITION_SIZE_USD;
     // #when
-    const result = rm.canOpenPosition(size, [], 1000, 0);
+    const result = rm.canOpenPosition(size, 5, [], 1000, 0);
     // #then
     expect(result.allowed).toBe(true);
   });
@@ -37,7 +38,7 @@ describe('RiskManager', () => {
     // #given
     const positions = Array.from({ length: MAX_CONCURRENT_POSITIONS }, () => makePosition());
     // #when
-    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, positions, 1000, 0);
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, 5, positions, 1000, 0);
     // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Max concurrent positions');
@@ -47,17 +48,25 @@ describe('RiskManager', () => {
     // #given
     const oversized = PER_POSITION_SIZE_CAP_USD + 1;
     // #when
-    const result = rm.canOpenPosition(oversized, [], 1000, 0);
+    const result = rm.canOpenPosition(oversized, 5, [], 1000, 0);
     // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('exceeds cap');
+  });
+
+  it('rejects leverage above MAX_LEVERAGE_HARD_CAP', () => {
+    // #when
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, MAX_LEVERAGE_HARD_CAP + 1, [], 1000, 0);
+    // #then
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toContain('hard cap');
   });
 
   it('rejects when daily realized loss has crossed MAX_DAILY_LOSS_USD', () => {
     // #given
     const over = MAX_DAILY_LOSS_USD + 0.01;
     // #when
-    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, [], 1000, over);
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, 5, [], 1000, over);
     // #then
     expect(result.allowed).toBe(false);
     expect(result.reason).toContain('Daily loss');
@@ -67,9 +76,18 @@ describe('RiskManager', () => {
     // #given
     const atLimit = MAX_DAILY_LOSS_USD;
     // #when
-    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, [], 1000, atLimit);
+    const result = rm.canOpenPosition(BASE_POSITION_SIZE_USD, 5, [], 1000, atLimit);
     // #then
     expect(result.allowed).toBe(false);
+  });
+
+  it('resizes collateral to remaining wallet headroom', () => {
+    // #given
+    const positions = [makePosition({ collateralUsd: 4 })];
+    // #when
+    const sized = rm.resolveExecutableCollateralUsd(6, positions, 8);
+    // #then
+    expect(sized).toBe(4);
   });
 
   describe('isInCooldown', () => {

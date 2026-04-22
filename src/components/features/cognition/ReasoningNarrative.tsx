@@ -13,9 +13,9 @@ interface ReasoningNarrativeProps {
 }
 
 export function ReasoningNarrative({ graph }: ReasoningNarrativeProps) {
-  const sentimentCall = graph.modelCalls.find((c) => detectTask(c.modelId) === 'sentiment');
-  const extractionCall = graph.modelCalls.find((c) => detectTask(c.modelId) === 'extraction');
-  const classificationCall = graph.modelCalls.find((c) => detectTask(c.modelId) === 'classification');
+  const sentimentCall = findLatestCall(graph, 'sentiment');
+  const extractionCall = findLatestCall(graph, 'extraction');
+  const classificationCall = findLatestCall(graph, 'classification');
 
   const sentiment = sentimentCall ? castSentiment(sentimentCall) : null;
   const extraction = extractionCall ? castExtraction(extractionCall) : null;
@@ -87,4 +87,17 @@ function formatNumber(n: number): string {
   if (!Number.isFinite(n)) return '—';
   if (n >= 10) return Math.round(n).toString();
   return n.toFixed(2);
+}
+
+function findLatestCall(
+  graph: ReasoningGraph,
+  task: ReturnType<typeof detectTask>
+) {
+  for (let index = graph.modelCalls.length - 1; index >= 0; index--) {
+    const call = graph.modelCalls[index];
+    if (detectTask(call.modelId) === task) {
+      return call;
+    }
+  }
+  return null;
 }

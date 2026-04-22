@@ -50,6 +50,19 @@ export async function insertReasoningChain(graph: ReasoningGraph): Promise<void>
   if (error) throw new Error(`Failed to insert reasoning chain: ${error.message}`);
 }
 
+export async function updateReasoningExecutionResult(
+  graphId: string,
+  executionResult: NonNullable<ReasoningGraph['executionResult']>
+): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .schema('neurodegen')
+    .from('reasoning_chains')
+    .update({ execution_result: executionResult })
+    .eq('graph_id', graphId);
+
+  if (error) throw new Error(`Failed to update reasoning execution result: ${error.message}`);
+}
+
 export async function getReasoningChainById(graphId: string): Promise<ReasoningGraph | null> {
   const { data, error } = await getSupabaseClient()
     .schema('neurodegen')

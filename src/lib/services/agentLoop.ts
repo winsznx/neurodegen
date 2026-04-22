@@ -8,6 +8,7 @@ import { hotState } from '@/lib/stores/hotState';
 import { aggregator } from '@/lib/services/perception/aggregatorService';
 import { insertMetrics } from '@/lib/queries/metrics';
 import { getOpenPositions } from '@/lib/queries/positions';
+import { updateReasoningExecutionResult } from '@/lib/queries/reasoningChains';
 import { FourMemeIngester } from '@/lib/services/perception/fourMemeIngester';
 import { MYXMarketPoller } from '@/lib/services/perception/myxMarketPoller';
 import { ColdStorageWriter } from '@/lib/services/perception/coldStorageWriter';
@@ -115,7 +116,7 @@ export class AgentLoop {
     void notify.agentStatus({ running: false, reason: 'agent loop stopped', cycleCount: this.cycleCount });
   }
 
-  async runSingleCycle(): Promise<ReasoningGraph> {
+  async runSingleCycle(options: { execute?: boolean } = {}): Promise<ReasoningGraph> {
     const events = hotState.getRecentEvents();
     const launches = events.filter((e): e is LaunchEvent => e.eventType === 'token_create');
     const purchases = events.filter((e): e is PurchaseEvent => e.eventType === 'token_purchase');
@@ -124,6 +125,9 @@ export class AgentLoop {
 
     const graph = await this.orchestrator.runCycle(launches, purchases, metrics, this.latestSnapshots);
     realtimeService.broadcast({ type: 'reasoning_complete', data: graph, timestamp: Date.now() });
+    if (options.execute) {
+      await this.executeGraph(graph, metrics);
+    }
     return graph;
   }
 
@@ -178,6 +182,13 @@ export class AgentLoop {
     const purchases = events.filter((e): e is PurchaseEvent => e.eventType === 'token_purchase');
     const graph = await this.orchestrator.runCycle(launches, purchases, metrics, this.latestSnapshots);
     realtimeService.broadcast({ type: 'reasoning_complete', data: graph, timestamp: Date.now() });
+    await this.executeGraph(graph, metrics);
+  }
+
+  private async executeGraph(
+    graph: ReasoningGraph,
+    metrics: ReturnType<typeof aggregator.computeMetrics>
+  ): Promise<void> {
     this.currentRegime = graph.regime;
     if (this.previousRegime && this.previousRegime !== this.currentRegime) {
       realtimeService.broadcast({
@@ -190,6 +201,10 @@ export class AgentLoop {
       const parameters = new RegimeClassifier().classify(metrics).parameters;
       const commitment = computeReasoningCommitment(graph);
       const execResult = await this.gateway.executeAction(graph.finalAction, parameters, graph.graphId, commitment);
+      graph.executionResult = execResult;
+      void updateReasoningExecutionResult(graph.graphId, execResult).catch((err) =>
+        console.error('[agent-loop] execution result update failed:', err instanceof Error ? err.message : String(err))
+      );
       if (execResult.executed) realtimeService.broadcast({ type: 'position_update', data: execResult, timestamp: Date.now() });
       await this.gateway.checkAndClosePositions(this.currentRegime, this.previousRegime);
     }

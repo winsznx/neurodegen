@@ -28,7 +28,9 @@ function exitReasonLabel(reason: string | null): string {
     sl_hit: 'SL hit',
     time_exit: 'time',
     regime_exit: 'regime',
+    external_close: 'external',
     manual: 'manual',
+    admin: 'admin',
     liquidated: 'liquidated',
   };
   return map[reason] ?? reason;

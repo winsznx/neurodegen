@@ -154,7 +154,9 @@ function humanExitReason(reason: string): string {
     sl_hit: 'stop-loss triggered',
     time_exit: 'max duration reached',
     regime_exit: 'market regime shifted',
+    external_close: 'closed externally on MYX',
     manual: 'manual close',
+    admin: 'admin close',
     liquidated: 'liquidated',
   };
   return map[reason] ?? reason;

@@ -1,5 +1,6 @@
 export interface PreExecutionCheckResult {
   passed: boolean;
+  effectiveCollateralUsd: number;
   checks: Array<{
     name: string;
     passed: boolean;
@@ -14,7 +15,6 @@ export type OrderLifecycleState =
   | 'pending'
   | 'filled'
   | 'managed'
-  | 'closing'
   | 'closed'
   | 'expired'
   | 'liquidated';

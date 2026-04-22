@@ -16,6 +16,7 @@ import { getOpenPositions, updatePositionStatus } from '@/lib/queries/positions'
 import { toCollateralScale } from '@/lib/utils/decimalScaling';
 import { BSC_CHAIN_ID } from '@/config/chains';
 import { DEFAULT_LEVERAGE } from '@/config/execution';
+import { MAX_LEVERAGE_HARD_CAP } from '@/config/risk';
 
 interface ExecutionResult {
   executed: boolean;
@@ -52,7 +53,10 @@ export class ExecutionGateway {
 
     try {
       const openPositions = await getOpenPositions();
-      const leverage = recommendation.leverageMultiplier ?? regimeParameters.maxLeverage ?? DEFAULT_LEVERAGE;
+      const leverage = Math.min(
+        recommendation.leverageMultiplier ?? regimeParameters.maxLeverage ?? DEFAULT_LEVERAGE,
+        MAX_LEVERAGE_HARD_CAP
+      );
       const checks = await this.preChecker.runChecks(
         recommendation.pair,
         recommendation.positionSizeUSD ?? 0,
@@ -65,12 +69,19 @@ export class ExecutionGateway {
         return { executed: false, orderId: null, txHash: null, failureReason: failed.join('; ') };
       }
 
+      const effectiveCollateralUsd = checks.effectiveCollateralUsd;
+      const executableRecommendation: ActionRecommendation = {
+        ...recommendation,
+        positionSizeUSD: effectiveCollateralUsd,
+        leverageMultiplier: leverage,
+      };
+
       const positionId = crypto.randomUUID();
       const context = await resolveOrderContext(recommendation.pair, this.agentAddress, positionId);
       const indexPrice = await getSinglePrice(context.poolId);
 
       const placeParams = buildIncreaseOrderParams(
-        recommendation,
+        executableRecommendation,
         regimeParameters,
         indexPrice,
         context
@@ -99,9 +110,9 @@ export class ExecutionGateway {
         isLong: recommendation.action === 'open_long',
         entryPrice: indexPrice,
         exitPrice: null,
-        collateralUsd: recommendation.positionSizeUSD ?? 0,
-        sizeAmount: (recommendation.positionSizeUSD ?? 0) * (recommendation.leverageMultiplier ?? 1) / indexPrice,
-        leverage: recommendation.leverageMultiplier ?? regimeParameters.maxLeverage,
+        collateralUsd: effectiveCollateralUsd,
+        sizeAmount: effectiveCollateralUsd * leverage / indexPrice,
+        leverage,
         tpPrice: parseFloat(placeParams.tpPrice ?? '0') || null,
         slPrice: parseFloat(placeParams.slPrice ?? '0') || null,
         status: submit.dryRun ? 'submitted' : 'pending',
@@ -131,7 +142,7 @@ export class ExecutionGateway {
         ).catch((err) => console.warn('[execution-gateway] revealExecution failed:', err instanceof Error ? err.message : String(err)));
       }
 
-      void mirrorDispatcher.onAgentEntry(positionState, recommendation).catch((err) =>
+      void mirrorDispatcher.onAgentEntry(positionState, executableRecommendation).catch((err) =>
         console.error('[execution-gateway] mirror onAgentEntry failed:', err instanceof Error ? err.message : String(err))
       );
 
@@ -154,6 +165,7 @@ export class ExecutionGateway {
     reason: 'manual' | 'admin' = 'manual'
   ): Promise<{ closed: boolean; txHash: string | null; error: string | null }> {
     try {
+      await updatePositionStatus(position.positionId, { status: 'pending' });
       const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
       const params = buildDecreaseOrderParams(position, context);
       const submit = await this.submitter.submitDecreaseOrder(params);
@@ -178,6 +190,7 @@ export class ExecutionGateway {
 
       return { closed: true, txHash: submit.txHash, error: null };
     } catch (err) {
+      void updatePositionStatus(position.positionId, { status: position.status }).catch(() => undefined);
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[execution-gateway] closeSinglePosition ${position.positionId} failed:`, msg);
       return { closed: false, txHash: null, error: msg };
@@ -191,10 +204,22 @@ export class ExecutionGateway {
     const openPositions = await getOpenPositions();
     const exits = await this.tracker.checkPositionExits(openPositions, currentRegime, previousRegime);
 
-    for (const { position, reason } of exits) {
+    for (const { position, reason, submitDecreaseOrder } of exits) {
       try {
-        // mark closing before submitting to prevent a second close attempt on the next poll
-        await updatePositionStatus(position.positionId, { status: 'closing' as PositionState['status'] });
+        if (!submitDecreaseOrder) {
+          await updatePositionStatus(position.positionId, {
+            status: 'closed',
+            exitReason: reason,
+            closedAt: new Date().toISOString(),
+          });
+
+          void mirrorDispatcher.onAgentExit({ ...position, exitReason: reason }).catch((err) =>
+            console.error('[execution-gateway] mirror onAgentExit failed:', err instanceof Error ? err.message : String(err))
+          );
+          continue;
+        }
+
+        await updatePositionStatus(position.positionId, { status: 'pending' });
         const context = await resolveOrderContext(position.pair, this.agentAddress, position.positionId);
         const params = buildDecreaseOrderParams(position, context);
         const submit = await this.submitter.submitDecreaseOrder(params);
@@ -217,6 +242,9 @@ export class ExecutionGateway {
           console.error('[execution-gateway] mirror onAgentExit failed:', err instanceof Error ? err.message : String(err))
         );
       } catch (err) {
+        if (submitDecreaseOrder) {
+          void updatePositionStatus(position.positionId, { status: position.status }).catch(() => undefined);
+        }
         console.error(`[execution-gateway] failed to close ${position.positionId}:`, err instanceof Error ? err.message : String(err));
       }
     }

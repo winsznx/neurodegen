@@ -60,7 +60,7 @@ export class RealtimeService {
     if (!url || !secret) return;
 
     try {
-      await fetch(url, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,6 +68,9 @@ export class RealtimeService {
         },
         body: JSON.stringify(event, jsonReplacer),
       });
+      if (!response.ok) {
+        console.error('[realtime] forward to web failed:', `HTTP ${response.status}`);
+      }
     } catch (err) {
       console.error('[realtime] forward to web failed:', err instanceof Error ? err.message : String(err));
     }

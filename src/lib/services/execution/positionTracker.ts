@@ -10,7 +10,8 @@ import {
 
 export interface PositionExit {
   position: PositionState;
-  reason: 'tp_hit' | 'sl_hit' | 'time_exit' | 'regime_exit' | 'liquidated' | 'manual';
+  reason: 'tp_hit' | 'sl_hit' | 'time_exit' | 'regime_exit' | 'external_close' | 'manual';
+  submitDecreaseOrder: boolean;
 }
 
 export class PositionTracker {
@@ -61,22 +62,22 @@ export class PositionTracker {
     const onChainPositions = await this.listAllPositions();
 
     for (const pos of openPositions) {
-      if (pos.status !== 'managed') continue; // skip pending/submitted/closing positions
+      if (pos.status !== 'managed') continue; // skip pending/submitted positions
 
       const openedTime = new Date(pos.openedAt).getTime();
       if (Date.now() - openedTime > MAX_POSITION_DURATION_MS) {
-        exits.push({ position: pos, reason: 'time_exit' });
+        exits.push({ position: pos, reason: 'time_exit', submitDecreaseOrder: true });
         continue;
       }
 
       if (previousRegime && previousRegime !== 'volatile' && currentRegime === 'volatile') {
-        exits.push({ position: pos, reason: 'regime_exit' });
+        exits.push({ position: pos, reason: 'regime_exit', submitDecreaseOrder: true });
         continue;
       }
 
       const onChain = onChainPositions.find((p) => p.positionId === pos.positionId);
       if (!onChain || parseFloat(onChain.size ?? '0') === 0) {
-        exits.push({ position: pos, reason: 'liquidated' });
+        exits.push({ position: pos, reason: 'external_close', submitDecreaseOrder: false });
       }
     }
 

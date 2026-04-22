@@ -11,7 +11,7 @@ import { ReasoningChainView } from '@/components/features/cognition/ReasoningCha
 import { PositionTable } from '@/components/features/execution/PositionTable';
 import { RiskGauge } from '@/components/features/execution/RiskGauge';
 import { Badge } from '@/components/ui';
-import { BASE_POSITION_SIZE_USD, MAX_CONCURRENT_POSITIONS, MAX_TOTAL_EXPOSURE_RATIO } from '@/config/risk';
+import { MAX_CONCURRENT_POSITIONS, PER_POSITION_SIZE_CAP_USD } from '@/config/risk';
 
 interface InitialData {
   metrics: MetricsType | null;
@@ -26,11 +26,11 @@ export function LiveDashboard({ initial }: { initial: InitialData }) {
   const { positions } = usePositions('open');
 
   const maxExposure = useMemo(
-    () => MAX_CONCURRENT_POSITIONS * BASE_POSITION_SIZE_USD * MAX_TOTAL_EXPOSURE_RATIO,
+    () => MAX_CONCURRENT_POSITIONS * PER_POSITION_SIZE_CAP_USD,
     []
   );
   const currentExposure = useMemo(
-    () => positions.reduce((sum, p) => sum + p.collateralUsd * p.leverage, 0),
+    () => positions.reduce((sum, p) => sum + p.collateralUsd, 0),
     [positions]
   );
 

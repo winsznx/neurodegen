@@ -11,9 +11,17 @@ import {
   fundingRateCheck,
   slippageCheck,
   collateralCheck,
+  gasBalanceCheck,
   riskManagerCheck,
   type CheckEntry,
 } from './preExecutionChecks';
+
+interface WalletFundsSnapshot {
+  bnbBalance: number;
+  bnbUsdValue: number;
+  usdtCollateralUsd: number;
+  totalUsd: number;
+}
 
 export class PreExecutionChecker {
   constructor(
@@ -31,24 +39,57 @@ export class PreExecutionChecker {
     _regimeParameters: RegimeParameters,
     openPositions: PositionState[]
   ): Promise<PreExecutionCheckResult> {
-    const proposedNotionalUsd = proposedCollateralUsd * leverageMultiplier;
-
-    // fetch wallet balance once — reused by both collateralCheck and riskManagerCheck
-    const walletBalanceUsd = await this.fetchWalletBalanceUsd();
+    const walletFunds = await this.fetchWalletFunds();
+    const effectiveCollateralUsd = this.riskManager.resolveExecutableCollateralUsd(
+      proposedCollateralUsd,
+      openPositions,
+      walletFunds.usdtCollateralUsd
+    );
 
     const checks: CheckEntry[] = await Promise.all([
       oracleDivergenceCheck(pair, this.hotState, this.pythClient),
       Promise.resolve(crowdScoreCheck(pair, this.hotState)),
       Promise.resolve(fundingRateCheck(pair, this.hotState)),
-      Promise.resolve(slippageCheck(pair, proposedCollateralUsd, this.hotState)),
-      Promise.resolve(collateralCheck(proposedCollateralUsd, walletBalanceUsd)),
-      riskManagerCheck(proposedNotionalUsd, openPositions, walletBalanceUsd, this.riskManager),
+      Promise.resolve(slippageCheck(pair, effectiveCollateralUsd, this.hotState)),
+      Promise.resolve(collateralCheck(effectiveCollateralUsd, walletFunds.usdtCollateralUsd)),
+      Promise.resolve(gasBalanceCheck(walletFunds.bnbBalance)),
+      riskManagerCheck(
+        effectiveCollateralUsd,
+        leverageMultiplier,
+        openPositions,
+        walletFunds.usdtCollateralUsd,
+        this.riskManager
+      ),
     ]);
 
-    return { passed: checks.every((c) => c.passed), checks };
+    if (effectiveCollateralUsd > 0 && effectiveCollateralUsd < proposedCollateralUsd) {
+      checks.unshift({
+        name: 'position_sizing',
+        passed: true,
+        value: effectiveCollateralUsd,
+        threshold: proposedCollateralUsd,
+        message: `requested $${proposedCollateralUsd.toFixed(2)} resized to $${effectiveCollateralUsd.toFixed(2)} based on wallet headroom`,
+      });
+    }
+
+    if (effectiveCollateralUsd <= 0) {
+      checks.unshift({
+        name: 'position_sizing',
+        passed: false,
+        value: effectiveCollateralUsd,
+        threshold: proposedCollateralUsd,
+        message: 'available collateral headroom is below the minimum executable position size',
+      });
+    }
+
+    return {
+      passed: effectiveCollateralUsd > 0 && checks.every((c) => c.passed),
+      effectiveCollateralUsd,
+      checks,
+    };
   }
 
-  private async fetchWalletBalanceUsd(): Promise<number> {
+  private async fetchWalletFunds(): Promise<WalletFundsSnapshot> {
     try {
       const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955' as const;
       const ERC20_BALANCE_ABI = [
@@ -67,9 +108,19 @@ export class PreExecutionChecker {
       const bnbPrice = update ? Number(update.price) * Math.pow(10, update.exponent) : 0;
       const bnbBalance = Number(bnbRaw) / 1e18;
 
-      return bnbBalance * bnbPrice + usdtBalance;
+      return {
+        bnbBalance,
+        bnbUsdValue: bnbBalance * bnbPrice,
+        usdtCollateralUsd: usdtBalance,
+        totalUsd: bnbBalance * bnbPrice + usdtBalance,
+      };
     } catch {
-      return 0;
+      return {
+        bnbBalance: 0,
+        bnbUsdValue: 0,
+        usdtCollateralUsd: 0,
+        totalUsd: 0,
+      };
     }
   }
 }
