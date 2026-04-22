@@ -3,13 +3,19 @@ import type { RegimeLabel, ReasoningGraph, ModelCall, ActionRecommendation } fro
 import type { ClaudeSentimentOutput, GPT4oExtractionOutput, LlamaClassificationOutput } from '@/lib/utils/prompts';
 import type { ModelCallAttempt } from './fallbackHandler';
 import type { RegimeParameters } from './regimeClassifier';
-import { BASE_POSITION_SIZE_USD, MIN_CONFIDENCE_TO_ACT } from '@/config';
+import { BASE_POSITION_SIZE_USD, MIN_CONFIDENCE_TO_ACT, MIN_POSITION_SIZE_USD } from '@/config';
 
 interface ModelResult<T> {
   parsed: T;
   attempts: ModelCallAttempt[];
   systemPrompt: string;
   userContent: string;
+}
+
+interface DirectionalTotals {
+  bullish: number;
+  bearish: number;
+  neutral: number;
 }
 
 function buildModelCalls(results: ModelResult<unknown>[]): ModelCall[] {
@@ -48,28 +54,47 @@ export class ReasoningGraphBuilder {
     const sentiment = sentimentResult.parsed;
     const extraction = extractionResult.parsed;
     const classification = classificationResult.parsed;
+    const directionalTotals = this.getDirectionalTotals(extraction);
 
+    const probeOverride = this.deriveProbeOverride(
+      sentiment,
+      extraction,
+      classification,
+      directionalTotals,
+      regime
+    );
+    const effectiveClassification = probeOverride ?? classification;
     const dominantDirection = this.getDominantDirection(extraction);
     const aggregationLogic =
       `Claude sentiment (score: ${sentiment.sentimentScore}, confidence: ${sentiment.confidenceLevel})` +
       ` + GPT-4o features (${extraction.features.length} features, dominant direction: ${dominantDirection})` +
       ` + Llama classification (action: ${classification.action}, confidence: ${classification.confidence}).` +
+      (probeOverride
+        ? ` Probe override applied -> ${probeOverride.action} at ${probeOverride.confidence} confidence.`
+        : '') +
       ` Regime: ${regime} with multiplier ${regimeParameters.positionSizeMultiplier}.`;
-
-    const isHold = classification.action === 'hold' || classification.confidence < MIN_CONFIDENCE_TO_ACT;
+    const isHold = effectiveClassification.action === 'hold' || effectiveClassification.confidence < MIN_CONFIDENCE_TO_ACT;
     const pair = this.selectPair(inputMetrics);
 
-    let rationale = classification.rationale;
-    if (classification.confidence < MIN_CONFIDENCE_TO_ACT && classification.action !== 'hold') {
-      rationale = `Confidence ${classification.confidence} below threshold ${MIN_CONFIDENCE_TO_ACT}. Overridden to hold. Original: ${rationale}`.slice(0, 200);
+    let rationale = effectiveClassification.rationale;
+    if (effectiveClassification.confidence < MIN_CONFIDENCE_TO_ACT && effectiveClassification.action !== 'hold') {
+      rationale = `Confidence ${effectiveClassification.confidence} below threshold ${MIN_CONFIDENCE_TO_ACT}. Overridden to hold. Original: ${rationale}`.slice(0, 200);
     }
 
     const finalAction: ActionRecommendation = {
-      action: isHold ? 'hold' : classification.action,
+      action: isHold ? 'hold' : effectiveClassification.action,
       pair,
-      confidence: classification.confidence,
-      positionSizeUSD: isHold ? null : BASE_POSITION_SIZE_USD * regimeParameters.positionSizeMultiplier,
-      leverageMultiplier: isHold ? null : regimeParameters.maxLeverage,
+      confidence: effectiveClassification.confidence,
+      positionSizeUSD: isHold
+        ? null
+        : probeOverride
+          ? MIN_POSITION_SIZE_USD
+          : BASE_POSITION_SIZE_USD * regimeParameters.positionSizeMultiplier,
+      leverageMultiplier: isHold
+        ? null
+        : probeOverride
+          ? Math.min(3, regimeParameters.maxLeverage)
+          : regimeParameters.maxLeverage,
       tpPercentage: isHold ? null : regimeParameters.tpPercentage,
       slPercentage: isHold ? null : regimeParameters.slPercentage,
       rationale,
@@ -91,11 +116,56 @@ export class ReasoningGraphBuilder {
 
   private getDominantDirection(extraction: GPT4oExtractionOutput): string {
     if (extraction.features.length === 0) return 'neutral';
-    const counts = { bullish: 0, bearish: 0, neutral: 0 };
-    for (const f of extraction.features) counts[f.direction] += f.weight;
+    const counts = this.getDirectionalTotals(extraction);
     if (counts.bullish >= counts.bearish && counts.bullish >= counts.neutral) return 'bullish';
     if (counts.bearish >= counts.bullish && counts.bearish >= counts.neutral) return 'bearish';
     return 'neutral';
+  }
+
+  private getDirectionalTotals(extraction: GPT4oExtractionOutput): DirectionalTotals {
+    const totals: DirectionalTotals = { bullish: 0, bearish: 0, neutral: 0 };
+    for (const feature of extraction.features) {
+      totals[feature.direction] += feature.weight;
+    }
+    return totals;
+  }
+
+  private deriveProbeOverride(
+    sentiment: ClaudeSentimentOutput,
+    extraction: GPT4oExtractionOutput,
+    classification: LlamaClassificationOutput,
+    directionalTotals: DirectionalTotals,
+    regime: RegimeLabel
+  ): LlamaClassificationOutput | null {
+    if (classification.action !== 'hold') return null;
+    if (classification.confidence < MIN_CONFIDENCE_TO_ACT) return null;
+    if (regime === 'volatile') return null;
+    if (extraction.features.length < 4) return null;
+
+    const bullishEdge = directionalTotals.bullish - directionalTotals.bearish;
+    const bearishEdge = directionalTotals.bearish - directionalTotals.bullish;
+    const positiveSentiment = sentiment.sentimentScore >= 0.5 && sentiment.confidenceLevel >= 0.65;
+    const negativeSentiment = sentiment.sentimentScore <= -0.5 && sentiment.confidenceLevel >= 0.65;
+
+    if (positiveSentiment && bullishEdge >= 1.25) {
+      return {
+        action: 'open_long',
+        confidence: Math.max(classification.confidence, 0.35),
+        rationale:
+          `Probe long override: bullish features ${directionalTotals.bullish.toFixed(2)} vs bearish ${directionalTotals.bearish.toFixed(2)} with sentiment ${sentiment.sentimentScore.toFixed(2)} (${sentiment.confidenceLevel.toFixed(2)} conf).`.slice(0, 400),
+      };
+    }
+
+    if (negativeSentiment && bearishEdge >= 1.25) {
+      return {
+        action: 'open_short',
+        confidence: Math.max(classification.confidence, 0.35),
+        rationale:
+          `Probe short override: bearish features ${directionalTotals.bearish.toFixed(2)} vs bullish ${directionalTotals.bullish.toFixed(2)} with sentiment ${sentiment.sentimentScore.toFixed(2)} (${sentiment.confidenceLevel.toFixed(2)} conf).`.slice(0, 400),
+      };
+    }
+
+    return null;
   }
 
   private selectPair(metrics: AggregateMetrics): string {
