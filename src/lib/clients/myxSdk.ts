@@ -22,11 +22,18 @@ function getBrokerAddress(): string {
 
 export function getMyxClient(walletClient: WalletClient): MyxClient {
   if (clientInstance) return clientInstance;
-  clientInstance = new MyxClient({
+  
+  const broker = getBrokerAddress();
+  const config: any = {
     chainId: BSC_CHAIN_ID,
     walletClient,
-    brokerAddress: getBrokerAddress(),
-  });
+  };
+  
+  if (broker && broker !== ZERO_ADDRESS) {
+    config.brokerAddress = broker;
+  }
+
+  clientInstance = new MyxClient(config);
   return clientInstance;
 }
 

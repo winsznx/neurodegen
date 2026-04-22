@@ -59,7 +59,7 @@ export function ReasoningNarrative({ graph }: ReasoningNarrativeProps) {
         <div className="font-mono text-[10px] uppercase tracking-wider text-text-tertiary">
           what the agent saw and did
         </div>
-        <p className="text-base leading-relaxed text-text-primary">
+        <p className="text-base leading-relaxed text-text-primary break-all">
           <span className="text-text-secondary">Perception:</span>{' '}
           {formatNumber(launchesPerHour)} launches/hr, {formatNumber(inflowPerHour)} BNB/hr inflow, {activeLaunches} active curves. Regime classified as <strong className="text-text-primary">{graph.regime}</strong>.{' '}
           <span className="text-text-secondary">Cognition:</span> {sentimentChunk} {extractionChunk} {classificationChunk}{' '}

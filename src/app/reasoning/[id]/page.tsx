@@ -99,7 +99,7 @@ export default async function ReasoningDetailPage({
                 {executionSummary.title}
               </Badge>
             </div>
-            <p className="text-sm leading-relaxed text-text-primary">
+            <p className="text-sm leading-relaxed text-text-primary break-all">
               {executionSummary.body}
             </p>
           </CardBody>
