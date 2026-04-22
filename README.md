@@ -143,6 +143,83 @@ Implementation: [grammY](https://grammy.dev) with `webhookCallback(bot, 'std/htt
 
 ---
 
+## Operational Controls
+
+All toggles below are Railway environment variables on the **worker** service. Change a value → click **Redeploy** in Railway. No code change or git push required.
+
+### 1. Start / Stop the Agent
+
+The agent loop is a long-running process on Railway. To pause reasoning and execution while keeping the process alive:
+
+```bash
+POST /api/agent/start   # resume the cognition + execution cycle
+POST /api/agent/stop    # pause it (perception continues in the background)
+GET  /api/agent/status  # cycle count, current regime, health flags
+```
+
+All three require the `x-admin-secret` header matching `ADMIN_SECRET`.
+
+To kill the process entirely, set Railway instances to 0 (Settings → Scaling → 0 replicas).
+
+---
+
+### 2. Start / Stop Trade Execution
+
+The agent can perceive and reason without placing real orders. Two env vars control this:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `ENABLE_EXECUTION` | `false` | `false` = execution gateway never initializes, no orders possible |
+| `DRY_RUN_MODE` | `true` | `true` = submitter returns a synthetic tx hash, MYX contract is never called |
+
+To go live: set `ENABLE_EXECUTION=true` and `DRY_RUN_MODE=false` on the Railway worker.
+
+---
+
+### 3. Close a Specific Open Position
+
+To manually close one position without stopping the agent:
+
+```bash
+POST /api/agent/close/:positionId
+# Header: x-admin-secret: <ADMIN_SECRET>
+```
+
+The gateway submits a full-size decrease order and marks the position `closed` in the database.
+
+---
+
+### 4. AI Model Routing (DGrid → BYOK fallback)
+
+The cognition pipeline calls three models per cycle. By default it routes through DGrid AI Gateway. When DGrid credits are depleted or you want to use your own keys:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `ENABLE_BYOK_ROUTING` | `false` | `true` = failed DGrid calls fall through to your own API keys |
+| `ANTHROPIC_API_KEY` | — | Covers **sentiment** + **classification** — the two most important stages |
+| `OPENAI_API_KEY` | — | Covers **feature extraction** only; optional — Claude handles it as final fallback |
+
+**Only `ANTHROPIC_API_KEY` is required to unblock the pipeline.** Both keys are already present in Railway variables; you only need to flip `ENABLE_BYOK_ROUTING=true`.
+
+---
+
+### 5. Confidence Threshold (when the agent trades)
+
+The classifier assigns a confidence score (0–1) per cycle. An order is only submitted when the score meets or exceeds this threshold.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `MIN_CONFIDENCE_TO_ACT` | `0.25` | Lower = more trades, higher false-positive risk |
+
+Typical values:
+- `0.20` — trades on moderate signals including bot-heavy markets
+- `0.25` — balanced default
+- `0.30` — only clean retail-driven setups
+
+Tunable live from Railway, no redeploy needed.
+
+---
+
 ## How it lands against each track
 
 - **Main Sprint.** A cryptographic chain of custody from LLM reasoning to on-chain action. Every trade carries a commit-before-submit on attestation contract [`0xe21f…7dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) and a reveal-after-confirmation referencing the same `reasoningHash`. Pick any MYX tx we produced, open `/proof/<txHash>`, and verify the entire decision in one click, with no API trust.
