@@ -50,13 +50,24 @@ export class PreExecutionChecker {
 
   private async fetchWalletBalanceUsd(): Promise<number> {
     try {
-      const balance = await this.publicClient.getBalance({ address: this.agentAddress });
-      const balanceBnb = Number(balance) / 1e18;
+      const USDT_ADDRESS = '0x55d398326f99059fF775485246999027B3197955' as const;
+      const ERC20_BALANCE_ABI = [
+        { name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ type: 'uint256' }] },
+      ] as const;
+
+      const [bnbRaw, usdtRaw] = await Promise.all([
+        this.publicClient.getBalance({ address: this.agentAddress }),
+        this.publicClient.readContract({ address: USDT_ADDRESS, abi: ERC20_BALANCE_ABI, functionName: 'balanceOf', args: [this.agentAddress] }).catch(() => 0n),
+      ]);
+
+      const usdtBalance = Number(usdtRaw) / 1e18;
+
       const updates = await this.pythClient.getLatestPriceUpdate([PYTH_FEED_IDS.BNB_USD]);
       const update = updates[0];
-      if (!update) return 0;
-      const bnbPrice = Number(update.price) * Math.pow(10, update.exponent);
-      return balanceBnb * bnbPrice;
+      const bnbPrice = update ? Number(update.price) * Math.pow(10, update.exponent) : 0;
+      const bnbBalance = Number(bnbRaw) / 1e18;
+
+      return bnbBalance * bnbPrice + usdtBalance;
     } catch {
       return 0;
     }
