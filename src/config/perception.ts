@@ -1,4 +1,4 @@
-export const MYX_POLL_INTERVAL_MS: number = 15_000;
+export const MYX_POLL_INTERVAL_MS: number = parseInt(process.env.MYX_POLL_INTERVAL_MS ?? '15000', 10);
 export const PYTH_DASHBOARD_POLL_INTERVAL_MS: number = 30_000;
 export const LAUNCH_VELOCITY_WINDOW_HOURS: number = 4;
 export const CAPITAL_INFLOW_WINDOW_HOURS: number = 4;
