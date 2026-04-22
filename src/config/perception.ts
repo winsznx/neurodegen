@@ -26,6 +26,7 @@ const DEFAULT_HOT_STATE_TTL_MINUTES = Math.max(
 ) * 60;
 export const HOT_STATE_TTL_MINUTES: number = envNumber('HOT_STATE_TTL_MINUTES', DEFAULT_HOT_STATE_TTL_MINUTES);
 export const FOURMEME_BACKFILL_BLOCKS: number = envInt('FOURMEME_BACKFILL_BLOCKS', 14_400);
+export const FOURMEME_GET_LOGS_MAX_RANGE: number = envInt('FOURMEME_GET_LOGS_MAX_RANGE', 1_500);
 export const EVENT_BATCH_SIZE: number = 100;
 export const WS_RECONNECT_INITIAL_MS: number = 1_000;
 export const WS_RECONNECT_MAX_MS: number = 30_000;

@@ -2,7 +2,7 @@ import { decodeEventLog, type Log } from 'viem';
 import { logsPublicClient } from '@/lib/clients/chain';
 import { fourMemeTokenManagerAbi } from '@/lib/abis/fourMemeTokenManager';
 import { FOURMEME_TOKEN_MANAGER } from '@/config/chains';
-import { FOURMEME_BACKFILL_BLOCKS } from '@/config/perception';
+import { FOURMEME_BACKFILL_BLOCKS, FOURMEME_GET_LOGS_MAX_RANGE } from '@/config/perception';
 import type { HotStateStore } from '@/lib/stores/hotState';
 import type { PerceptionEvent, LaunchEvent, PurchaseEvent, GraduationEvent } from '@/types/perception';
 
@@ -99,6 +99,27 @@ export class FourMemeIngester {
     this.timer = setTimeout(() => void this.poll(), delayMs);
   }
 
+  private async fetchLogsInChunks(fromBlock: bigint, toBlock: bigint): Promise<Log[]> {
+    const maxRange = BigInt(Math.max(FOURMEME_GET_LOGS_MAX_RANGE, 1));
+    const maxSpan = maxRange > 0n ? maxRange - 1n : 0n;
+    const allLogs: Log[] = [];
+    let cursor = fromBlock;
+
+    while (cursor <= toBlock) {
+      const chunkTo = cursor + maxSpan < toBlock ? cursor + maxSpan : toBlock;
+      const logs = await logsPublicClient.getLogs({
+        address: FOURMEME_TOKEN_MANAGER as `0x${string}`,
+        events: fourMemeTokenManagerAbi,
+        fromBlock: cursor,
+        toBlock: chunkTo,
+      });
+      allLogs.push(...logs);
+      cursor = chunkTo + 1n;
+    }
+
+    return allLogs;
+  }
+
   private async poll(): Promise<void> {
     if (!this.running) return;
 
@@ -116,12 +137,7 @@ export class FourMemeIngester {
         return;
       }
 
-      const logs = await logsPublicClient.getLogs({
-        address: FOURMEME_TOKEN_MANAGER as `0x${string}`,
-        events: fourMemeTokenManagerAbi,
-        fromBlock,
-        toBlock,
-      });
+      const logs = await this.fetchLogsInChunks(fromBlock, toBlock);
 
       this.lastBlock = toBlock;
       this.consecutiveErrors = 0;
