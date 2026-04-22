@@ -70,7 +70,7 @@ const LLAMA_CLASSIFICATION_SYSTEM = `You are a binary classifier for an autonomo
 Rules:
 - Respond ONLY with the JSON schema below.
 - action must be exactly one of: open_long, open_short, close_position, adjust_parameters, hold.
-- confidence ranges from 0.0 to 1.0. If confidence is below 0.3, action MUST be hold.
+- confidence ranges from 0.0 to 1.0. If confidence is below 0.2, action MUST be hold.
 - rationale must be under 300 characters and must reference specific input features.
 
 Output schema:
