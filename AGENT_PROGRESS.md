@@ -1148,3 +1148,47 @@ Auto-greenlit. Proceeding to V2 Phase 4 (cognition).
 
 ### Gate decision
 Auto-greenlit. Proceeding to V2 Phase 5 (execution).
+
+## V2 Phase 5 — Execution — Status: complete
+
+### Date
+2026-06-16
+
+### Files created
+- `src/lib/services/execution/attestationEmitter.ts` — viem `writeContract` wrappers for `commitReasoning`, `revealExecution`, `attestPositionOpen/Close`, `attestRegimeChange`. **V1 audit §1.2b fix**: `revealExecution` now hashes the real `twakTxHash` via `orderIdFromTxHash`, not a local UUID. The on-chain reveal is verifiably bound to the on-chain swap.
+- `src/lib/services/execution/riskManager.ts` (+ test, 8 tests) — `canAct(recommendation, state, openPositions, portfolioValueUSD)` + `classifyDrawdownTier()` + `updateDrawdownFromValue()`. Implements the 15/20/25 ladder enforced 100% by our code (no TWAK backstop per Phase 0). Alert tier halves position sizes; defensive blocks opens (close-only); halt blocks everything; consecutive-loss halt fires before drawdown halt; per-token cap from `mandate.maxPositionPct`; daily PnL ≤ -MAX_DAILY_LOSS_USD blocks. Tests cover each tier boundary, consecutive losses, concurrent-position cap, max-position-pct clamp, and peak/drawdown tracking.
+- `src/lib/services/execution/preExecutionChecker.ts` — 8 checks per PRD §6.4: `allowed_token_verified`, `security_check_passed`, `pyth_oracle_divergence`, `liquidity_adequate`, `funding_rate_safe`, `slippage_within_tolerance`, `collateral_available`, `risk_manager_approval`. `collateral_available` reads BNB gas directly from chain (bypasses any stale TWAK portfolio cache). Pyth divergence uses the Phase 1 `pythHermesClient.fetchSinglePrice` against the parsed-price endpoint.
+- `src/lib/services/execution/twakExecutor.ts` — coordinator. Runs PreExecutionChecker, computes amountTokens from CMC price + adjustedSizeUSD, commits reasoningHash on-chain, calls `twakClient.executeSwap`, reveals execution on-chain with the real txHash, inserts the position row. Separate `executeClose` path for `close_position` actions. `failureWithCommit` preserves the commit tx hash even when the swap fails so the audit trail survives a mid-flow break.
+- `src/lib/services/execution/positionTracker.ts` — interval-based reconciler. **V1 audit §1.2c-d fix**: V1 disabled SDK polling in commit `442e474` and marked positions `managed` immediately. V2 transitions on every poll: `SUBMITTED → FILLED → MANAGED` once the token shows up in the TWAK portfolio, `MANAGED → CLOSED` when the token disappears. No more stuck positions blocking the concurrent-position limit.
+- `src/lib/services/execution/probeTradeScheduler.ts` — `shouldFireProbe` returns `{ should, reason }` if (a) probe trades enabled, (b) UTC hour ≥ 18, (c) no trade recorded today (DB check via `getDailyTradeCount`), (d) scheduler hasn't already fired today. `fireProbe` does BUSD → CAKE → BUSD round-trip via TWAK and broadcasts a `position_update` event. Maintains the 1-trade/day Track 1 compliance floor without burning capital.
+- `src/lib/services/agentLoop.ts` — main long-running orchestrator. Two timers: `evaluateRegime` every 60s (regime classification + transition attestation), `runCycle` every CMC quote interval. `runCycle` aggregates metrics → updates risk drawdown → fires probe if needed → returns early if quiet regime (hibernate) → otherwise runs committee session → executes if action ≠ hold/adjust_parameters → updates session.execution_result. Broadcasts perception_event, metrics_update, regime_change, committee_session_complete, position_update, health_degradation, agent_status_snapshot events.
+- `src/worker/index.ts` — Railway worker entrypoint. Boots `agentLoop`, exposes `/health` + `/admin/{start,stop,status}` (admin secret gated), broadcasts agent_status_snapshot every 10s, env-preflight warns on missing config, graceful SIGTERM/SIGINT shutdown.
+
+### Lifecycle fixes vs V1 audit
+- **§1.2a fix**: V2 doesn't rely on a synthetic `orderId` at all. The on-chain reveal binds reasoningHash to the TWAK swap txHash via `keccak256(twakTxHash)`. Anyone can verify by recomputing the keccak.
+- **§1.2b fix**: same — see above.
+- **§1.2c-d fix**: positionTracker.reconcileOnce polls TWAK portfolio every 30s and transitions states cleanly.
+- **§1.2e fix**: max-concurrent-positions cap is enforced by RiskManager.canAct using the actual `getOpenPositions()` DB read, AND positionTracker advances stuck SUBMITTED rows to CLOSED if the swap never materialized in the portfolio.
+- **§1.2f fix**: no MYX networkFee path remains. TWAK handles network fees per swap internally.
+- **§1.2g fix**: no SDK `positionId: ''` dispatch ambiguity — TWAK's `swap` subcommand is unambiguous.
+
+### Deviations from PRD
+- PRD §6.6 perp mode is V2.1 deferred per §1.4. The PositionState `direction` field accepts `'long' | 'short' | 'spot'` for forward compatibility, but `twakExecutor` only emits `'spot'`.
+- PRD §6.2 `executeSwap` signature in TS — V2 implementation iterates `getBalance` per token to build a portfolio, since TWAK has no single `getPortfolio` call.
+
+### Audit results — `bash scripts/audit.sh phase-5`
+- File existence: 9/9 PASS
+- tsc: 0 errors
+- Vitest: 12 files, 79 tests passing
+- ESLint: 0 errors
+- Anti-pattern checks: all PASS
+
+**AUDIT PASSED  phase=phase-5**
+
+### Followups for Phase 5 live integration (deferred to deployment)
+- [F13] Replace the 5-token seed allowlist with the live 149-token list from `twak compete status --json` once TWAK CLI is installed on the worker.
+- [F14] Fund agent wallet `0x9fe8…aa5a` with BNB (≥0.005) and USDT (≥$50) for the first live $5 test trade.
+- [F15] Run `twak compete register --json` to register on the BSC competition contract.
+
+### Gate decision
+Auto-greenlit. Proceeding to V2 Phase 6.
