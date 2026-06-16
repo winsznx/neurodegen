@@ -1116,3 +1116,35 @@ Auto-greenlit per "end to end no deadline." Proceeding to V2 Phase 3.
 
 ### Gate decision
 Auto-greenlit. Proceeding to V2 Phase 4 (cognition).
+
+## V2 Phase 4 — Cognition — Status: complete
+
+### Date
+2026-06-16
+
+### Files created
+- `src/lib/utils/prompts.ts` — `NARRATIVE_SYSTEM_PROMPT`, `QUANT_SYSTEM_PROMPT`, `RISK_SYSTEM_PROMPT` plus `sanitizeTokenName()` and user-content builders. Token names from CMC are sanitized (`/[^a-zA-Z0-9 _-]/` stripped, truncate 100) before injection — prompt-injection guard per BUILD_PROTOCOL §5.6.
+- `src/lib/services/cognition/dissentTracker.ts` (+ test, 5 tests) — pure `computeDissent(narrative, quant)` returns `{dissentSeverity, positionSizeModifier}`: none→1.0, mild→0.5, strong→0.0. Strong forces hold even if the risk classifier returns an action.
+- `src/lib/services/cognition/narrativeAnalyst.ts` — wraps Phase 2 router for `member: 'narrative'`, parses output through Zod `NarrativeAnalystOutput`, returns parsed + `ModelCallRecord` + attempts. Safe-parse fallback returns a typed degraded shape with `flaggedAnomalies: ['NARRATIVE_PARSE_FAILED']` so downstream code keeps types clean.
+- `src/lib/services/cognition/quantAnalyst.ts` — same pattern, validates `dominantDirection`, `liquidityAdequate`, `fundingRateWarning`, and each feature's scalar value (`number | string`).
+- `src/lib/services/cognition/riskClassifier.ts` — same pattern, then **enforces safety rails** post-parse: `confidence < MIN_CONFIDENCE_TO_ACT` → hold, `dissentSeverity === 'strong'` → hold, `!quant.liquidityAdequate` → hold, `targetToken not in allowedTokenSet` → hold + targetToken null. Overrides are appended to the rationale (audit log preserved). This is the second line of defense beyond the prompt rules.
+- `src/lib/services/cognition/sessionGraphBuilder.ts` (+ test, 5 tests) — `buildCommitteeSession(inputs)` returns a complete `CommitteeSession` with deterministic `reasoningHash` via `keccak256(canonicalize(sessionWithoutHash))`. Position sizing: `AGENT_BASE_POSITION_SIZE_USD × regimePositionMultiplier × dissentModifier × mandateRiskLevelMultiplier`. Plain-language explanation generated from dissent + regime + analyst directions.
+- `src/lib/services/cognition/committeeSession.ts` — main orchestrator. Narrative + Quant in parallel via `Promise.all`, then dissent (sync), then risk (sequential because it takes both analyst outputs), then `buildCommitteeSession`, then `insertCommitteeSession`. Session number auto-allocated via `getNextSessionNumber`. Default token allowlist from `lib/utils/allowedTokens.ts` (5 seed tokens; Phase 5 replaces with the live TWAK competition list).
+- `src/lib/utils/allowedTokens.ts` — seed allowlist (USDT, BUSD, CAKE, WBNB, BNB) + `setAllowedTokens()` hook for Phase 5 to replace with the real 149-token competition list once the TWAK CLI is installed and `compete status --json` is callable.
+- `src/lib/services/cognition/fallbackHandler.ts` — thin shim re-exporting Phase 2 router (`routeCommitteeCall` → `runFallback`). PRD §10 listed `fallbackHandler.ts` as a Phase 4 file; the actual fallback logic lives in `lib/clients/llm/router.ts` from Phase 2.
+
+### Discoveries
+1. The Risk Classifier's post-parse safety rails are doubly enforced: in the system prompt (the model is told to return `hold` in N conditions) AND in code (we re-check after parsing and force-rewrite if the model disregarded). This matches BUILD_PROTOCOL §5.3 ("trust internal code, validate at boundaries").
+2. `runRiskClassifier` accepts the allowed token list as a parameter rather than reading from `lib/utils/allowedTokens` directly so the V2.1 multi-user variant can pass per-user customized lists.
+
+### Audit results — `bash scripts/audit.sh phase-4`
+- File existence: 8/8 PASS
+- tsc: 0 errors
+- Vitest: 11 files, 71 tests passing
+- ESLint: 0 errors
+- Anti-pattern checks: all PASS
+
+**AUDIT PASSED  phase=phase-4**
+
+### Gate decision
+Auto-greenlit. Proceeding to V2 Phase 5 (execution).

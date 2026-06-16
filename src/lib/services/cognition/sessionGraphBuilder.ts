@@ -1,0 +1,163 @@
+import { keccak256, stringToBytes } from 'viem';
+import { canonicalize } from '@/lib/utils/canonicalSerialize';
+import type {
+  ActionRecommendation,
+  CommitteeSession,
+  DissentResult,
+  EVDecision,
+  ExecutionResultRecord,
+  ModelCallRecord,
+  NarrativeAnalystOutput,
+  QuantAnalystOutput,
+  RiskClassifierOutput,
+} from '@/types/cognition';
+import type { AggregateMetrics, RegimeLabel } from '@/types/perception';
+import type { MandateConfig } from '@/types/mandate';
+
+export interface SessionGraphInputs {
+  sessionId: string;
+  sessionNumber: number;
+  createdAt: number;
+  regime: RegimeLabel;
+  previousRegime: RegimeLabel | null;
+  metrics: AggregateMetrics;
+  evGateDecisions: EVDecision[];
+  x402SpendSessionUSDC: number;
+  narrative: { parsed: NarrativeAnalystOutput; call: ModelCallRecord };
+  quant: { parsed: QuantAnalystOutput; call: ModelCallRecord };
+  dissent: DissentResult;
+  risk: { parsed: RiskClassifierOutput; call: ModelCallRecord };
+  mandate: MandateConfig;
+  tokenAddressBySymbol: Record<string, `0x${string}`>;
+}
+
+export function buildCommitteeSession(inputs: SessionGraphInputs): CommitteeSession {
+  const finalAction = deriveFinalAction(inputs);
+  const sessionWithoutHash: Omit<CommitteeSession, 'reasoningHash' | 'attestationCommitTx' | 'executionResult'> = {
+    sessionId: inputs.sessionId,
+    sessionNumber: inputs.sessionNumber,
+    createdAt: inputs.createdAt,
+    regime: inputs.regime,
+    previousRegime: inputs.previousRegime,
+    fearGreedAtSession: inputs.metrics.fearGreedValue,
+    inputMetrics: inputs.metrics,
+    evGateDecisions: inputs.evGateDecisions,
+    x402SpendThisSessionUSDC: inputs.x402SpendSessionUSDC,
+    narrativeCall: inputs.narrative.call,
+    quantCall: inputs.quant.call,
+    dissentResult: inputs.dissent,
+    riskCall: inputs.risk.call,
+    finalAction,
+  };
+  const reasoningHash = computeReasoningHash(sessionWithoutHash);
+  return {
+    ...sessionWithoutHash,
+    reasoningHash,
+    attestationCommitTx: null,
+    executionResult: null,
+  };
+}
+
+export function computeReasoningHash(
+  partial: Omit<CommitteeSession, 'reasoningHash' | 'attestationCommitTx' | 'executionResult'>,
+): `0x${string}` {
+  return keccak256(stringToBytes(canonicalize(partial)));
+}
+
+export function withExecutionResult(
+  session: CommitteeSession,
+  result: ExecutionResultRecord,
+  attestationCommitTx: `0x${string}` | null,
+): CommitteeSession {
+  return {
+    ...session,
+    attestationCommitTx,
+    executionResult: result,
+  };
+}
+
+function deriveFinalAction(inputs: SessionGraphInputs): ActionRecommendation {
+  const risk = inputs.risk.parsed;
+  const isHold = risk.action === 'hold';
+  const baseSize = AGENT_BASE_POSITION_SIZE_USD * regimePositionMultiplier(inputs.regime);
+  const dissentModifier = inputs.dissent.positionSizeModifier;
+  const mandateModifier = riskLevelMultiplier(inputs.mandate.riskLevel);
+  const positionSizeUSD = isHold
+    ? null
+    : Number((baseSize * dissentModifier * mandateModifier).toFixed(2));
+  const tokenSymbol = isHold ? null : risk.targetToken;
+  const tokenAddress = tokenSymbol ? inputs.tokenAddressBySymbol[tokenSymbol.toUpperCase()] ?? null : null;
+
+  return {
+    action: risk.action,
+    tokenSymbol,
+    tokenAddress,
+    confidence: risk.confidence,
+    positionSizeUSD,
+    leverageMultiplier: 1,
+    tpPercentage: isHold ? null : DEFAULT_TP_PERCENTAGE,
+    slPercentage: isHold ? null : DEFAULT_SL_PERCENTAGE,
+    rationale: risk.rationale,
+    plainLanguageExplanation: buildPlainLanguageExplanation({
+      action: risk.action,
+      tokenSymbol,
+      regime: inputs.regime,
+      narrative: inputs.narrative.parsed,
+      quant: inputs.quant.parsed,
+      dissent: inputs.dissent,
+    }),
+  };
+}
+
+function regimePositionMultiplier(regime: RegimeLabel): number {
+  switch (regime) {
+    case 'quiet':
+      return 0;
+    case 'active':
+      return 0.5;
+    case 'momentum':
+      return 1.0;
+    case 'volatile':
+      return 0.1;
+    default:
+      return 0;
+  }
+}
+
+function riskLevelMultiplier(level: MandateConfig['riskLevel']): number {
+  switch (level) {
+    case 'conservative':
+      return 0.5;
+    case 'aggressive':
+      return 1.5;
+    default:
+      return 1.0;
+  }
+}
+
+function buildPlainLanguageExplanation(args: {
+  action: RiskClassifierOutput['action'];
+  tokenSymbol: string | null;
+  regime: RegimeLabel;
+  narrative: NarrativeAnalystOutput;
+  quant: QuantAnalystOutput;
+  dissent: DissentResult;
+}): string {
+  if (args.action === 'hold') {
+    if (args.dissent.dissentSeverity === 'strong') {
+      return `Committee held — analysts disagreed strongly (narrative ${args.dissent.narrativeDirection}, quant ${args.dissent.quantDirection}).`;
+    }
+    if (!args.quant.liquidityAdequate) {
+      return `Committee held — quant flagged inadequate liquidity for all candidate tokens.`;
+    }
+    return `Committee held — regime ${args.regime}, no setup met the confidence threshold.`;
+  }
+  if (args.action === 'close_position') {
+    return `Committee closed an open position. Regime ${args.regime}.`;
+  }
+  return `Committee opened ${args.tokenSymbol ?? 'a position'} in ${args.regime} regime. Narrative ${args.narrative.direction} (${args.narrative.confidenceLevel.toFixed(2)} conf), quant ${args.quant.dominantDirection}.`;
+}
+
+// Imported here to avoid extra cycles between cognition and risk config.
+import { AGENT_BASE_POSITION_SIZE_USD } from '@/config/risk';
+import { DEFAULT_TP_PERCENTAGE, DEFAULT_SL_PERCENTAGE } from '@/config/execution';
