@@ -4,13 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { useAgentStatus } from '@/hooks/useAgentStatus';
-import { ConnectButton } from '@/components/features/auth/ConnectButton';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/live', label: 'Live' },
-  { href: '/track-record', label: 'Track record' },
-  { href: 'https://github.com/winsznx/neurodegen/blob/main/SKILL.md', label: 'Skill', external: true },
+  { href: '/', label: 'Mandate' },
+  { href: '/agent', label: 'Live' },
+  { href: '/journal', label: 'Journal' },
 ];
 
 export function NavBar() {
@@ -21,47 +19,49 @@ export function NavBar() {
   const cycleLabel = running
     ? `running · cycle ${String(status.data?.cycleCount ?? 0).padStart(4, '0')}`
     : status.error
-    ? 'disconnected'
-    : status.data?.status ?? 'stopped';
+      ? 'disconnected'
+      : (status.data?.status ?? 'stopped');
 
   const brand = (
-    <Link href="/" className="inline-flex shrink-0 items-center gap-2.5 text-[13px]">
-      <span className="relative grid size-6.5 place-items-center rounded-sm border border-border-strong bg-surface" aria-hidden>
-        <span className="absolute inset-1.25 rounded-[1px] bg-accent" style={{ boxShadow: '0 0 10px hsl(35 92% 52% / 0.6)' }} />
+    <Link
+      href="/"
+      className="inline-flex shrink-0 items-center gap-2.5 text-[13px]"
+    >
+      <span
+        className="relative grid size-6.5 place-items-center rounded-sm border border-border-strong bg-surface"
+        aria-hidden
+      >
+        <span
+          className="absolute inset-1.25 rounded-[1px] bg-accent"
+          style={{ boxShadow: '0 0 10px hsl(35 92% 52% / 0.6)' }}
+        />
       </span>
       <span className="font-mono text-text-primary">
-        neurodegen<span className="text-text-tertiary">.agent</span>
+        neurodegen<span className="text-text-tertiary">.v2</span>
       </span>
     </Link>
   );
 
-  const navLinks = NAV_ITEMS.map((item) =>
-    item.external ? (
-      <a
-        key={item.href}
-        href={item.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="shrink-0 font-mono text-text-secondary transition-colors hover:text-text-primary"
-      >
-        {item.label}
-      </a>
-    ) : (
-      <Link
-        key={item.href}
-        href={item.href}
-        className={cn(
-          'shrink-0 font-mono transition-colors',
-          pathname === item.href ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary'
-        )}
-      >
-        {item.label}
-      </Link>
-    )
-  );
+  const navLinks = NAV_ITEMS.map((item) => (
+    <Link
+      key={item.href}
+      href={item.href}
+      className={cn(
+        'shrink-0 font-mono transition-colors',
+        pathname === item.href
+          ? 'text-text-primary'
+          : 'text-text-secondary hover:text-text-primary',
+      )}
+    >
+      {item.label}
+    </Link>
+  ));
 
   const liveLink = (
-    <Link href="/live" className="inline-flex shrink-0 items-center gap-1.5 font-mono text-text-primary">
+    <Link
+      href="/agent"
+      className="inline-flex shrink-0 items-center gap-1.5 font-mono text-text-primary"
+    >
       <span
         className="size-1.5 rounded-full bg-positive animate-blink"
         style={{ boxShadow: '0 0 0 3px hsl(140 60% 55% / 0.2)' }}
@@ -75,7 +75,9 @@ export function NavBar() {
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-[3px] border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] md:px-2.5 md:py-1.5',
-        running ? 'border-accent-border/40 bg-accent-deep text-accent-soft' : 'border-border-strong bg-surface text-text-secondary'
+        running
+          ? 'border-accent-border/40 bg-accent-deep text-accent-soft'
+          : 'border-border-strong bg-surface text-text-secondary',
       )}
     >
       <span className={cn('size-1.5', running ? 'bg-accent' : 'bg-current')} />
@@ -92,13 +94,15 @@ export function NavBar() {
           {liveLink}
           {cyclePill}
         </div>
-        <ConnectButton />
+        <span className="font-mono text-[11px] text-text-tertiary">
+          self-custody · twak
+        </span>
       </div>
 
       <div className="md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           {brand}
-          <ConnectButton />
+          <span className="font-mono text-[10px] text-text-tertiary">twak</span>
         </div>
         <div className="flex items-center gap-4 overflow-x-auto px-4 pb-3 text-[11px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {navLinks}

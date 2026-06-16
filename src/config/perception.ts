@@ -12,23 +12,22 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export const MYX_POLL_INTERVAL_MS: number = parseInt(process.env.MYX_POLL_INTERVAL_MS ?? '15000', 10);
-export const PYTH_DASHBOARD_POLL_INTERVAL_MS: number = 30_000;
-export const LAUNCH_VELOCITY_WINDOW_HOURS: number = 4;
-export const CAPITAL_INFLOW_WINDOW_HOURS: number = 4;
-export const GRADUATION_VELOCITY_WINDOW_HOURS: number = 12;
-export const PURCHASE_CONCENTRATION_WINDOW: number = 50;
-export const FUNDING_TREND_SNAPSHOTS: number = 8;
-const DEFAULT_HOT_STATE_TTL_MINUTES = Math.max(
-  LAUNCH_VELOCITY_WINDOW_HOURS,
-  CAPITAL_INFLOW_WINDOW_HOURS,
-  GRADUATION_VELOCITY_WINDOW_HOURS
-) * 60;
+// Polling cadences (Perception layer)
+export const CMC_QUOTES_POLL_INTERVAL_MS: number = envInt('CMC_QUOTES_POLL_INTERVAL_MS', 60_000);
+export const CMC_GLOBAL_POLL_INTERVAL_MS: number = envInt('CMC_GLOBAL_POLL_INTERVAL_MS', 300_000);
+export const CMC_NARRATIVES_POLL_INTERVAL_MS: number = envInt('CMC_NARRATIVES_POLL_INTERVAL_MS', 300_000);
+export const CMC_NEWS_POLL_INTERVAL_MS: number = envInt('CMC_NEWS_POLL_INTERVAL_MS', 600_000);
+export const CMC_DERIVATIVES_POLL_INTERVAL_MS: number = envInt('CMC_DERIVATIVES_POLL_INTERVAL_MS', 300_000);
+export const REGIME_REEVAL_INTERVAL_MS: number = envInt('REGIME_REEVAL_INTERVAL_MS', 60_000);
+
+// Hot state retention
+const DEFAULT_HOT_STATE_TTL_MINUTES = 30;
 export const HOT_STATE_TTL_MINUTES: number = envNumber('HOT_STATE_TTL_MINUTES', DEFAULT_HOT_STATE_TTL_MINUTES);
-export const FOURMEME_BACKFILL_BLOCKS: number = envInt('FOURMEME_BACKFILL_BLOCKS', 14_400);
-export const FOURMEME_GET_LOGS_MAX_RANGE: number = envInt('FOURMEME_GET_LOGS_MAX_RANGE', 1_500);
-export const EVENT_BATCH_SIZE: number = 100;
-export const WS_RECONNECT_INITIAL_MS: number = 1_000;
-export const WS_RECONNECT_MAX_MS: number = 30_000;
-export const WS_DISCONNECT_ALERT_MS: number = 60_000;
-export const MYX_TRACKED_PAIRS: string[] = ['BTC_USDT', 'ETH_USDT', 'BNB_USDT'];
+
+// Cold storage batching
+export const EVENT_BATCH_SIZE: number = envInt('EVENT_BATCH_SIZE', 100);
+
+// EV gate
+export const EV_THRESHOLD: number = envNumber('EV_THRESHOLD', 3.0);
+export const EV_BASE_CONFIDENCE: number = envNumber('EV_BASE_CONFIDENCE', 0.5);
+export const X402_COST_PER_CALL_USDC: number = envNumber('X402_COST_PER_CALL_USDC', 0.01);

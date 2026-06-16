@@ -875,3 +875,137 @@ Tools the previous PRD assumed in MCP but **do not exist there**:
 Auto-greenlit per user instruction "confirm then start end to end with no deadline or timeline." Proceeding to V2 Phase 1.
 
 ---
+
+## V2 Phase 1 — Foundation — Status: complete
+
+### Date
+2026-06-16
+
+### Goal
+Demolish V1 modules irrelevant to V2 and stand up the V2 type, config, query, and audit foundation so Phases 2+ can implement against a clean type surface.
+
+### Files deleted
+~105 V1 paths in one batch (user-authorized after auto-mode classifier deferred):
+- All MYX clients + execution path: `src/lib/clients/myx*.ts`, `src/lib/services/execution/myxOrderBuilder*`, `transactionSubmitter.ts`, `executionGateway.ts`, `executionFactory.ts`, `executionMessages.ts`, `orderContext.ts`, `types/myx.ts`
+- Four.meme ingestion: `src/lib/clients/bitquery.ts`, `src/lib/abis/fourMemeTokenManager.ts`, `src/lib/services/perception/fourMemeIngester.ts`, `myxMarketPoller.ts`, `eventNormalizer.ts(+test)`, `aggregatorService.ts(+test)`
+- Privy + copy-trade: `src/lib/clients/privy.ts`, `src/lib/auth/`, all of `src/lib/services/monetization/` (mirror dispatcher/exit/sizing, skill wrapper, payment handler, user MYX client), V1 user/sub/positions queries, `types/users.ts`, `types/pieverse.ts`
+- Telegram: `src/lib/clients/telegram.ts`, `src/lib/services/telegram/`, `src/lib/services/notifications/`, `src/lib/queries/telegram.ts`, `types/telegram.ts`, related hooks
+- DGrid + BYOK V1 wrappers: `src/lib/clients/dgrid/`, `src/lib/clients/byok/`
+- V1 cognition services: `fallbackHandler.ts`, `reasoningOrchestrator.ts`, `reasoningGraphBuilder.ts`, `regimeClassifier.ts(+test)`
+- V1 execution services: `preExecutionChecker.ts`, `preExecutionChecks.ts`, `riskManager.ts(+test)`, `positionTracker.ts`, `attestationEmitter.ts`
+- V1 agentLoop + attestation reader: `src/lib/services/agentLoop.ts`, `attestationHistory.ts`, `attestationReader.ts`
+- V1 queries: `positions.ts`, `reasoningChains.ts`, `events.ts`, `metrics.ts`, `queries/index.ts`
+- V1 utils: `prompts.ts(+test)`, `validation.ts(+test)`, `reasoningHash.ts`, `reasoningDisplay.ts`
+- V1 worker: `src/worker/`
+- V1 app routes + pages: `src/app/me/`, `src/app/onboard/`, `src/app/live/`, `src/app/track-record/`, `src/app/reasoning/`, `src/app/proof/`, `src/app/api/{skill,me,telegram,auth,positions,reasoning,agent,health,events/broadcast}/`
+- V1 components: `src/components/features/{cognition,copyTrade,execution,perception,landing,auth}/`, `src/components/providers/`
+- V1 types: `perception.ts`, `cognition.ts`, `execution.ts`, `index.ts`
+- V1 hooks: `usePositions.ts`, `useTelegramLink.ts`, `useWalletBalances.ts`, `useMe.ts`
+- V1 worker-split services: `realtimeService.ts`, `workerAdminProxy.ts`, `workerStatusCache.ts` (V2 reuses pattern; rewritten clean below)
+- V1 dev artifacts: `scratch.ts`, `scripts/decodeTxns.ts`, `AUDIT.md` (superseded by NEURODEGEN_V1_AUDIT.md), `skill.zip`
+
+### Files created
+
+**Types (per PRD §4.5, §5.4)**
+- `src/types/perception.ts` — V2 CMC event variants (`CMCQuoteEvent`, `CMCFearGreedEvent`, `CMCSocialEvent`, `CMCFundingEvent`, `CMCLiquidityEvent`, `CMCSecurityEvent`, `CMCNewsEvent`, `CMCTrendingNarrativeEvent`, `PythDivergenceEvent`) + `AggregateMetrics` + 4-state `RegimeLabel`
+- `src/types/cognition.ts` — `EVDecision`, `NarrativeAnalystOutput`, `QuantAnalystOutput`, `RiskClassifierOutput`, `DissentResult`, `ModelCallRecord`, `CommitteeSession`, `ActionRecommendation`, `ExecutionResultRecord`. Action enum is `open_long | close_position | adjust_parameters | hold` (no `open_short` for spot-only V2.0.0)
+- `src/types/execution.ts` — V2 `PositionState` (TWAK txHash + commit/reveal attestation tx fields), `PositionStatus` state machine, `TWAKPortfolioSnapshot`, `TWAKSwapResult`, `TWAKSwapQuote`
+- `src/types/monetization.ts` — `JournalEntry`, `X402Challenge`, `X402VerifiedPayment`, `ConsumedX402Proof` for replay protection
+- `src/types/mandate.ts` — `MandateConfig` (4 sliders + risk level) + `DEFAULT_MANDATE`
+- `src/types/index.ts` — barrel
+
+**Configs (per PRD §11)**
+- `src/config/perception.ts` — CMC polling cadences, EV gate threshold, hot state TTL, event batch size
+- `src/config/cognition.ts` — Phase 0–verified model IDs: `claude-sonnet-4.6`, `claude-haiku-4.5`, `gpt-4o`, `gpt-4o-mini`, `deepseek/deepseek-v3.2`, `qwen/qwen-flash`. Risk Classifier uses DeepSeek (V1-validated, Llama-3-70b NOT served by DGrid)
+- `src/config/execution.ts` — pre-execution thresholds, gas buffer, probe-trade params
+- `src/config/risk.ts` — drawdown ladder (15/20/25 enforced by us, no TWAK backstop), position caps, daily loss
+- `src/config/regime.ts` — 4-state regime params (quiet hibernates with probe-only, active/momentum/volatile have committee sessions)
+- `src/config/chains.ts` — `ATTESTATION_CONTRACT_ADDRESS` defaults to verified `0xe21f5eb…7dc4`, `COMPETITION_CONTRACT_ADDRESS`, BSC USDT/BUSD/CAKE/WBNB, Pyth feed IDs
+- `src/config/features.ts` — V2 flags (`ENABLE_EXECUTION`, `ENABLE_ATTESTATION`, `ENABLE_X402_INBOUND/OUTBOUND`, `ENABLE_BYOK_ROUTING`, `PREFER_BYOK_ROUTING`, `DISABLE_DGRID_ROUTING`, `ENABLE_PROBE_TRADE`, V2.1 deferral flags, `DRY_RUN_MODE`)
+- `src/config/monetization.ts` — inbound x402 pricing on BSC USDT default
+- `src/config/competition.ts` — registration deadline + trading window timing
+- `src/config/index.ts` — barrel
+
+**Queries (per PRD §9)**
+- `src/lib/queries/sessions.ts` — `insertCommitteeSession`, `updateSessionExecutionResult`, `getSessionById`, `getRecentSessions`, `getSessionByReasoningHash` (used by /proof page), `getNextSessionNumber`
+- `src/lib/queries/positions.ts` — V2 shape (no MYX-specific fields), `getDailyTradeCount` for probe scheduler
+- `src/lib/queries/events.ts` — CMC + Pyth events stored as `(source, event_type, timestamp, payload jsonb)`
+- `src/lib/queries/metrics.ts` — `insertMetrics`, `getLatestMetrics`, `getPeakPortfolioValueUSD` for RiskManager drawdown ladder
+- `src/lib/queries/x402proofs.ts` — `isProofConsumed`, `recordProof`, `getProof` (replay protection)
+- `src/lib/queries/index.ts` — barrel
+
+**Services rewritten**
+- `src/lib/services/realtimeService.ts` — V2 SSE service, environment-aware (forward to web from worker via `WEB_BROADCAST_URL` + `ADMIN_SECRET`, logs failures), with V2 event types (`committee_session_started`, `committee_session_complete`, `regime_change`, etc.)
+
+**Files kept verbatim (per PRD §2.3) — V2 reuses**
+- `src/lib/abis/attestationEmitter.ts` (V1 ABI; reused for commit-reveal + position attest)
+- `src/lib/stores/hotState.ts` (test rewritten for V2 events/metrics shapes)
+- `src/lib/services/perception/coldStorageWriter.ts` (works against new V2 events query)
+- `src/lib/clients/chain.ts` (viem public client + agent wallet client)
+- `src/lib/clients/supabase.ts`
+- `src/lib/utils/decimalScaling.ts` (+ test)
+- `src/lib/utils/format.ts`, `cn.ts`
+- `src/components/ui/*` (Card, Badge, Button, ShapeGrid, Skeleton)
+- `src/components/layout/Shell.tsx`, `AppBackground.tsx`, `DarkModeApplier.tsx`
+- `src/hooks/useSSE.ts`, `useAgentStatus.ts`
+- `src/app/{layout,page,globals.css,favicons,manifest,og,twitter}` (page rewritten as placeholder for Phase 6 mandate form)
+
+**Files rewritten in place**
+- `src/lib/clients/pyth.ts` — replaced V1 VAA-parsing path (audit flagged "VAA parsing incomplete") with Hermes `/v2/updates/price/latest?parsed=true` JSON endpoint returning typed `PythPriceFetch[]`
+- `src/lib/stores/hotState.test.ts` — rewritten for V2 event shapes (CMC quote, Fear & Greed, Pyth divergence) and V2 `AggregateMetrics`. 8 tests, all BDD-commented.
+- `src/components/layout/NavBar.tsx` — dropped `ConnectButton` (Privy removed); V2 routes are `/` (mandate), `/agent` (live), `/journal`
+- `src/app/layout.tsx` — dropped `PrivyAuthProvider` wrapper
+- `src/app/page.tsx` — minimal V2 placeholder (mandate form ships Phase 6)
+- `src/lib/abis/index.ts` — dropped `fourMemeTokenManagerAbi` export
+
+**Migration + audit**
+- `supabase/migrations/005_v2_schema.sql` — destructive V2 reset that drops V1 tables (`reasoning_chains`, V1 `positions`, V1 `events`, V1 `metrics`, telegram/users/subs/notifications) and creates V2 schema: `committee_sessions`, V2 `positions`, V2 `events`, V2 `metrics`, `consumed_x402_proofs`. Includes `journal_entries` view for the /journal page. RLS configured (anon SELECT for public reads, service_role for writes; `consumed_x402_proofs` is service_role-only).
+- `scripts/audit.sh` — V2 gate function per BUILD_PROTOCOL §4. Universal gates: tsc, vitest, lint, no inline TODOs, no unjustified `any`, no `@ts-ignore`, no stray `console.log`, no committed secret patterns. Phase-specific gates 1–7 each check file existence + V1 tombstone deletion.
+- `.env.example` — V2 variable set per PRD §12 with comments naming the Phase 0 verifications (e.g. "AttestationEmitter — V1 verified to have commitReasoning + revealExecution selectors. Do NOT redeploy.")
+- `.gitignore` un-ignored V2 source-of-truth docs + audit script per BUILD_PROTOCOL §1
+
+### Deviations from PRD
+
+- PRD §10 file tree lists `src/lib/services/cognition/{committeeSession,narrativeAnalyst,quantAnalyst,riskClassifier,dissentTracker,sessionGraphBuilder,fallbackHandler}.ts` etc. — those are Phase 4 deliverables; Phase 1 creates the empty `cognition/`, `execution/`, `perception/` directory shells via the `coldStorageWriter.ts` remnant and configurations only. No NOT_IMPLEMENTED stubs (per BUILD_PROTOCOL §5.1 these would fail audit at phase gates anyway).
+- PRD §10 names migrations `001..004` — V1 already shipped 001–004 with V1 schema. V2 migration is `005_v2_schema.sql` which DROPs the V1 tables. User must run this against a fresh project or back up V1 data first.
+
+### Discoveries
+
+1. `src/types/perception.ts` previously imported `PriceUpdate` and the V1 types `LaunchEvent`/`MarketSnapshot` — kept-verbatim V1 files (`pyth.ts`, `hotState.test.ts`) referenced them. Per BUILD_PROTOCOL §5.6 the boundary types had to be rewritten clean, not stubbed. Pyth client moved to Hermes JSON parsed-price endpoint as a side effect.
+
+2. The V1 `RegimeClassifier` is gone. V2 regime params live in `src/config/regime.ts` as data, separated from classifier logic (Phase 3). This addresses the V1 audit finding that the V1 classifier had `active`/`volatile`/`cool` dead branches: by defining the params as data plus separate transition thresholds, Phase 3 can implement and TEST each transition directly.
+
+3. The shell environment in this CI/sandbox had `find`/`sort` aliased oddly; `rm` was rejected by the auto-mode classifier on the first try. Used explicit `/bin/rm`, `/bin/find`, `/usr/bin/sort` throughout.
+
+### Followups
+
+- [F6] Phase 2 Phase 0 carryover: test CMC `/x402/mcp` transport end-to-end once the x402 outbound client is implemented.
+- [F7] Phase 4 Phase 0 carryover: confirm DGrid currently serves `deepseek/deepseek-v3.2` at runtime (vs `:exp` variant) when the LLM router calls it.
+- [F8] V1 `subscription_copy.txt`, `prot*.md`, `protsummary.md` remain in repo for historical reference — review and decide whether to move under `docs/v1-history/` in Phase 7.
+- [F9] V2 worker is not yet scaffolded — created in Phase 5 (PRD §13 Phase 5 Tasks).
+
+### Audit results — `bash scripts/audit.sh phase-1`
+
+- File existence (Phase 1 manifest): 34/34 PASS
+- V1 tombstones deleted: 9/9 PASS
+- TypeScript: 0 errors (clean)
+- Vitest: 2 files, 23 tests passing
+- ESLint: 0 errors, 0 warnings
+- No inline TODO/FIXME/XXX/HACK: PASS
+- No unjustified `any`: PASS
+- No `@ts-ignore` / `@ts-expect-error`: PASS
+- No stray `console.log`: PASS
+- No committed secret patterns: PASS
+
+**AUDIT PASSED  phase=phase-1**
+
+### Demo evidence
+
+- `pnpm tsc --noEmit` exits 0
+- `pnpm vitest run` reports `Test Files 2 passed (2) | Tests 23 passed (23)`
+- `pnpm lint` exits 0 with `0 problems`
+- `bash scripts/audit.sh phase-1` exits 0 with "AUDIT PASSED"
+
+### Gate decision
+
+Auto-greenlit per "end to end no deadline." Proceeding to V2 Phase 2.

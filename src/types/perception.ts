@@ -1,89 +1,134 @@
+export type RegimeLabel = 'quiet' | 'active' | 'momentum' | 'volatile';
+
 export interface BaseEvent {
   eventId: string;
-  source: 'fourmeme' | 'myx' | 'pyth';
+  source: 'cmc_hub' | 'pyth' | 'twak';
   timestamp: number;
-  blockNumber: number | null;
-  rawHash: string | null;
 }
 
-export interface LaunchEvent extends BaseEvent {
-  source: 'fourmeme';
-  eventType: 'token_create';
-  tokenAddress: string;
-  creatorAddress: string;
-  tokenName: string;
+export interface CMCQuoteEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'quote_update';
   tokenSymbol: string;
-  initialSupplyOnCurve: bigint;
+  tokenAddress: `0x${string}`;
+  priceUSD: number;
+  volume24hUSD: number;
+  percentChange1h: number;
+  percentChange24h: number;
+  marketCapUSD: number;
+  cmcRank: number;
 }
 
-export interface PurchaseEvent extends BaseEvent {
-  source: 'fourmeme';
-  eventType: 'token_purchase';
-  tokenAddress: string;
-  buyerAddress: string;
-  bnbAmount: bigint;   // = funds field from contract
-  tokenAmount: bigint; // = amount field from contract
-  currentCurveBalance: bigint; // = offers field from contract
+export interface CMCFearGreedEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'fear_greed_update';
+  value: number;
+  label: 'extreme_fear' | 'fear' | 'neutral' | 'greed' | 'extreme_greed';
 }
 
-export interface GraduationEvent extends BaseEvent {
-  source: 'fourmeme';
-  eventType: 'liquidity_added';
-  tokenAddress: string;
-  bnbAccumulated: bigint;
+export interface CMCSocialEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'social_signal';
+  tokenSymbol: string;
+  kolMentionCount: number;
+  velocityPerHour: number;
+  sentimentDirection: 'positive' | 'negative' | 'neutral';
 }
 
-export interface MarketSnapshot extends BaseEvent {
-  source: 'myx';
-  eventType: 'market_snapshot';
-  contractIndex: number;
+export interface CMCFundingEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'funding_rate_update';
   pair: string;
-  poolId: string | null;
-  lastPrice: number;
-  indexPrice: number;
-  fundingRate: number | null;
-  openInterest: number;
-  openInterestUsd: number;
-  baseVolume: number;
-  quoteVolume: number;
+  fundingRateAnnualized: number;
+  direction: 'rising' | 'falling' | 'stable';
 }
 
-export interface PriceUpdate extends BaseEvent {
+export interface CMCLiquidityEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'dex_liquidity_snapshot';
+  tokenSymbol: string;
+  pairAddress: `0x${string}`;
+  liquidityUSD: number;
+  volume24hUSD: number;
+  priceImpact1kUSD: number;
+}
+
+export interface CMCSecurityEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'security_check';
+  tokenAddress: `0x${string}`;
+  isHoneypot: boolean;
+  ownerCanMint: boolean;
+  riskScore: number;
+  flags: string[];
+}
+
+export interface CMCNewsEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'news_headline';
+  headline: string;
+  summary: string;
+  url: string;
+  publishedAt: number;
+  sentimentDirection: 'positive' | 'negative' | 'neutral';
+}
+
+export interface CMCTrendingNarrativeEvent extends BaseEvent {
+  source: 'cmc_hub';
+  eventType: 'trending_narrative';
+  narrativeLabel: string;
+  topTokens: string[];
+  momentumScore: number;
+}
+
+export interface PythDivergenceEvent extends BaseEvent {
   source: 'pyth';
-  eventType: 'price_update';
-  feedId: string;
-  pair: string;
-  price: bigint;
-  confidence: bigint;
-  exponent: number;
-  publishTime: number;
+  eventType: 'divergence_check';
+  tokenSymbol: string;
+  cmcPriceUSD: number;
+  pythPriceUSD: number;
+  divergencePercent: number;
 }
 
 export type PerceptionEvent =
-  | LaunchEvent
-  | PurchaseEvent
-  | GraduationEvent
-  | MarketSnapshot
-  | PriceUpdate;
+  | CMCQuoteEvent
+  | CMCFearGreedEvent
+  | CMCSocialEvent
+  | CMCFundingEvent
+  | CMCLiquidityEvent
+  | CMCSecurityEvent
+  | CMCNewsEvent
+  | CMCTrendingNarrativeEvent
+  | PythDivergenceEvent;
 
 export interface AggregateMetrics {
   computedAt: number;
-  launchVelocityPerHour: number;
-  capitalInflowBNBPerHour: number;
-  graduationVelocityPerHour: number;
-  activeLaunches: number;
-  topTokensByInflow: Array<{
-    tokenAddress: string;
-    bnbInflow: bigint;
-    curveProgress: number;
+  regime: RegimeLabel;
+  fearGreedValue: number;
+  fearGreedLabel: string;
+  topMoversByVolume: Array<{
+    symbol: string;
+    address: `0x${string}`;
+    percentChange1h: number;
+    volume24hUSD: number;
   }>;
-  myxMetrics: Record<
+  kolActivityByToken: Record<
     string,
     {
-      crowdScore: number;
-      fundingRateCurrent: number | null;
-      fundingTrendDirection: 'rising' | 'falling' | 'stable';
-      openInterestUsd: number;
+      mentionCount: number;
+      velocityPerHour: number;
+      sentimentDirection: 'positive' | 'negative' | 'neutral';
     }
   >;
+  fundingRatesByPair: Record<
+    string,
+    {
+      rateAnnualized: number;
+      direction: 'rising' | 'falling' | 'stable';
+    }
+  >;
+  marketLiquidityScore: number;
+  activeSurgeTokens: number;
+  x402SpendSessionUSDC: number;
+  x402SpendDailyUSDC: number;
 }

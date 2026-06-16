@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { JetBrains_Mono, IBM_Plex_Sans, Space_Grotesk } from 'next/font/google';
 import { DarkModeApplier } from '@/components/layout/DarkModeApplier';
-import { PrivyAuthProvider } from '@/components/providers/PrivyAuthProvider';
 import './globals.css';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -25,17 +24,27 @@ const spaceGrotesk = Space_Grotesk({
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://neurodegen.xyz';
 
 const DESCRIPTION =
-  'Every trade is committed on-chain before execution. Reasoning hash → MYX order → execution reveal, all verifiable on BscScan. No trust required.';
+  'Three agents debate. One decision. Your keys never leave your wallet. Every committee decision is committed on-chain before TWAK signs the trade.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: 'NeuroDegen — On-Chain Proof of AI Reasoning',
+    default: 'NeuroDegen V2 — Investment Committee on BNB Chain',
     template: '%s · NeuroDegen',
   },
   description: DESCRIPTION,
   applicationName: 'NeuroDegen',
-  keywords: ['BNB Chain', 'Four.meme', 'MYX Finance', 'DGrid', 'Pieverse', 'autonomous agent', 'on-chain attestation'],
+  keywords: [
+    'BNB Chain',
+    'Trust Wallet',
+    'TWAK',
+    'CoinMarketCap',
+    'CMC Hub',
+    'investment committee',
+    'autonomous agent',
+    'on-chain attestation',
+    'self-custody',
+  ],
   authors: [{ name: 'NeuroDegen Team' }],
   icons: {
     icon: [
@@ -51,13 +60,15 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'NeuroDegen',
-    title: 'NeuroDegen — On-Chain Proof of AI Reasoning',
+    title: 'NeuroDegen V2 — Investment Committee on BNB Chain',
     description: DESCRIPTION,
-    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'NeuroDegen' }],
+    images: [
+      { url: '/opengraph-image', width: 1200, height: 630, alt: 'NeuroDegen' },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NeuroDegen',
+    title: 'NeuroDegen V2',
     description: DESCRIPTION,
     images: ['/twitter-image'],
   },
@@ -75,7 +86,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <DarkModeApplier />
-        <PrivyAuthProvider>{children}</PrivyAuthProvider>
+        {children}
       </body>
     </html>
   );

@@ -2,17 +2,16 @@ export type SSEEventType =
   | 'perception_event'
   | 'metrics_update'
   | 'regime_change'
-  | 'reasoning_complete'
+  | 'committee_session_started'
+  | 'committee_session_complete'
   | 'position_update'
   | 'health_degradation'
-  | 'telegram_linked'
   | 'agent_status_snapshot';
 
 export interface SSEEvent {
   type: SSEEventType;
   data: unknown;
   timestamp: number;
-  userId?: string;
 }
 
 const encoder = new TextEncoder();
@@ -45,7 +44,9 @@ export class RealtimeService {
 
   private fanout(event: SSEEvent): void {
     const serialized = JSON.stringify(event.data, jsonReplacer);
-    const message = encoder.encode(`event: ${event.type}\ndata: ${serialized}\n\n`);
+    const message = encoder.encode(
+      `event: ${event.type}\ndata: ${serialized}\n\n`,
+    );
 
     for (const writer of this.clients) {
       writer.write(message).catch(() => {
@@ -69,10 +70,16 @@ export class RealtimeService {
         body: JSON.stringify(event, jsonReplacer),
       });
       if (!response.ok) {
-        console.error('[realtime] forward to web failed:', `HTTP ${response.status}`);
+        console.error(
+          '[realtime] forward to web failed:',
+          `HTTP ${response.status}`,
+        );
       }
     } catch (err) {
-      console.error('[realtime] forward to web failed:', err instanceof Error ? err.message : String(err));
+      console.error(
+        '[realtime] forward to web failed:',
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

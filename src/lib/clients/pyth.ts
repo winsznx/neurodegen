@@ -1,109 +1,86 @@
-import type { PriceUpdate } from '@/types/perception';
 import { PYTH_FEED_IDS } from '@/config/chains';
+import type { PythFeedSymbol } from '@/config/chains';
+
+const DEFAULT_HERMES_URL = 'https://hermes.pyth.network';
+
+export interface PythPriceFetch {
+  feedId: string;
+  pair: string;
+  priceUSD: number;
+  confidenceUSD: number;
+  publishTime: number;
+  stalenessSeconds: number;
+}
+
+interface HermesParsedPrice {
+  price: {
+    price: string;
+    conf: string;
+    expo: number;
+    publish_time: number;
+  };
+  ema_price?: unknown;
+  id: string;
+}
+
+interface HermesParsedResponse {
+  parsed: HermesParsedPrice[];
+}
 
 export class PythHermesClient {
   private readonly hermesUrl: string;
 
-  constructor(hermesUrl: string = 'https://hermes.pyth.network') {
+  constructor(hermesUrl: string = process.env.PYTH_HERMES_URL ?? DEFAULT_HERMES_URL) {
     this.hermesUrl = hermesUrl;
   }
 
-  async getLatestPriceUpdate(feedIds: string[]): Promise<PriceUpdate[]> {
+  async fetchLatestPrices(feedIds: string[]): Promise<PythPriceFetch[]> {
+    if (feedIds.length === 0) return [];
     const params = feedIds.map((id) => `ids[]=${id}`).join('&');
-    const response = await fetch(`${this.hermesUrl}/api/latest_vaas?${params}`);
+    const response = await fetch(`${this.hermesUrl}/v2/updates/price/latest?${params}&parsed=true&encoding=base64`);
 
     if (!response.ok) {
       const body = await response.text();
       throw new Error(`Pyth Hermes request failed [status=${response.status}]: ${body}`);
     }
 
-    const vaas = (await response.json()) as string[];
-    const updates: PriceUpdate[] = [];
-
-    for (let i = 0; i < vaas.length; i++) {
-      const feedId = feedIds[i];
-      const pair = this.feedIdToPair(feedId);
-      const decoded = this.decodeVAA(vaas[i]);
-
-      updates.push({
-        eventId: crypto.randomUUID(),
-        source: 'pyth',
-        eventType: 'price_update',
-        timestamp: Date.now(),
-        blockNumber: null,
-        rawHash: null,
+    const body = (await response.json()) as HermesParsedResponse;
+    const parsed = body.parsed ?? [];
+    const nowSec = Math.floor(Date.now() / 1000);
+    const out: PythPriceFetch[] = [];
+    for (const entry of parsed) {
+      const rawPrice = Number(entry.price.price);
+      const rawConf = Number(entry.price.conf);
+      const expo = entry.price.expo;
+      const scale = Math.pow(10, expo);
+      const feedId = `0x${entry.id.replace(/^0x/, '')}`;
+      out.push({
         feedId,
-        pair,
-        price: decoded.price,
-        confidence: decoded.confidence,
-        exponent: decoded.exponent,
-        publishTime: decoded.publishTime,
+        pair: this.feedIdToPair(feedId),
+        priceUSD: rawPrice * scale,
+        confidenceUSD: rawConf * scale,
+        publishTime: entry.price.publish_time,
+        stalenessSeconds: nowSec - entry.price.publish_time,
       });
     }
-
-    return updates;
+    return out;
   }
 
-  async getLatestVAAs(
-    feedIds: string[]
-  ): Promise<Array<{ vaaBytes: Uint8Array; publishTime: number }>> {
-    const params = feedIds.map((id) => `ids[]=${id}`).join('&');
-    const response = await fetch(`${this.hermesUrl}/api/latest_vaas?${params}`);
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Pyth Hermes VAA request failed [status=${response.status}]: ${body}`);
-    }
-
-    const vaas = (await response.json()) as string[];
-    const results: Array<{ vaaBytes: Uint8Array; publishTime: number }> = [];
-
-    for (const vaa of vaas) {
-      const bytes = Uint8Array.from(atob(vaa), (c) => c.charCodeAt(0));
-      const decoded = this.decodeVAA(vaa);
-      const stalenessSeconds = Math.floor(Date.now() / 1000) - decoded.publishTime;
-
-      if (stalenessSeconds > 60) {
-        throw new Error(
-          `Pyth VAA is stale: publishTime=${decoded.publishTime}, staleness=${stalenessSeconds}s`
-        );
-      }
-
-      results.push({ vaaBytes: bytes, publishTime: decoded.publishTime });
-    }
-
-    return results;
-  }
-
-  private decodeVAA(base64Vaa: string): {
-    price: bigint;
-    confidence: bigint;
-    exponent: number;
-    publishTime: number;
-  } {
-    const bytes = Uint8Array.from(atob(base64Vaa), (c) => c.charCodeAt(0));
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-
-    const payloadOffset = bytes.length - 40;
-    const price = view.getBigInt64(payloadOffset, false);
-    const confidence = view.getBigUint64(payloadOffset + 8, false);
-    const exponent = view.getInt32(payloadOffset + 16, false);
-    const publishTime = view.getUint32(payloadOffset + 20, false);
-
-    return {
-      price,
-      confidence: BigInt(confidence),
-      exponent,
-      publishTime,
-    };
+  async fetchSinglePrice(symbol: PythFeedSymbol): Promise<PythPriceFetch> {
+    const feedId = PYTH_FEED_IDS[symbol];
+    const [first] = await this.fetchLatestPrices([feedId]);
+    if (!first) throw new Error(`Pyth returned no price for ${symbol}`);
+    return first;
   }
 
   private feedIdToPair(feedId: string): string {
-    const mapping: Record<string, string> = {
+    const reverse: Record<string, string> = {
       [PYTH_FEED_IDS.BTC_USD]: 'BTC/USD',
       [PYTH_FEED_IDS.ETH_USD]: 'ETH/USD',
       [PYTH_FEED_IDS.BNB_USD]: 'BNB/USD',
     };
-    return mapping[feedId] ?? 'UNKNOWN';
+    return reverse[feedId.toLowerCase()] ?? reverse[feedId] ?? 'UNKNOWN';
   }
 }
+
+export const pythHermesClient = new PythHermesClient();
