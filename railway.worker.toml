@@ -1,14 +1,38 @@
-# Railway config for the neurodegen-worker service.
-# In Railway: create a second service on the same repo; in Settings → Config-as-code Path,
-# point it at /railway.worker.toml. Set env vars WORKER_MODE=true, WEB_BROADCAST_URL=https://<web-domain>/api/events/broadcast,
-# ADMIN_SECRET=<shared>, plus all the BITQUERY/DGRID/MYX/PRIVY/SUPABASE keys the agent needs.
+# Railway config — neurodegen-worker service (long-running V2 agent loop).
+# Pair with /railway.toml on a sibling Railway service in the same project so
+# they share env vars and reach each other via internal DNS:
+#   - worker → web:  http://${{ neurodegen-web.RAILWAY_PRIVATE_DOMAIN }}:${{ neurodegen-web.PORT }}
+#   - web    → worker: http://${{ neurodegen-worker.RAILWAY_PRIVATE_DOMAIN }}:8080
 
 [build]
 builder = "railpack"
-buildCommand = "echo 'worker runs via tsx at runtime; no compile step'"
+# Worker runs through tsx at runtime — no Next.js compile step needed, but we
+# install deps once at build time so spawn() is fast.
+buildCommand = "pnpm install --frozen-lockfile"
 
 [deploy]
 startCommand = "pnpm worker:start"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
-restartPolicyType = "always"
+restartPolicyType = "ALWAYS"
+restartPolicyMaxRetries = 10
+drainingSeconds = 30
+
+# ── Required environment variables on this service ──
+#   WORKER_MODE=true                       ← flips realtimeService into forward-to-web mode
+#   WEB_BROADCAST_URL=http://${{ neurodegen-web.RAILWAY_PRIVATE_DOMAIN }}:${{ neurodegen-web.PORT }}/api/events/broadcast
+#   ADMIN_SECRET                           (shared with the web service)
+#
+#   TWAK_AGENT_WALLET_ADDRESS=0x9fe816a8bd6933464c177ba94890aede5cd5aa5a
+#   TWAK_AGENT_PRIVATE_KEY=<agent key — Railway secret, never log>
+#   TWAK_WALLET_PASSWORD=<keychain password>
+#
+#   CMC_PRO_API_KEY, CMC_X402_WALLET_PRIVATE_KEY
+#   ANTHROPIC_API_KEY, OPENAI_API_KEY, DGRID_API_KEY
+#
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   BSC_RPC_URL, BSC_RPC_URL_FALLBACK
+#   ATTESTATION_CONTRACT_ADDRESS=0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4
+#
+#   ENABLE_EXECUTION=false   ← flip with DRY_RUN_MODE=false to go live
+#   DRY_RUN_MODE=true

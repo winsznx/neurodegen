@@ -174,7 +174,6 @@ phase_1() {
       src/lib/services/perception/coldStorageWriter.ts \
       supabase/migrations/005_v2_schema.sql \
       .env.example \
-      vercel.json \
       railway.toml \
       railway.worker.toml ; do
     if [[ -f "$path" ]]; then

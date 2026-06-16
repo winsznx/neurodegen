@@ -1,7 +1,9 @@
 import { ImageResponse } from 'next/og';
 import { getSessionById } from '@/lib/queries/sessions';
 
-export const runtime = 'edge';
+// Railway-only deployment: stay on Node.js. Edge runtime is Vercel-specific
+// and the Edge OG image generator carries Vercel platform assumptions.
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: Request, context: { params: Promise<{ id: string }> }) {
