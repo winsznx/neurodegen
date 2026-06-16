@@ -1192,3 +1192,50 @@ Auto-greenlit. Proceeding to V2 Phase 5 (execution).
 
 ### Gate decision
 Auto-greenlit. Proceeding to V2 Phase 6.
+
+## V2 Phase 6 — Frontend + Monetization — Status: complete
+
+### Date
+2026-06-16
+
+### Files created
+**API routes**
+- `src/app/api/agent/{start,trigger}/route.ts` — POST proxies to the Railway worker via `workerAdminProxy.proxyAdminRequest` (admin-secret gated, NextRequest validates the secret before forwarding)
+- `src/app/api/agent/status/route.ts` — GET resolves worker status via `fetchWorkerStatusRaw`; if the worker is unreachable, returns `{status: 'stopped'}` with the failure code/detail so the dashboard renders a useful banner instead of crashing
+- `src/app/api/health/route.ts` — GET aggregates worker + database + env coverage into a single boolean + diagnostics blob
+- `src/app/api/session/route.ts` + `/[id]/route.ts` — list and detail
+- `src/app/api/journal/route.ts` — joins recent sessions with their position rows (if any), maps to V2 `JournalEntry`s with conviction tiering + bscscan url
+- `src/app/api/mandate/parse/route.ts` — POST validates the slider-derived MandateConfig with Zod, returns the canonical struct merged onto `DEFAULT_MANDATE`. V2.1 will swap this for the NLP path; V2.0 is form-only.
+- `src/app/api/x402/session/[id]/route.ts` — inbound x402 endpoint. No proof → 402 challenge with `X-Payment-*` headers. With proof: parse the BSC tx receipt, find a `USDT.Transfer(*, REVENUE_ADDRESS, ≥ atomic)`, dedupe against `consumed_x402_proofs`, then return the full `CommitteeSession` JSON. Fixes the V1 audit §4.1 replay vulnerability.
+- `src/app/api/og/session/[id]/route.tsx` — Edge runtime OG image. Dimensions 1200×630. Shows session number, regime, action+token, plain-language explanation.
+
+**Pages**
+- `src/app/page.tsx` — landing rewritten with the mandate form
+- `src/components/features/landing/MandateForm.tsx` — 3 sliders (max drawdown %, max per token %, daily loss cap %) + 1 select (risk level). Saves to localStorage + posts to `/api/mandate/parse`. Successful save flips into a confirmation view linking to `/agent` and `/journal`.
+- `src/app/agent/page.tsx` + `src/components/features/agent/AgentDashboard.tsx` — live dashboard. Four stat cards (regime, cycles, drawdown, open positions) read from `useAgentStatus`. Recent sessions list polls `/api/journal?limit=20` every 15s and links each row into `/session/[id]` + `/bscscan/tx/[hash]`.
+- `src/app/journal/page.tsx` — server-rendered full journal table (50 rows by default). Joined with positions for PnL/exit-reason/tx column.
+- `src/app/session/[id]/page.tsx` — full session detail. Three analyst output cards, dissent summary, proof chain table with reasoning hash + commit/reveal/twak tx hashes. `generateMetadata` wires the OG image at `/api/og/session/[id]`.
+- `src/app/proof/[txHash]/page.tsx` — V2 verification page. Looks up position by twak tx hash, fetches the session, **recomputes the reasoning hash from the DB row using `canonicalize(partial)` then `keccak256(...)`** and compares to the stored hash. Five-flag verdict (hash recompute, DB round-trip, swap recorded, commit tx, reveal tx) → "Verified." or "Verification incomplete."
+
+**Supporting**
+- `src/lib/services/workerAdminProxy.ts` — re-introduced V2 reimplementation of the V1 admin proxy (V1 file was deleted Phase 1; the V2 admin routes need it). `proxyAdminRequest(request, path)` validates admin secret + POSTs to `WORKER_ADMIN_URL`; `fetchWorkerStatusRaw()` reads `<base>/health` with a 5s timeout. Used by status + health + start/trigger routes.
+
+### V2 audit findings handled in Phase 6
+- **V1 audit §4.1 replay vulnerability fix**: `/api/x402/session/:id` enforces `consumed_x402_proofs` dedupe before returning data. The same paid tx hash can never unlock the session API twice.
+- The /proof verdict UI is the public attestation of the V2 audit work. Each "OK" flag corresponds to a specific V1 sin V2 fixes.
+
+### Deviations from PRD
+- PRD §8.5 Position Explainer modal is folded into the session detail page's `plainLanguageExplanation` field instead of a separate modal. Same data, fewer interaction surfaces. The V2.1 modal can layer on top without changing data shapes.
+- PRD §8.2 mandate confirmation flow uses one form + a confirmation state on the same page rather than the multi-step wizard (less cognitive load before the user has decided to fund the wallet).
+
+### Audit results — `bash scripts/audit.sh phase-6`
+- File existence: 10/10 PASS
+- tsc: 0 errors
+- Vitest: 12 files, 79 tests passing (unchanged from Phase 5; no new tests added — UI is server-rendered + smoke-tested via build)
+- ESLint: 0 errors
+- Anti-pattern checks: all PASS
+
+**AUDIT PASSED  phase=phase-6**
+
+### Gate decision
+Auto-greenlit. Proceeding to V2 Phase 7 (backtest + final audit).
