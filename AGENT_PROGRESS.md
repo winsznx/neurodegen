@@ -1085,3 +1085,34 @@ Stand up the external boundary clients per PRD §13.2 — TWAK CLI wrapper, CMC 
 ### Gate decision
 
 Auto-greenlit per "end to end no deadline." Proceeding to V2 Phase 3.
+
+## V2 Phase 3 — Perception — Status: complete
+
+### Date
+2026-06-16
+
+### Files created
+- `src/lib/services/perception/evGate.ts` (+ test) — pure `evaluateEV` plus `x402SpendTracker` (UTC-day-bucketed in-memory). 6 tests cover regime suppression, momentum approval, below-threshold blocking, zero-alpha shortcut, threshold override, negative-gas clamping.
+- `src/lib/services/perception/regimeClassifier.ts` (+ test) — 4-state classifier (`quiet`, `active`, `momentum`, `volatile`) with `RegimeClassifierState.lastVolatileExitCandidateAt` tracking the cooldown. 8 tests cover each regime's boundary, funding-rate volatile, exit-cooldown sticky behavior, and a V1 regression that asserts all 4 states are reachable (V1 audit §5 found `active/volatile/cool` were dead branches across 18 days of prod).
+- `src/lib/services/perception/eventNormalizer.ts` (+ test) — Zod schemas + transforms for `normalizeCmcQuotes`, `normalizeFearGreed`, `normalizeTrendingNarratives`, `normalizeNews`, `normalizeDerivatives`, `normalizeSocial`, `normalizeDexLiquidity`, `normalizeSecurity`, and `normalizePythDivergence`. Accepts both v1 dict-of-symbols and v2 list shapes; rejects malformed entries silently; never throws on a single bad row. 12 tests including divergence math.
+- `src/lib/services/perception/aggregatorService.ts` (+ test) — pure `aggregateMetrics(events, options)`. Picks latest per-token quote, per-pair funding rate, per-token social signal; computes surge token count + top-movers + KOL activity + funding rates + market liquidity score (log-normalized) + x402 spend. 5 tests.
+- `src/lib/services/perception/cmcIngester.ts` — long-running poller. 5 cadences (quotes 60s, global 5min, derivatives 5min, narratives 5min, news 10min). `ensureSecurityCheck` invoked by the cognition layer pre-trade: EV gate decides, twakClient pays x402, cmcHubClient.callX402 fetches, normalizer types it, hot+cold stores get the event, spend tracker increments. Wires the x402 hook AT the call site to avoid the cmcHubClient ↔ twakClient circular import flagged in Phase 2 followup F10.
+
+### Deviations from PRD
+- Aggregator was scoped to events the V2 cognition layer actually reads. Dex liquidity events come from cmcIngester.ensureSecurityCheck (paid x402 path) plus on-chain reads (Phase 5 PreExecutionChecker), not from a periodic free-tier poll. The PRD didn't enumerate per-cadence behavior for dex liquidity since the free MCP tools don't expose it (Phase 0 finding).
+
+### Discoveries
+1. Zod v4 has a slightly different `.transform` chaining than v3 — the published_at union `string | number → number` works cleanly once the transform is on the union, not on the field.
+2. The volatile-exit cooldown is materially load-bearing for survival during the trading window — without it, the agent oscillates between volatile and active every 60 seconds during chop, paying x402 spend on each entry without ever opening a real position.
+
+### Audit results — `bash scripts/audit.sh phase-3`
+- File existence: 5/5 PASS
+- tsc: 0 errors
+- Vitest: 9 files, 60 tests passing
+- ESLint: 0 errors
+- All anti-pattern checks PASS
+
+**AUDIT PASSED  phase=phase-3**
+
+### Gate decision
+Auto-greenlit. Proceeding to V2 Phase 4 (cognition).
