@@ -1239,3 +1239,74 @@ Auto-greenlit. Proceeding to V2 Phase 6.
 
 ### Gate decision
 Auto-greenlit. Proceeding to V2 Phase 7 (backtest + final audit).
+
+## V2 Phase 7 — Backtest + Final Audit — Status: complete
+
+### Date
+2026-06-16
+
+### Files created
+- `src/lib/services/backtestRunner.ts` — `runBacktest(steps, options)` replays a fixture list of `(events, narrativeFixture, quantFixture, riskFixture, priceUSDBySymbol)` through the V2 perception → cognition → sizing pipeline WITHOUT making real LLM calls. Returns `{sessions, simulatedTrades, cumulativePnLPct, cumulativePnLUSD, fixtureHash}`. Same inputs + same seed = same `fixtureHash` and same `reasoningHash` chain.
+- `src/lib/services/backtestRunner.test.ts` — 3 tests: (a) reproducibility under same seed, (b) different seed → different fixtureHash, (c) PnL accumulates correctly when exit prices are provided.
+- `scripts/backtest.ts` — CLI runner. `pnpm tsx scripts/backtest.ts --seed demo --steps 12` runs a sine-wave CAKE price fixture through the runner and prints per-session PnL plus cumulative. Used during demo prep to sanity-check the pipeline without live API calls.
+
+### Final audit results — `bash scripts/audit.sh all`
+- **Phase 1** Foundation: 34/34 file checks PASS + 9/9 V1 tombstones deleted
+- **Phase 2** Clients: 7/7 file checks PASS
+- **Phase 3** Perception: 5/5 file checks PASS
+- **Phase 4** Cognition: 8/8 file checks PASS
+- **Phase 5** Execution: 9/9 file checks PASS
+- **Phase 6** Frontend + Monetization: 10/10 file checks PASS
+- **Phase 7** Backtest + Audit: 2/2 file checks PASS
+- TypeScript: 0 errors
+- Vitest: 13 files, 89 tests passing
+- ESLint: 0 errors
+- All anti-pattern checks PASS (no inline TODOs, no unjustified `any`, no `@ts-ignore`, no stray `console.log`, no committed secrets)
+- **Next.js build: succeeds**
+
+**AUDIT PASSED  phase=all**
+
+### V1 → V2 sin-by-sin reconciliation
+
+| V1 audit finding | V2 status |
+|---|---|
+| §1.2a orderId always null in TransactionSubmitter | Fixed: TWAK swap returns real `txHash`; no synthetic orderId remains. |
+| §1.2b orderId on attestation reveal was keccak(localUuid) | Fixed: `orderIdFromTxHash(twakTxHash) = keccak256(twakTxHash)` in `attestationEmitter.revealExecution`. |
+| §1.2c-d Position tracker disabled SDK polling | Fixed: `positionTracker.reconcileOnce` polls TWAK portfolio every 30s and transitions SUBMITTED → MANAGED → CLOSED based on actual on-chain state. |
+| §1.2e Stuck position blocks new entries | Fixed: same as above. RiskManager + PositionTracker keep max-concurrent honest. |
+| §1.2f networkFee silently zeroed | Fixed: V2 doesn't carry MYX's networkFee pattern. TWAK handles fees per-swap internally. |
+| §1.2g positionId='' SDK dispatch ambiguity | Fixed: TWAK `swap` subcommand has explicit positional args; no implicit dispatch. |
+| §4.1 Pieverse proofs were replayable | Fixed: `/api/x402/session/[id]` enforces `consumed_x402_proofs (tx_hash PRIMARY KEY)` dedupe. |
+| §5 RegimeClassifier active/volatile/cool dead in prod | Fixed: 4-state classifier with explicit fixture-driven test coverage and V1 regression asserting all 4 states are reachable. |
+| §6.2 Architecture pattern: lifecycle never wrote fill data | Fixed: PositionTracker transitions + twakExecutor close path updates pnlUSD/pnlPct/exitReason/closedAt every cycle. |
+
+### Phase totals
+- Phases shipped: 7 (Phase 0 verification + 6 build phases)
+- Commits: 8 (1 Phase 0 + 7 phase commits)
+- Tests: 89 across 13 files
+- Lines added (Phase 1–7, excluding docs): ~6,500
+- Lines deleted (Phase 1 demolition): ~15,000
+
+### Operational followups for the live trading window
+
+These remain outside the build's scope but are tracked here per BUILD_PROTOCOL §6:
+
+- **[F1] Fund agent wallet** `0x9fe816a8bd6933464c177ba94890aede5cd5aa5a` with BNB (≥0.005) + USDT (≥$50) before Phase 5 live test trade.
+- **[F2] Subscribe to CMC Basic tier** or switch entirely to x402 transport. Free Basic covers V2 cadence comfortably; x402 fallback is wired.
+- **[F4] DGrid credit balance check** via `/v1/usage` at deploy time.
+- **[F5] `twak compete register`** on the worker host before the BSC competition window opens.
+- **[F13] Live token allowlist**: replace the 5-token seed list in `lib/utils/allowedTokens.ts` with the 149-token competition list from `twak compete status --json` once the CLI is installed.
+- **Run `supabase/migrations/005_v2_schema.sql`** against the production database (the migration is destructive — back up V1 data first or run against a fresh project).
+- **Set Vercel + Railway env** per `.env.example`.
+
+### Gate decision
+Full audit PASSED. V2 build is complete and ready for deployment + the live trading window.
+
+---
+
+# V2 BUILD COMPLETE
+
+All 7 phases shipped, all gates clean. The agent is ready for:
+1. Operational follow-ups above (wallet funding, CLI install, registration)
+2. Deployment to Vercel (frontend) + Railway (worker)
+3. Live trading window once `ENABLE_EXECUTION=true` + `DRY_RUN_MODE=false`
