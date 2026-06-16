@@ -1009,3 +1009,79 @@ Demolish V1 modules irrelevant to V2 and stand up the V2 type, config, query, an
 ### Gate decision
 
 Auto-greenlit per "end to end no deadline." Proceeding to V2 Phase 2.
+
+## V2 Phase 2 — Clients — Status: complete
+
+### Date
+2026-06-16
+
+### Goal
+Stand up the external boundary clients per PRD §13.2 — TWAK CLI wrapper, CMC Hub MCP+x402 transport, LLM router (BYOK direct → DGrid fallback chain per committee member), and the canonical-serialization helper used by Phase 4 reasoningHash.
+
+### Files created
+
+**Utilities**
+- `src/lib/utils/canonicalSerialize.ts` — deterministic JSON helper. Sorts object keys at every depth, preserves array order, stringifies BigInt to decimal, serializes Date to ISO, omits `undefined`, refuses cycles, refuses NaN/Infinity. Used by Phase 4's sessionGraphBuilder before keccak256.
+- `src/lib/utils/canonicalSerialize.test.ts` — 9 BDD tests covering key-sort determinism, array-order preservation, BigInt scalar handling, Date handling, undefined omission, cycle rejection, NaN rejection, deep nesting, and BigInt-vs-string equivalence.
+
+**LLM transport (PRD §5.1)**
+- `src/lib/clients/llm/claudeClient.ts` — direct Anthropic `/v1/messages`. `callClaudeMessages({systemPrompt, userContent, modelId})` → `{text, inputTokens, outputTokens, modelId}`. Timeout 30s, max tokens 2048.
+- `src/lib/clients/llm/openaiClient.ts` — direct OpenAI `/v1/chat/completions`. Same call shape via `callOpenAIChatCompletions`.
+- `src/lib/clients/llm/dgridClient.ts` — DGrid `/v1/messages` (Anthropic-compatible) AND `/v1/chat/completions` (OpenAI-compatible). Phase 0 verified at `https://api.dgrid.ai/v1`. Both exposed: `callDGridMessages`, `callDGridChatCompletions`.
+- `src/lib/clients/llm/router.ts` — `routeCommitteeCall({member: 'narrative' | 'quant' | 'risk', systemPrompt, userContent})`. Returns the first successful call plus a full `attempts: ModelCallRecord[]` audit trail of every try (success + failure both recorded). The router resolves candidates per member:
+  - **Narrative**: BYOK Claude direct → DGrid `anthropic/claude-sonnet-4.6` → DGrid `anthropic/claude-haiku-4.5` → DGrid `openai/gpt-4o-mini` (cross-family fallback)
+  - **Quant**: BYOK GPT-4o direct → DGrid `openai/gpt-4o` → DGrid `openai/gpt-4o-mini` → DGrid `anthropic/claude-haiku-4.5` (cross-family fallback)
+  - **Risk**: DGrid `deepseek/deepseek-v3.2` → DGrid `qwen/qwen-flash` → DGrid `openai/gpt-4o` (no direct API needed; DeepSeek not exposed by V1 BYOK paths)
+  - `PREFER_BYOK_ROUTING=true` (default) puts BYOK first; `PREFER_BYOK_ROUTING=false` puts DGrid first to drain BYOK credits later
+  - Throws `No eligible LLM candidate for <member>` if no env keys are set — refuses silent fallback to a degraded output (per BUILD_PROTOCOL §5.3)
+
+**CMC Hub transport (PRD §4.1)**
+- `src/lib/clients/cmcHubClient.ts` — MCP JSON-RPC client over HTTP. Each tool method (`getCryptoQuotes`, `searchCryptos`, `getCryptoInfo`, `getCryptoMetrics`, `getGlobalMetrics`, `getDerivativesMetrics`, `getTrendingNarratives`, `getUpcomingMacroEvents`, `getLatestNews`, `getTechnicalAnalysis`) wraps a `tools/call` JSON-RPC request to `https://mcp.coinmarketcap.com/mcp`. Free MCP transport uses `X-CMC-MCP-API-KEY` from `CMC_PRO_API_KEY`. x402 transport via `callX402<T>(toolName, args)` POSTs to `https://mcp.coinmarketcap.com/x402/mcp` and includes an `X-Payment` header derived from `twakClient.payX402` (wired in Phase 3 to avoid circular imports). `ENABLE_X402_OUTBOUND=true` and a `CMC_X402_WALLET_*` env are prerequisites. Strict error handling: throws on any non-2xx, on JSON-RPC `error`, or on `result.isError === true` with the tool's error text included.
+
+**TWAK CLI wrapper (PRD §6.2; Phase 0 verified)**
+- `src/lib/clients/twakClient.ts` — wraps the verified TWAK CLI commands by shelling out via `node:child_process.spawn` with `TWAK_BIN` (default `twak`):
+  - `register()` → `twak compete register --json` → `{txHash, alreadyRegistered, participant, deadline, chain}`
+  - `getCompetitionStatus()` → `twak compete status --json` → `{registered, participant, deadline}`
+  - `getBalance({address, tokenAddress?})` → `twak balance --address … --chain bsc [--token …] --json` → `{symbol, total, totalUsd}`
+  - `getPortfolio({agentAddress, trackedTokens?})` → iterates `DEFAULT_TRACKED_TOKENS` (USDT/BUSD/CAKE/WBNB on BSC) calling balance per token + native BNB, builds `TWAKPortfolioSnapshot` (V1 audit's drawdown-from-peak field is computed by RiskManager from history, not by TWAK)
+  - `quoteSwap({fromTokenSymbol, toTokenSymbol, amountTokens, slippagePct?})` → `twak swap … --quote-only --json` → `TWAKSwapQuote`
+  - `executeSwap(…)` → `twak swap … --json` → `TWAKSwapResult`. Throws if `ENABLE_EXECUTION=false`.
+  - `payX402({url, maxPaymentAtomic})` → `twak x402 request … --max-payment … --yes --json` → `{proofHeader, settlementTxHash}`
+  - All methods short-circuit in `DRY_RUN_MODE=true` and return synthetic responses (deterministic tx hash derived from input seed). Lets Phase 3+ tests pass without the actual CLI installed.
+
+### Deviations from PRD
+
+- PRD §6.2 named the wrapper method `executeSwap({fromToken, toToken, amountUSD, slippageTolerance, sessionId})`. Reality: TWAK CLI takes amount in tokens, not USD. The wrapper signature is `{fromTokenSymbol, toTokenSymbol, amountTokens, slippagePct}`. The USD → token conversion is the caller's responsibility (Phase 5 twakExecutor uses the CMC quote price). `sessionId` is internal-only (DB linkage), never passed to TWAK.
+- PRD §4.2 listed 10 CMC tools to consume. The client exposes 10 methods but the wired EV-gate path (Phase 3) will determine which subset actually fires per cycle.
+- `cmcHubClient` has a `getCmcX402Pay()` hook that currently returns `null`. Phase 3 will inject `twakClient.payX402` at the call site to avoid a clients/cmcHub → clients/twak circular import; the architectural choice is "the perception layer owns the EV-gated x402 spend decision," not the transport client.
+
+### Discoveries
+
+1. The DGrid `/v1/models` endpoint accepts Authorization Bearer. Our test call in Phase 0 used `Authorization: Bearer ${DGRID_API_KEY}`. The actual messages endpoint takes `x-api-key` instead per the V1 wrapper. Both work; the DGrid docs were ambiguous. Standardized on `x-api-key` for `/v1/messages` and `Authorization: Bearer` for `/v1/chat/completions` (matches each native provider's auth scheme).
+2. TWAK CLI's `--json` flag routes status messages to stderr, so `child_process.spawn` cleanly separates them. Our `runTwak()` keeps stdout for JSON and stderr for diagnostics.
+
+### Followups
+
+- [F10] Phase 3 must wire `cmcHubClient` x402 hook to `twakClient.payX402` at the EV gate boundary, NOT inside cmcHubClient itself (would create a circular import).
+- [F11] No integration tests with live LLM APIs yet — those require BYOK or DGrid credentials and small test prompts. Add in Phase 4 fallback handler tests where the test budget is best amortized across the full committee call.
+- [F12] TWAK CLI installation pending on the actual worker host (Phase 5 deployment task). Until then, `DRY_RUN_MODE=true` gates twakClient to synthetic responses.
+
+### Audit results — `bash scripts/audit.sh phase-2`
+
+- File existence (Phase 2 manifest): 7/7 PASS (`cmcHubClient.ts`, `twakClient.ts`, `llm/claudeClient.ts`, `llm/openaiClient.ts`, `llm/dgridClient.ts`, `llm/router.ts`, `utils/canonicalSerialize.ts`)
+- TypeScript: 0 errors
+- Vitest: 3 files, 32 tests passing (+9 from canonicalSerialize tests)
+- ESLint: 0 errors, 0 warnings
+- All anti-pattern checks PASS
+
+**AUDIT PASSED  phase=phase-2**
+
+### Demo evidence
+
+- `bash scripts/audit.sh phase-2` exits 0
+- TWAK wrapper signatures derived directly from the verified GitHub reference docs (`trustwallet/tw-agent-skills/skills/wallet/references/{compete,swap,balance,x402}.md`)
+- LLM router preflight enforces env presence — running without `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, AND `DGRID_API_KEY` set throws cleanly rather than failing at fetch time
+
+### Gate decision
+
+Auto-greenlit per "end to end no deadline." Proceeding to V2 Phase 3.
