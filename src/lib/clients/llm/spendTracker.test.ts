@@ -16,8 +16,10 @@ describe('llmSpendTracker', () => {
   it('falls back to a default rate for unknown model IDs', () => {
     // #given a never-before-seen model
     llmSpendTracker.recordCall('unknown/model', 1_000_000, 0);
-    // #then it falls back to the canonical-retail default ($2.50/M input)
-    expect(llmSpendTracker.status().dailyUSD).toBeCloseTo(2.5, 4);
+    // #then it falls back to the conservatively-high default ($3/M input)
+    // — refreshed in the 2026 rate-card update so unknown models trip the
+    // kill earlier, not later, than reality.
+    expect(llmSpendTracker.status().dailyUSD).toBeCloseTo(3, 4);
   });
 
   it('trips the hard kill once the ceiling is hit', () => {

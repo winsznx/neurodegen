@@ -16,23 +16,38 @@ interface RateCard {
   outputPerMillion: number;
 }
 
+// Rate card refreshed for 2026-06 retail pricing. Sources cross-checked at
+// the time of writing; the hard kill exists so rounding doesn't matter — what
+// matters is that none of these numbers are wildly low. Bias toward the
+// highest published variant of each family so we hit the kill EARLIER, not
+// later, than reality.
 const RATES: Record<string, RateCard> = {
-  // Anthropic
+  // Anthropic — Claude 4.X family
+  'claude-opus-4.8': { inputPerMillion: 15, outputPerMillion: 75 },
+  'claude-opus-4.7': { inputPerMillion: 15, outputPerMillion: 75 },
+  'claude-opus-4.6': { inputPerMillion: 15, outputPerMillion: 75 },
   'claude-sonnet-4.6': { inputPerMillion: 3, outputPerMillion: 15 },
-  'claude-haiku-4.5': { inputPerMillion: 0.8, outputPerMillion: 4 },
+  'claude-haiku-4.5': { inputPerMillion: 1, outputPerMillion: 5 },
+  'anthropic/claude-opus-4.8': { inputPerMillion: 15, outputPerMillion: 75 },
   'anthropic/claude-sonnet-4.6': { inputPerMillion: 3, outputPerMillion: 15 },
-  'anthropic/claude-haiku-4.5': { inputPerMillion: 0.8, outputPerMillion: 4 },
-  // OpenAI
+  'anthropic/claude-haiku-4.5': { inputPerMillion: 1, outputPerMillion: 5 },
+  // OpenAI — GPT-4o/5 family
+  'gpt-5': { inputPerMillion: 5, outputPerMillion: 15 },
   'gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10 },
   'gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
+  'openai/gpt-5': { inputPerMillion: 5, outputPerMillion: 15 },
   'openai/gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10 },
   'openai/gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
   // DeepSeek / Qwen via DGrid
   'deepseek/deepseek-v3.2': { inputPerMillion: 0.27, outputPerMillion: 1.1 },
+  'deepseek/deepseek-r2': { inputPerMillion: 0.55, outputPerMillion: 2.2 },
   'qwen/qwen-flash': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
+  'qwen/qwen-3-coder': { inputPerMillion: 0.3, outputPerMillion: 1.2 },
 };
 
-const FALLBACK_RATE: RateCard = { inputPerMillion: 2.5, outputPerMillion: 10 };
+// Default conservatively high so an unknown model still trips the kill
+// near retail-Sonnet pricing instead of getting underbilled forever.
+const FALLBACK_RATE: RateCard = { inputPerMillion: 3, outputPerMillion: 15 };
 
 const DAILY_LIMIT_USD = parseFloat(process.env.DAILY_LLM_SPEND_LIMIT_USD ?? '5');
 

@@ -7,7 +7,7 @@ import type {
 import { twakClient } from '@/lib/clients/twakClient';
 import { tokenAddressBySymbol } from '@/lib/utils/allowedTokens';
 import { MAX_SLIPPAGE_PCT } from '@/config/execution';
-import { ENABLE_EXECUTION } from '@/config/features';
+import { DRY_RUN_MODE, ENABLE_EXECUTION } from '@/config/features';
 import { attestationEmitter } from './attestationEmitter';
 import { PreExecutionChecker } from './preExecutionChecker';
 import { riskManager } from './riskManager';
@@ -180,6 +180,7 @@ export class TwakExecutor {
         bscscanUrl: swap.explorer,
         attestationRevealTx,
         failureReason: null,
+        dryRun: DRY_RUN_MODE,
       },
       attestationCommitTx,
       position,
@@ -253,6 +254,7 @@ export class TwakExecutor {
         bscscanUrl: swap.explorer,
         attestationRevealTx,
         failureReason: null,
+        dryRun: DRY_RUN_MODE,
       },
       attestationCommitTx,
       position: { ...target, status: 'CLOSED', exitPriceUSD: cmcPrice, pnlUSD, pnlPct, exitReason: 'signal_exit', closedAt: new Date().toISOString() },

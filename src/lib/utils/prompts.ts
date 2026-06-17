@@ -116,6 +116,10 @@ export function buildNarrativeUserContent(metrics: AggregateMetrics): string {
   for (const [k, v] of Object.entries(metrics.kolActivityByToken)) {
     sanitizedKol[sanitizeTokenName(k)] = v;
   }
+  const sanitizedFunding: AggregateMetrics['fundingRatesByPair'] = {};
+  for (const [pair, value] of Object.entries(metrics.fundingRatesByPair)) {
+    sanitizedFunding[sanitizeTokenName(pair)] = value;
+  }
 
   return `<DATA>
 Current regime: ${metrics.regime}
@@ -128,11 +132,22 @@ KOL activity by token:
 ${stringify(sanitizedKol)}
 
 Funding rates by pair:
-${stringify(metrics.fundingRatesByPair)}
+${stringify(sanitizedFunding)}
 </DATA>`;
 }
 
 export function buildQuantUserContent(metrics: AggregateMetrics): string {
+  // V2 Phase 2 audit fix: parity with the narrative prompt. Top-mover symbols
+  // and funding-rate pair keys originate from CMC and could carry adversarial
+  // strings; sanitize them before stringifying into the model prompt.
+  const sanitizedTopMovers = metrics.topMoversByVolume.map((m) => ({
+    ...m,
+    symbol: sanitizeTokenName(m.symbol),
+  }));
+  const sanitizedFunding: AggregateMetrics['fundingRatesByPair'] = {};
+  for (const [pair, value] of Object.entries(metrics.fundingRatesByPair)) {
+    sanitizedFunding[sanitizeTokenName(pair)] = value;
+  }
   return `<DATA>
 Current regime: ${metrics.regime}
 Fear & Greed: ${metrics.fearGreedValue}
@@ -140,10 +155,10 @@ Active surge tokens: ${metrics.activeSurgeTokens}
 Market liquidity score: ${metrics.marketLiquidityScore}
 
 Top movers (last hour):
-${stringify(metrics.topMoversByVolume)}
+${stringify(sanitizedTopMovers)}
 
 Funding rates by pair:
-${stringify(metrics.fundingRatesByPair)}
+${stringify(sanitizedFunding)}
 
 x402 spend session/day USDC: ${metrics.x402SpendSessionUSDC.toFixed(4)} / ${metrics.x402SpendDailyUSDC.toFixed(4)}
 </DATA>`;

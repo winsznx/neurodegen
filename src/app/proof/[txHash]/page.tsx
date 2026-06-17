@@ -92,6 +92,19 @@ export default async function ProofPage({ params }: ProofProps) {
       bscscanUrl: chain.commit?.txHash ? `https://bscscan.com/tx/${chain.commit.txHash}` : null,
     },
     {
+      label: 'Commit tx on-chain matches DB',
+      ok:
+        !!session.attestationCommitTx &&
+        !!chain.commit &&
+        session.attestationCommitTx.toLowerCase() === chain.commit.txHash.toLowerCase(),
+      detail:
+        !session.attestationCommitTx
+          ? 'no commit tx persisted in DB'
+          : chain.commit
+            ? `${chain.commit.txHash.slice(0, 12)}… vs ${session.attestationCommitTx.slice(0, 12)}…`
+            : 'no on-chain event to compare',
+    },
+    {
       label: 'On-chain ExecutionRevealed event found',
       ok: !!chain.reveal,
       detail: chain.reveal ? `block #${chain.reveal.blockNumber}` : 'no event for this hash',

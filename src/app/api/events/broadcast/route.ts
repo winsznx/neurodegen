@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { realtimeService, type SSEEvent, type SSEEventType } from '@/lib/services/realtimeService';
+import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,8 +27,7 @@ function isSSEEvent(value: unknown): value is SSEEvent {
 }
 
 export async function POST(request: NextRequest) {
-  const secret = request.headers.get('X-Admin-Secret');
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
+  if (!verifyAdminSecret(request.headers.get('X-Admin-Secret'))) {
     return NextResponse.json({ error: 'Unauthorized', code: 'ADMIN_REQUIRED' }, { status: 403 });
   }
 

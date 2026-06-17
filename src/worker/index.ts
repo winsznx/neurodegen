@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { agentLoop } from '@/lib/services/agentLoop';
 import { realtimeService } from '@/lib/services/realtimeService';
+import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -16,11 +17,9 @@ function unauthorized(res: ServerResponse): void {
 }
 
 function checkAdmin(req: IncomingMessage): boolean {
-  const expected = process.env.ADMIN_SECRET;
-  if (!expected) return false;
   const got = req.headers['x-admin-secret'];
   const secret = Array.isArray(got) ? got[0] : got;
-  return secret === expected;
+  return verifyAdminSecret(secret ?? null);
 }
 
 const ADMIN_PATH_RE = /^\/admin\/([a-z-]+)(?:\/([^/?]+))?$/;

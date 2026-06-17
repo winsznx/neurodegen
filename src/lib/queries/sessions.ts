@@ -77,12 +77,34 @@ function fromRow(row: CommitteeSessionRow): CommitteeSession {
   };
 }
 
+/**
+ * Insert a committee session. Surfaces the raw Postgres error code on the
+ * thrown error so callers can detect a session_number unique violation
+ * (code 23505) and retry with a recomputed hash — `sessionNumber` is part of
+ * the reasoning-hash preimage, so a naive retry that mutates only the
+ * sessionNumber would desync the on-chain commit from the DB row.
+ */
+export class SessionNumberCollisionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionNumberCollisionError';
+  }
+}
+
 export async function insertCommitteeSession(session: CommitteeSession): Promise<void> {
   const { error } = await getSupabaseAdmin()
     .schema('neurodegen')
     .from('committee_sessions')
     .insert(toRow(session));
-  if (error) throw new Error(`insertCommitteeSession failed: ${error.message}`);
+  if (!error) return;
+  const code = (error as { code?: string }).code ?? '';
+  const isUniqueViolation =
+    code === '23505' || /duplicate key|unique constraint/i.test(error.message ?? '');
+  const onSessionNumber = /session_number/i.test(error.message ?? '');
+  if (isUniqueViolation && onSessionNumber) {
+    throw new SessionNumberCollisionError(error.message);
+  }
+  throw new Error(`insertCommitteeSession failed: ${error.message}`);
 }
 
 export async function updateSessionExecutionResult(

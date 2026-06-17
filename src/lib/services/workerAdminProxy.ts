@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -34,7 +35,7 @@ export async function proxyAdminRequest(
   path: string,
 ): Promise<NextResponse> {
   const secret = request.headers.get('X-Admin-Secret');
-  if (!secret || secret !== process.env.ADMIN_SECRET) return unauthorized();
+  if (!verifyAdminSecret(secret)) return unauthorized();
 
   const base = getWorkerAdminUrl();
   if (!base) return workerMisconfigured();
@@ -44,7 +45,7 @@ export async function proxyAdminRequest(
   try {
     const response = await fetch(`${base}${path}`, {
       method: 'POST',
-      headers: { 'X-Admin-Secret': secret },
+      headers: { 'X-Admin-Secret': secret ?? '' },
       signal: controller.signal,
       cache: 'no-store',
     });

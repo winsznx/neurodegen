@@ -62,7 +62,9 @@ export interface PreExecutionCheckResult {
 export interface RiskManagerState {
   currentDrawdownFromPeak: number;
   consecutiveLosses: number;
+  /** @deprecated derived live from openPositions in canAct(); do not read elsewhere */
   positionsOpenCount: number;
+  /** @deprecated derived live from openPositions in canAct(); do not read elsewhere */
   totalExposureUSD: number;
   dailyPnLUSD: number;
   dailyTradeCount: number;

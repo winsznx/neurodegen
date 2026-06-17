@@ -220,6 +220,41 @@ describe('buildCommitteeSession', () => {
     expect(c.reasoningHash).not.toBe(a.reasoningHash);
   });
 
+  it('collapses risk-classifier open_long to hold when regime/dissent stack zeros size', () => {
+    // #given a quiet regime (multiplier 0) where risk classifier still proposes open_long
+    const session = buildCommitteeSession({
+      sessionId: 'sid-collapse',
+      sessionNumber: 99,
+      createdAt: 100,
+      regime: 'quiet',
+      previousRegime: 'active',
+      metrics: metrics('quiet'),
+      evGateDecisions: [],
+      x402SpendSessionUSDC: 0,
+      narrative: { parsed: narrativeParsed, call: modelCall('claude-sonnet-4.6', '{}') },
+      quant: { parsed: quantParsed, call: modelCall('gpt-4o', '{}') },
+      dissent: {
+        dissentDetected: false,
+        dissentSeverity: 'none',
+        narrativeDirection: 'bullish',
+        quantDirection: 'bullish',
+        positionSizeModifier: 1,
+        rationale: 'agree',
+      },
+      risk: { parsed: riskParsedLong, call: modelCall('deepseek/deepseek-v3.2', '{}') },
+      mandate: DEFAULT_MANDATE,
+      tokenAddressBySymbol,
+    });
+
+    // #then we collapse to hold (no $0 phantom trade) with a rationale that
+    // surfaces the original proposed action so the audit trail is honest.
+    expect(session.finalAction.action).toBe('hold');
+    expect(session.finalAction.positionSizeUSD).toBeNull();
+    expect(session.finalAction.tokenSymbol).toBeNull();
+    expect(session.finalAction.plainLanguageExplanation).toMatch(/collapsed size to \$0/);
+    expect(session.finalAction.plainLanguageExplanation).toMatch(/open_long/);
+  });
+
   it('hash is independent of model-call latencyMs but depends on rawOutput', () => {
     // The canonicalize helper sorts keys so reorderings should not affect hash.
     // A different rawOutput SHOULD change the hash.

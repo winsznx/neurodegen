@@ -8,9 +8,45 @@ import { ENABLE_PROBE_TRADE, ENABLE_EXECUTION, DRY_RUN_MODE } from '@/config/fea
 import { twakClient } from '@/lib/clients/twakClient';
 import { getDailyTradeCount } from '@/lib/queries/positions';
 import { realtimeService } from '@/lib/services/realtimeService';
+import { getWorkerState, setWorkerState } from '@/lib/queries/workerState';
 
 export interface ProbeTradeSchedulerState {
   lastProbeDay: string | null;
+}
+
+const PROBE_STATE_KEY = 'probe_scheduler/v1';
+
+/**
+ * Load the persisted probe state from Postgres so a worker restart between
+ * 00:00 UTC and the probe window can't cause a second probe to fire.
+ *
+ * V2 Phase 2 audit fix: previously the scheduler kept `lastProbeDay` in
+ * memory only, so a crash plus restart on the same day would replay the
+ * probe — blowing the "first trade of the day must be the probe" compliance
+ * signal we rely on.
+ */
+export async function loadPersistedProbeState(): Promise<ProbeTradeSchedulerState> {
+  try {
+    const row = await getWorkerState<ProbeTradeSchedulerState>(PROBE_STATE_KEY);
+    return row ?? { lastProbeDay: null };
+  } catch (err) {
+    console.error(
+      '[probe] failed to load persisted state — defaulting to in-memory:',
+      err instanceof Error ? err.message : String(err),
+    );
+    return { lastProbeDay: null };
+  }
+}
+
+export async function persistProbeState(state: ProbeTradeSchedulerState): Promise<void> {
+  try {
+    await setWorkerState(PROBE_STATE_KEY, state);
+  } catch (err) {
+    console.error(
+      '[probe] failed to persist state:',
+      err instanceof Error ? err.message : String(err),
+    );
+  }
 }
 
 export function utcDayBucket(now: Date): string {

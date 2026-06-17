@@ -48,11 +48,13 @@ export class HotStateStore {
 
   evict(): void {
     const now = Date.now();
+    // Snapshot the keys to delete BEFORE mutating, so a concurrent
+    // getRecentEvents() call doesn't observe a partial Map mid-eviction.
+    const toDelete: string[] = [];
     for (const [key, stored] of this.events) {
-      if (stored.expiresAt <= now) {
-        this.events.delete(key);
-      }
+      if (stored.expiresAt <= now) toDelete.push(key);
     }
+    for (const key of toDelete) this.events.delete(key);
     this.lastEvictionAt = now;
   }
 

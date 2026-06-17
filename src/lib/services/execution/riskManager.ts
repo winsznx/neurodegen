@@ -128,7 +128,10 @@ export class RiskManager {
 
     const requested = recommendation.positionSizeUSD ?? AGENT_BASE_POSITION_SIZE_USD;
     const maxPerToken = portfolioValueUSD * this.mandate.maxPositionPct;
-    const totalExposure = state.totalExposureUSD;
+    // V2 Phase 2 audit fix: derive total exposure LIVE from openPositions
+    // instead of reading the stale `state.totalExposureUSD` field (never updated).
+    // This prevents the exposure cap bypass found in the path-tracing audit.
+    const totalExposure = openPositions.reduce((sum, p) => sum + p.sizeUSD, 0);
     const maxTotal = portfolioValueUSD * MAX_TOTAL_EXPOSURE_RATIO;
     const headroom = Math.max(0, maxTotal - totalExposure);
 

@@ -19,18 +19,18 @@ function fromRow(row: ProofRow): ConsumedX402Proof {
   };
 }
 
-export async function isProofConsumed(txHash: `0x${string}`): Promise<boolean> {
-  const { data, error } = await getSupabaseAdmin()
-    .schema('neurodegen')
-    .from('consumed_x402_proofs')
-    .select('tx_hash')
-    .eq('tx_hash', txHash.toLowerCase())
-    .maybeSingle();
-  if (error) throw new Error(`isProofConsumed failed: ${error.message}`);
-  return data !== null;
-}
-
-export async function recordProof(proof: Omit<ConsumedX402Proof, 'consumedAt'>): Promise<void> {
+/**
+ * Atomically record a consumed x402 proof. Returns `{recorded: false, replay: true}`
+ * if the proof was already consumed (race-safe via the PRIMARY KEY constraint).
+ * Returns `{recorded: true}` on first insert.
+ *
+ * V2 Phase 2 audit fix: previous implementation had TOCTOU race between
+ * `isProofConsumed` and `recordProof` where two concurrent requests both
+ * passed the check then both attempted insert. Now the insert IS the check.
+ */
+export async function recordProof(
+  proof: Omit<ConsumedX402Proof, 'consumedAt'>,
+): Promise<{ recorded: boolean; replay: boolean }> {
   const { error } = await getSupabaseAdmin()
     .schema('neurodegen')
     .from('consumed_x402_proofs')
@@ -40,7 +40,15 @@ export async function recordProof(proof: Omit<ConsumedX402Proof, 'consumedAt'>):
       amount_atomic: proof.amountAtomic,
       endpoint: proof.endpoint,
     });
-  if (error) throw new Error(`recordProof failed: ${error.message}`);
+  if (!error) return { recorded: true, replay: false };
+  // Supabase/Postgres unique violation surfaces as code '23505' OR the
+  // message contains 'duplicate key'. Either form means replay.
+  const code = (error as { code?: string }).code ?? '';
+  const message = error.message ?? '';
+  if (code === '23505' || /duplicate key|already exists/i.test(message)) {
+    return { recorded: false, replay: true };
+  }
+  throw new Error(`recordProof failed: ${error.message}`);
 }
 
 export async function getProof(txHash: `0x${string}`): Promise<ConsumedX402Proof | null> {

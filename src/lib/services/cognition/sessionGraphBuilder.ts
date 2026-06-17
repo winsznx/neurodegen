@@ -78,18 +78,27 @@ export function withExecutionResult(
 
 function deriveFinalAction(inputs: SessionGraphInputs): ActionRecommendation {
   const risk = inputs.risk.parsed;
-  const isHold = risk.action === 'hold';
   const baseSize = AGENT_BASE_POSITION_SIZE_USD * regimePositionMultiplier(inputs.regime);
   const dissentModifier = inputs.dissent.positionSizeModifier;
   const mandateModifier = riskLevelMultiplier(inputs.mandate.riskLevel);
-  const positionSizeUSD = isHold
-    ? null
-    : Number((baseSize * dissentModifier * mandateModifier).toFixed(2));
+  const rawSize = baseSize * dissentModifier * mandateModifier;
+
+  // V2 Phase 2 audit fix: if the regime/dissent/mandate stack collapses size
+  // to ~0 (e.g. quiet regime → multiplier 0), the risk classifier's chosen
+  // action becomes meaningless because we can't size the trade. Collapse to a
+  // hold so the displayed action and the actual outcome agree.
+  const sizeCollapsedToZero =
+    risk.action !== 'hold' && risk.action !== 'close_position' && rawSize <= 0.01;
+  const effectiveAction: ActionRecommendation['action'] = sizeCollapsedToZero
+    ? 'hold'
+    : risk.action;
+  const isHold = effectiveAction === 'hold';
+  const positionSizeUSD = isHold ? null : Number(rawSize.toFixed(2));
   const tokenSymbol = isHold ? null : risk.targetToken;
   const tokenAddress = tokenSymbol ? inputs.tokenAddressBySymbol[tokenSymbol.toUpperCase()] ?? null : null;
 
   return {
-    action: risk.action,
+    action: effectiveAction,
     tokenSymbol,
     tokenAddress,
     confidence: risk.confidence,
@@ -99,12 +108,13 @@ function deriveFinalAction(inputs: SessionGraphInputs): ActionRecommendation {
     slPercentage: isHold ? null : DEFAULT_SL_PERCENTAGE,
     rationale: risk.rationale,
     plainLanguageExplanation: buildPlainLanguageExplanation({
-      action: risk.action,
+      action: effectiveAction,
       tokenSymbol,
       regime: inputs.regime,
       narrative: inputs.narrative.parsed,
       quant: inputs.quant.parsed,
       dissent: inputs.dissent,
+      collapsedFromAction: sizeCollapsedToZero ? risk.action : null,
     }),
   };
 }
@@ -142,8 +152,12 @@ function buildPlainLanguageExplanation(args: {
   narrative: NarrativeAnalystOutput;
   quant: QuantAnalystOutput;
   dissent: DissentResult;
+  collapsedFromAction?: RiskClassifierOutput['action'] | null;
 }): string {
   if (args.action === 'hold') {
+    if (args.collapsedFromAction && args.collapsedFromAction !== 'hold') {
+      return `Committee held — risk classifier proposed ${args.collapsedFromAction} but regime/dissent/mandate stack collapsed size to $0. No trade fired.`;
+    }
     if (args.dissent.dissentSeverity === 'strong') {
       return `Committee held — analysts disagreed strongly (narrative ${args.dissent.narrativeDirection}, quant ${args.dissent.quantDirection}).`;
     }

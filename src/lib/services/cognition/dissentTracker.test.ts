@@ -75,4 +75,41 @@ describe('computeDissent', () => {
     expect(result.narrativeDirection).toBe('neutral');
     expect(result.quantDirection).toBe('bearish');
   });
+
+  it('forces mild dissent when narrative parse-failed but quant agrees neutral', () => {
+    // #given both look neutral but narrative parse failed
+    const result = computeDissent(narrative('neutral'), quant('neutral'), {
+      narrativeOk: false,
+      quantOk: true,
+    });
+
+    // #then computeDissent rejects the false unanimity and halves size
+    expect(result.dissentSeverity).toBe('mild');
+    expect(result.positionSizeModifier).toBe(0.5);
+    expect(result.rationale).toMatch(/narrative analyst parse-failed/);
+  });
+
+  it('forces mild dissent when both analysts parse-failed', () => {
+    // #given both parses failed → both default to neutral
+    const result = computeDissent(narrative('neutral'), quant('neutral'), {
+      narrativeOk: false,
+      quantOk: false,
+    });
+
+    // #then dissent is mild (not none), rationale names both
+    expect(result.dissentSeverity).toBe('mild');
+    expect(result.rationale).toMatch(/both analysts parse-failed/);
+  });
+
+  it('preserves "none" verdict when parses succeeded and directions match', () => {
+    // #given both parsed cleanly and agree bullish
+    const result = computeDissent(narrative('bullish'), quant('bullish'), {
+      narrativeOk: true,
+      quantOk: true,
+    });
+
+    // #then no dissent
+    expect(result.dissentSeverity).toBe('none');
+    expect(result.positionSizeModifier).toBe(1);
+  });
 });

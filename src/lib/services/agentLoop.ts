@@ -25,6 +25,8 @@ import {
   shouldFireProbe,
   fireProbe,
   utcDayBucket,
+  loadPersistedProbeState,
+  persistProbeState,
   type ProbeTradeSchedulerState,
 } from '@/lib/services/execution/probeTradeScheduler';
 import { riskManager, updateDrawdownFromValue, defaultRiskManagerState } from '@/lib/services/execution/riskManager';
@@ -33,7 +35,11 @@ import { attestationEmitter } from '@/lib/services/execution/attestationEmitter'
 import { x402SpendTracker } from '@/lib/services/perception/evGate';
 import { getOpenPositions } from '@/lib/queries/positions';
 import { insertMetrics } from '@/lib/queries/metrics';
-import { updateSessionEvGateDecisions, updateSessionExecutionResult } from '@/lib/queries/sessions';
+import {
+  updateSessionAttestationCommit,
+  updateSessionEvGateDecisions,
+  updateSessionExecutionResult,
+} from '@/lib/queries/sessions';
 import type { CMCSecurityEvent } from '@/types/perception';
 import type { EVDecision } from '@/types/cognition';
 import { DEFAULT_MANDATE, type MandateConfig } from '@/types/mandate';
@@ -73,6 +79,11 @@ export class AgentLoop {
   private lastMetricsHash: `0x${string}` | null = null;
   private lastOpenPositionCount = -1;
   private cyclesSkippedSameMetrics = 0;
+  // Re-entrancy + cross-timer guards. cycleInFlight prevents two cycle ticks
+  // from interleaving when a single cycle exceeds the timer interval.
+  // regimeInFlight does the same for regime evaluation.
+  private cycleInFlight = false;
+  private regimeInFlight = false;
 
   setMandate(mandate: MandateConfig): void {
     this.mandate = mandate;
@@ -83,6 +94,10 @@ export class AgentLoop {
     if (this.running) return;
     this.running = true;
     riskManager.setMandate(this.mandate);
+
+    // V2 Phase 2 audit fix: hydrate probe scheduler state from Postgres so
+    // restarts don't allow a second probe to fire on the same UTC day.
+    this.probeState = await loadPersistedProbeState();
 
     // Wire the CMC x402 outbound payment hook so cmcHubClient.callX402
     // can authenticate paid /x402/mcp calls without a circular import.
@@ -191,23 +206,29 @@ export class AgentLoop {
    */
   private async evaluateRegime(): Promise<void> {
     if (!this.running) return;
-    const events = hotState.getRecentEvents();
-    const metrics = aggregateMetrics(events, {
-      regime: this.regimeState.lastRegime ?? 'quiet',
-      x402SpendSessionUSDC: x402SpendTracker.sessionSpendUSDC(),
-      x402SpendDailyUSDC: x402SpendTracker.dailySpendUSDC(),
-    });
-    hotState.setMetrics(metrics);
-    const classification = classifyRegime(metrics, this.regimeState);
-    const prev = this.regimeState.lastRegime;
-    advanceRegimeState(this.regimeState, classification);
-    if (prev && prev !== classification.regime) {
-      realtimeService.broadcast({
-        type: 'regime_change',
-        data: { from: prev, to: classification.regime, rationale: classification.transitionRationale },
-        timestamp: Date.now(),
+    if (this.regimeInFlight) return; // re-entrancy guard
+    this.regimeInFlight = true;
+    try {
+      const events = hotState.getRecentEvents();
+      const metrics = aggregateMetrics(events, {
+        regime: this.regimeState.lastRegime ?? 'quiet',
+        x402SpendSessionUSDC: x402SpendTracker.sessionSpendUSDC(),
+        x402SpendDailyUSDC: x402SpendTracker.dailySpendUSDC(),
       });
-      void attestationEmitter.attestRegimeChange(prev, classification.regime);
+      hotState.setMetrics(metrics);
+      const classification = classifyRegime(metrics, this.regimeState);
+      const prev = this.regimeState.lastRegime;
+      advanceRegimeState(this.regimeState, classification);
+      if (prev && prev !== classification.regime) {
+        realtimeService.broadcast({
+          type: 'regime_change',
+          data: { from: prev, to: classification.regime, rationale: classification.transitionRationale },
+          timestamp: Date.now(),
+        });
+        void attestationEmitter.attestRegimeChange(prev, classification.regime);
+      }
+    } finally {
+      this.regimeInFlight = false;
     }
   }
 
@@ -219,6 +240,14 @@ export class AgentLoop {
    */
   private async runCycle(): Promise<void> {
     if (!this.running) return;
+    // V2 Phase 2 audit fix (concurrent cycle race): re-entrancy guard prevents
+    // two cycle ticks from interleaving when one cycle exceeds the timer
+    // interval. Lost peak-portfolio writes + double session inserts were both
+    // possible without this. We skip the tick rather than queue it because the
+    // next tick is only seconds away and queued ticks would amplify the
+    // problem under sustained slowness.
+    if (this.cycleInFlight) return;
+    this.cycleInFlight = true;
     try {
       const events = hotState.getRecentEvents();
       const regimeLabel = this.regimeState.lastRegime ?? 'quiet';
@@ -232,10 +261,18 @@ export class AgentLoop {
       realtimeService.broadcast({ type: 'metrics_update', data: metrics, timestamp: Date.now() });
 
       // Refresh portfolio + drawdown state.
+      // V2 Phase 2 audit fix: null/NaN portfolio totalValueUSD silently
+      // disabled drawdown halts. Guard the update with isFinite + positive.
       const portfolio = await twakClient.getPortfolio({
         agentAddress: process.env.TWAK_AGENT_WALLET_ADDRESS as `0x${string}`,
       });
-      this.riskState = updateDrawdownFromValue(this.riskState, portfolio.totalValueUSD);
+      if (Number.isFinite(portfolio.totalValueUSD) && portfolio.totalValueUSD > 0) {
+        this.riskState = updateDrawdownFromValue(this.riskState, portfolio.totalValueUSD);
+      } else {
+        console.warn(
+          `[agent-loop] portfolio totalValueUSD invalid (${portfolio.totalValueUSD}); preserving last drawdown state`,
+        );
+      }
 
       // Probe-trade gate (fires only in quiet/defensive/halt, or when no
       // trade has been recorded today).
@@ -244,6 +281,7 @@ export class AgentLoop {
         const probe = await fireProbe();
         if (probe.fired) {
           this.probeState.lastProbeDay = utcDayBucket(new Date());
+          void persistProbeState(this.probeState);
         }
       }
 
@@ -322,6 +360,28 @@ export class AgentLoop {
 
       const openPositions: PositionState[] = await getOpenPositions().catch(() => []);
       const cmcPriceUSD = pickQuotedPrice(events, session.finalAction.tokenSymbol);
+      // V2 Phase 2 audit fix: if no CMC quote is available, the executor would
+      // compute NaN amountTokens and commit reasoning for a trade that can't
+      // succeed. Skip cleanly with a recorded failure result instead.
+      if (cmcPriceUSD === null || !Number.isFinite(cmcPriceUSD) || cmcPriceUSD <= 0) {
+        const reason = `no CMC price for ${session.finalAction.tokenSymbol}`;
+        console.warn(`[agent-loop] ${reason}; skipping execution`);
+        void updateSessionExecutionResult(session.sessionId, {
+          executed: false,
+          twakTxHash: null,
+          bscscanUrl: null,
+          attestationRevealTx: null,
+          failureReason: reason,
+        }).catch(() => undefined);
+        realtimeService.broadcast({
+          type: 'health_degradation',
+          data: { source: 'agent_loop', message: reason },
+          timestamp: Date.now(),
+        });
+        this.cycleCount++;
+        this.lastCycleAt = Date.now();
+        return;
+      }
       const pythSymbol = mapPythSymbol(session.finalAction.tokenSymbol);
       const liquidityAdequate = session.quantCall.parsedOutput.liquidityAdequate as boolean | undefined ?? false;
       const fundingRateWarning = session.quantCall.parsedOutput.fundingRateWarning as boolean | undefined ?? false;
@@ -380,6 +440,19 @@ export class AgentLoop {
         (err) => console.error('[agent-loop] updateSession failed:', err instanceof Error ? err.message : String(err)),
       );
 
+      // V2 Phase 2 audit fix [NEW-C1]: persist the on-chain attestation commit
+      // tx onto the session row. The function exists but was never called
+      // anywhere in the codebase, so /proof and /journal saw NULL forever.
+      if (execution.attestationCommitTx) {
+        void updateSessionAttestationCommit(session.sessionId, execution.attestationCommitTx).catch(
+          (err) =>
+            console.error(
+              '[agent-loop] updateSessionAttestationCommit failed:',
+              err instanceof Error ? err.message : String(err),
+            ),
+        );
+      }
+
       if (execution.executionResult.executed) {
         realtimeService.broadcast({
           type: 'position_update',
@@ -403,6 +476,8 @@ export class AgentLoop {
         },
         timestamp: Date.now(),
       });
+    } finally {
+      this.cycleInFlight = false;
     }
   }
 }
