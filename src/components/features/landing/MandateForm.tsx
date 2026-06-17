@@ -71,7 +71,7 @@ export function MandateForm() {
         label="Max drawdown"
         suffix="%"
         value={mandate.maxDrawdownPct * 100}
-        min={5}
+        min={10}
         max={28}
         step={1}
         onChange={(v) => update('maxDrawdownPct', v / 100)}
@@ -80,8 +80,8 @@ export function MandateForm() {
         label="Max per token"
         suffix="%"
         value={mandate.maxPositionPct * 100}
-        min={1}
-        max={20}
+        min={2}
+        max={15}
         step={1}
         onChange={(v) => update('maxPositionPct', v / 100)}
       />
@@ -89,8 +89,8 @@ export function MandateForm() {
         label="Daily loss cap"
         suffix="%"
         value={mandate.dailyLossCapPct * 100}
-        min={1}
-        max={15}
+        min={2}
+        max={10}
         step={1}
         onChange={(v) => update('dailyLossCapPct', v / 100)}
       />
