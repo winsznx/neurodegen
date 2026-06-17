@@ -149,6 +149,8 @@ MCP uses CMC Pro API key (free tier). x402 endpoint uses USDC on Base ($0.01 per
 
 **Phase 0 verification (2026-06-16):** The CMC MCP server at `https://mcp.coinmarketcap.com/mcp` exposes exactly **12 tools**, none of which are DEX-specific. DEX liquidity + security endpoints live in CMC's paid REST DEX API (`/v4/dex/*`), not in the MCP server. KOL-per-mention signals are not exposed at all; the nearest MCP surface is `trending_crypto_narratives` (narrative-level momentum). The functional table below maps PRD intent to verified reality.
 
+**Tool consumption count:** `cmcHubClient.ts` exposes all 12 MCP tools as typed methods so any phase can call any one of them. The Perception layer's normal-operation cadence routinely invokes 10 of them — quotes, search, info, technical analysis, metrics, global metrics, derivatives, trending narratives, macro events, news. `get_crypto_marketcap_technical_analysis` and `search_crypto_info` are exposed for ad-hoc cognition queries (e.g. a /me-style explainer) but are not on a polling schedule. The Best CMC Hub Special Prize claim is 10 tools in routine use; 12 in the exposed surface.
+
 | Function | Verified MCP tool / source | Frequency | Transport |
 |---|---|---|---|
 | Latest price quotes for tracked tokens | `get_crypto_quotes_latest` | 60s | MCP (free tier) |
