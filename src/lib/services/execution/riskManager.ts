@@ -23,10 +23,30 @@ import type {
 
 export type DrawdownTier = 'normal' | 'alert' | 'defensive' | 'halt' | 'disqualified';
 
-export function classifyDrawdownTier(drawdown: number): DrawdownTier {
+/**
+ * Classify drawdown into one of five tiers. The halt threshold is the LESSER
+ * of the global `DRAWDOWN_HALT_PCT` (25% — the competition-survival floor) and
+ * the user's `mandate.maxDrawdownPct` (their personal halt). This way a
+ * conservative user who sets 15% gets halted at 15% even though the global
+ * rules wouldn't halt until 25%. An aggressive user who sets 28% is still
+ * halted at 25% by the global floor.
+ *
+ * The 30% disqualification threshold is competition-fixed and not user-overridable.
+ */
+export function classifyDrawdownTier(
+  drawdown: number,
+  mandateHaltPct?: number,
+): DrawdownTier {
+  const effectiveHalt =
+    mandateHaltPct !== undefined
+      ? Math.min(DRAWDOWN_HALT_PCT, Math.max(DRAWDOWN_ALERT_PCT, mandateHaltPct))
+      : DRAWDOWN_HALT_PCT;
+  // Defensive tier is always 5pp below the effective halt so the ladder
+  // collapses sensibly for any mandate value.
+  const effectiveDefensive = Math.max(DRAWDOWN_ALERT_PCT, effectiveHalt - 0.05);
   if (drawdown >= DRAWDOWN_DISQUALIFICATION_PCT) return 'disqualified';
-  if (drawdown >= DRAWDOWN_HALT_PCT) return 'halt';
-  if (drawdown >= DRAWDOWN_DEFENSIVE_PCT) return 'defensive';
+  if (drawdown >= effectiveHalt) return 'halt';
+  if (drawdown >= effectiveDefensive) return 'defensive';
   if (drawdown >= DRAWDOWN_ALERT_PCT) return 'alert';
   return 'normal';
 }
@@ -48,7 +68,10 @@ export class RiskManager {
       return { approved: false, rejectionReason: 'recommendation is hold', adjustedPositionSizeUSD: null };
     }
 
-    const drawdownTier = classifyDrawdownTier(state.currentDrawdownFromPeak);
+    const drawdownTier = classifyDrawdownTier(
+      state.currentDrawdownFromPeak,
+      this.mandate.maxDrawdownPct,
+    );
 
     if (drawdownTier === 'disqualified') {
       return {

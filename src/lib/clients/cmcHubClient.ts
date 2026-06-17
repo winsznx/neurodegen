@@ -38,11 +38,22 @@ function getCmcProKey(): string | null {
   return process.env.CMC_PRO_API_KEY ?? null;
 }
 
+let cmcX402PayHook: ((url: string, maxAtomic: bigint) => Promise<string>) | null = null;
+
+/**
+ * Inject the x402 payment callback. Called once at worker boot from the
+ * agentLoop bootstrap path with `twakClient.payX402` as the implementation.
+ * Module-level setter avoids a clients/cmcHubClient ↔ clients/twakClient
+ * circular import.
+ */
+export function setCmcX402PayHook(
+  hook: ((url: string, maxAtomic: bigint) => Promise<string>) | null,
+): void {
+  cmcX402PayHook = hook;
+}
+
 function getCmcX402Pay(): ((url: string, maxAtomic: bigint) => Promise<string>) | null {
-  // The actual x402 settlement runs through twakClient.payX402. We expose this as
-  // a hook so the perception layer can inject the payX402 callback at the call site
-  // without creating a circular import from clients/twakClient → clients/cmcHubClient.
-  return null;
+  return cmcX402PayHook;
 }
 
 async function callMcp<T>(

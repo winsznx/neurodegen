@@ -9,7 +9,6 @@ import {
   RISK_PRIMARY_MODEL,
   RISK_FALLBACK_MODEL,
   RISK_LAST_RESORT_MODEL,
-  MODEL_RETRY_DELAY_MS,
 } from '@/config/cognition';
 import {
   PREFER_BYOK_ROUTING,
@@ -19,6 +18,8 @@ import {
 import { callClaudeMessages } from './claudeClient';
 import { callOpenAIChatCompletions } from './openaiClient';
 import { callDGridMessages, callDGridChatCompletions } from './dgridClient';
+import { promptCache } from './promptCache';
+import { llmSpendTracker } from './spendTracker';
 import type { LLMCallResult, LLMCallParams } from './claudeClient';
 import type {
   EndpointFormat,
@@ -51,10 +52,6 @@ interface CandidateStep {
   routingDecision: RoutingDecision;
   caller: (p: LLMCallParams) => Promise<LLMCallResult>;
   preflight: () => boolean;
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function makeAttempt(
@@ -221,9 +218,50 @@ export async function routeCommitteeCall(
     );
   }
 
+  // V1 audit §3.4.10 fix: hard kill if today's LLM spend is over the ceiling.
+  // The exception propagates up to committeeSession.ts which gates the cycle
+  // to a degraded hold without calling any model.
+  llmSpendTracker.ensureBudget();
+
+  // V1 audit §3.4.5 fix: check the prompt cache by canonical input hash
+  // BEFORE any provider round-trip. Hits return instantly with zero spend.
+  const cacheKey = promptCache.computeKey(
+    params.systemPrompt,
+    params.userContent,
+    eligible[0].modelId,
+  );
+  const cached = promptCache.get(cacheKey);
+  if (cached) {
+    const cachedAttempt: ModelCallRecord = {
+      modelId: cached.modelId,
+      endpointFormat: eligible[0].endpointFormat,
+      routingDecision: eligible[0].routingDecision,
+      inputTokens: cached.inputTokens,
+      outputTokens: cached.outputTokens,
+      latencyMs: 0,
+      systemPrompt: params.systemPrompt,
+      userInput: params.userContent,
+      rawOutput: cached.text,
+      parsedOutput: { cache_hit: true },
+      parseSuccess: true,
+    };
+    return {
+      text: cached.text,
+      inputTokens: cached.inputTokens,
+      outputTokens: cached.outputTokens,
+      modelId: cached.modelId,
+      endpointFormat: eligible[0].endpointFormat,
+      routingDecision: eligible[0].routingDecision,
+      latencyMs: 0,
+      attempts: [cachedAttempt],
+    };
+  }
+
   const attempts: ModelCallRecord[] = [];
   const startWall = Date.now();
 
+  // V1 audit §3.5 step 7 fix: no inter-candidate delay. The next candidate is
+  // always a DIFFERENT model; waiting 2s before trying it can't help.
   for (let i = 0; i < eligible.length; i++) {
     const step = eligible[i];
     const callStart = Date.now();
@@ -234,6 +272,8 @@ export async function routeCommitteeCall(
         modelId: step.modelId,
       });
       attempts.push(makeAttempt(step, result, Date.now() - callStart, params));
+      llmSpendTracker.recordCall(step.modelId, result.inputTokens, result.outputTokens);
+      promptCache.set(cacheKey, result);
       return {
         text: result.text,
         inputTokens: result.inputTokens,
@@ -246,9 +286,6 @@ export async function routeCommitteeCall(
       };
     } catch (err) {
       attempts.push(makeFailedAttempt(step, err, Date.now() - callStart, params));
-      if (i < eligible.length - 1) {
-        await delay(MODEL_RETRY_DELAY_MS);
-      }
     }
   }
 

@@ -4,12 +4,9 @@ import {
   CMC_DERIVATIVES_POLL_INTERVAL_MS,
   CMC_NARRATIVES_POLL_INTERVAL_MS,
   CMC_NEWS_POLL_INTERVAL_MS,
-  X402_COST_PER_CALL_USDC,
 } from '@/config/perception';
-import { ENABLE_X402_OUTBOUND } from '@/config/features';
 import { BSC_USDT_ADDRESS, BSC_CAKE_ADDRESS, BSC_WBNB_ADDRESS, BSC_BUSD_ADDRESS } from '@/config/chains';
 import { cmcHubClient, type CmcTool } from '@/lib/clients/cmcHubClient';
-import { twakClient } from '@/lib/clients/twakClient';
 import {
   normalizeCmcQuotes,
   normalizeDerivatives,
@@ -105,12 +102,10 @@ export class CmcIngester {
       return { decision, event: null };
     }
     try {
-      const proof = ENABLE_X402_OUTBOUND
-        ? await twakClient.payX402({
-            url: 'https://mcp.coinmarketcap.com/x402/mcp',
-            maxPaymentAtomic: BigInt(Math.ceil(X402_COST_PER_CALL_USDC * 1_000_000)),
-          })
-        : null;
+      // cmcHubClient.callX402 invokes the injected x402 pay hook
+      // (twakClient.payX402, wired at worker boot via setCmcX402PayHook)
+      // and attaches the X-Payment header automatically. The settlement
+      // tx hash + proof header are observed there.
       const raw = await cmcHubClient.callX402<unknown>(
         'get_crypto_metrics' as CmcTool,
         { token_address: tokenAddress, network: 'bsc' },
@@ -119,11 +114,6 @@ export class CmcIngester {
       if (event) {
         this.recordEvent(event);
         x402SpendTracker.recordSpend(decision);
-      }
-      if (proof) {
-        // Persist the settlement proof in stdout for the worker logs; the
-        // actual receipt is on-chain via TWAK x402.
-        console.warn(`[cmc-ingester] x402 paid: ${proof.settlementTxHash}`);
       }
       return { decision, event };
     } catch (err) {

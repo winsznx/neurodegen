@@ -20,7 +20,10 @@ export const RISK_LAST_RESORT_MODEL: string = 'openai/gpt-4o';
 
 // Call cadence and ergonomics
 export const MODEL_CALL_TIMEOUT_MS: number = 30_000;
-export const MODEL_RETRY_DELAY_MS: number = 2_000;
+// Kept for legacy callers; V2 router does NOT delay between fallback
+// candidates (each candidate is a different model, so a delay never helps).
+// V1 audit §3.5 step 7.
+export const MODEL_RETRY_DELAY_MS: number = 0;
 
 // Below this confidence the Risk Classifier output is forced to hold regardless of action.
 export const MIN_CONFIDENCE_TO_ACT: number = parseFloat(process.env.MIN_CONFIDENCE_TO_ACT ?? '0.3');

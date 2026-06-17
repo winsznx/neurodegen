@@ -42,10 +42,20 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Pr
  * Throws on any non-2xx with the body included for debugging.
  */
 export async function callClaudeMessages(params: LLMCallParams): Promise<LLMCallResult> {
+  // V1 audit §3.4.6 fix: wrap the system prompt with cache_control: ephemeral.
+  // Anthropic's prompt caching gives ~90% input-token discount on the prefix
+  // after the first call. The committee runs the same system prompt every
+  // cycle, so the savings are immediate and material.
   const body = {
     model: params.modelId,
     max_tokens: MAX_OUTPUT_TOKENS,
-    system: params.systemPrompt,
+    system: [
+      {
+        type: 'text' as const,
+        text: params.systemPrompt,
+        cache_control: { type: 'ephemeral' as const },
+      },
+    ],
     messages: [{ role: 'user', content: params.userContent }],
   };
 

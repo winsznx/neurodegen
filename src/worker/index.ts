@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { agentLoop } from '@/lib/services/agentLoop';
 import { realtimeService } from '@/lib/services/realtimeService';
+import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const STATUS_BROADCAST_INTERVAL_MS = 10_000;
@@ -87,6 +88,20 @@ async function main(): Promise<void> {
     port: PORT,
   });
   preflightEnv();
+
+  // Inject the live competition allowlist (149-token list) from
+  // ALLOWED_TOKENS_JSON env var if present. Falls back to the seed list with a
+  // warning so dev/demo runs still work.
+  const allowlistResult = loadAllowlistFromEnv();
+  if (allowlistResult.loaded) {
+    console.warn(
+      `[worker] allowlist loaded from env: ${allowlistResult.count} tokens`,
+    );
+  } else {
+    console.warn(
+      `[worker] ⚠ using seed allowlist (${allowlistResult.count} tokens); reason: ${allowlistResult.reason}`,
+    );
+  }
 
   const server = createServer((req, res) => {
     const rawUrl = req.url ?? '/';

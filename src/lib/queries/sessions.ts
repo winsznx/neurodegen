@@ -97,6 +97,34 @@ export async function updateSessionExecutionResult(
   if (error) throw new Error(`updateSessionExecutionResult failed: ${error.message}`);
 }
 
+export async function updateSessionEvGateDecisions(
+  sessionId: string,
+  evGateDecisions: Record<string, unknown>[],
+  x402SpendThisSessionUSDC: number,
+): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .schema('neurodegen')
+    .from('committee_sessions')
+    .update({
+      ev_gate_decisions: evGateDecisions,
+      x402_spend_usdc: x402SpendThisSessionUSDC.toFixed(4),
+    })
+    .eq('session_id', sessionId);
+  if (error) throw new Error(`updateSessionEvGateDecisions failed: ${error.message}`);
+}
+
+export async function updateSessionAttestationCommit(
+  sessionId: string,
+  attestationCommitTx: `0x${string}`,
+): Promise<void> {
+  const { error } = await getSupabaseAdmin()
+    .schema('neurodegen')
+    .from('committee_sessions')
+    .update({ attestation_commit_tx: attestationCommitTx })
+    .eq('session_id', sessionId);
+  if (error) throw new Error(`updateSessionAttestationCommit failed: ${error.message}`);
+}
+
 export async function getSessionById(sessionId: string): Promise<CommitteeSession | null> {
   const { data, error } = await getSupabaseClient()
     .schema('neurodegen')

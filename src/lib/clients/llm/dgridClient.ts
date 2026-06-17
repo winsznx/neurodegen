@@ -42,10 +42,18 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Pr
  * routed through DGrid (e.g. `anthropic/claude-sonnet-4.6`, `anthropic/claude-haiku-4.5`).
  */
 export async function callDGridMessages(params: LLMCallParams): Promise<LLMCallResult> {
+  // Same Anthropic prompt-caching path as direct Claude (DGrid is a
+  // pass-through for Anthropic-compatible messages).
   const body = {
     model: params.modelId,
     max_tokens: MAX_OUTPUT_TOKENS,
-    system: params.systemPrompt,
+    system: [
+      {
+        type: 'text' as const,
+        text: params.systemPrompt,
+        cache_control: { type: 'ephemeral' as const },
+      },
+    ],
     messages: [{ role: 'user', content: params.userContent }],
   };
 
