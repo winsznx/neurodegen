@@ -19,6 +19,7 @@ import {
   type RegimeClassifierState,
 } from '@/lib/services/perception/regimeClassifier';
 import { runCommitteeSession } from '@/lib/services/cognition/committeeSession';
+import { runCommerceJobForSession } from '@/lib/services/agenticCommerce';
 import { TwakExecutor } from '@/lib/services/execution/twakExecutor';
 import { positionTracker } from '@/lib/services/execution/positionTracker';
 import {
@@ -459,6 +460,40 @@ export class AgentLoop {
           data: execution.position,
           timestamp: Date.now(),
         });
+
+        // BNB AI Agent SDK — ERC-8183 agentic-commerce job lifecycle. Self-employed:
+        // the agent's TWAK wallet is both client and provider. Wraps every executed
+        // decision as an on-chain job whose deliverable manifest links twakTxHash
+        // back to the reasoning hash. Opt-in via ENABLE_ERC8183_JOBS (requires U
+        // token balance for funding). Fire-and-forget — never blocks the cycle.
+        const sessionForCommerce = {
+          ...session,
+          attestationCommitTx: execution.attestationCommitTx,
+        };
+        void runCommerceJobForSession({
+          session: sessionForCommerce,
+          executionResult: execution.executionResult,
+          agentWallet: process.env.TWAK_AGENT_WALLET_ADDRESS as `0x${string}`,
+        })
+          .then((commerce) => {
+            if (commerce.attempted) {
+              if (commerce.failedStep) {
+                console.warn(
+                  `[agent-loop] erc8183 job ${commerce.failedStep} failed: ${commerce.failedMessage}`,
+                );
+              } else {
+                console.warn(
+                  `[agent-loop] erc8183 job ${commerce.jobId} submitted: tx=${commerce.submitTx}`,
+                );
+              }
+            }
+          })
+          .catch((err) => {
+            console.error(
+              '[agent-loop] erc8183 job lifecycle threw:',
+              err instanceof Error ? err.message : String(err),
+            );
+          });
       }
 
       this.cycleCount++;

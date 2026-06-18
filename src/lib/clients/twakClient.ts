@@ -362,6 +362,236 @@ export class TWAKClient {
       settlementTxHash: raw.settlementTxHash as `0x${string}`,
     };
   }
+
+  // =====================================================================
+  // ERC-8004 (Identity Registry) — BSC mainnet: 0x8004A169…a432
+  // =====================================================================
+
+  async erc8004Register(args: {
+    uri: string;
+  }): Promise<{ agentId: string; txHash: `0x${string}`; alreadyRegistered: boolean }> {
+    if (DRY_RUN_MODE) {
+      return {
+        agentId: '0',
+        txHash: syntheticTxHash(`erc8004:register:${args.uri.slice(0, 32)}`),
+        alreadyRegistered: false,
+      };
+    }
+    const { exitCode, stdout, stderr } = await runTwak([
+      'erc8004',
+      'register',
+      '--uri',
+      args.uri,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ]);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8004 register failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<RawErc8004RegisterResult>(stdout, 'twak erc8004 register');
+    return {
+      agentId: String(raw.agentId ?? raw.tokenId ?? '0'),
+      txHash: (raw.txHash ?? '0x0') as `0x${string}`,
+      alreadyRegistered: raw.alreadyRegistered === true,
+    };
+  }
+
+  async erc8004SetUri(args: {
+    agentId: string;
+    uri: string;
+  }): Promise<{ txHash: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return { txHash: syntheticTxHash(`erc8004:set-uri:${args.agentId}`) };
+    }
+    const { exitCode, stdout, stderr } = await runTwak([
+      'erc8004',
+      'set-uri',
+      '--agent-id',
+      args.agentId,
+      '--uri',
+      args.uri,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ]);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8004 set-uri failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8004 set-uri');
+    return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
+  }
+
+  // =====================================================================
+  // ERC-8183 (Agentic Commerce) — BSC mainnet: 0xea4daa…eba6
+  // =====================================================================
+
+  async erc8183CreateJob(args: {
+    provider: `0x${string}`;
+    evaluator: `0x${string}`;
+    expiredAt: number;
+    description: string;
+    hook?: `0x${string}`;
+  }): Promise<{ jobId: string; txHash: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return {
+        jobId: '0',
+        txHash: syntheticTxHash(`erc8183:create-job:${args.description.slice(0, 32)}`),
+      };
+    }
+    const cliArgs = [
+      'erc8183',
+      'create-job',
+      '--provider',
+      args.provider,
+      '--evaluator',
+      args.evaluator,
+      '--expired-at',
+      String(args.expiredAt),
+      '--description',
+      args.description,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ];
+    if (args.hook) {
+      cliArgs.push('--hook', args.hook);
+    }
+    const { exitCode, stdout, stderr } = await runTwak(cliArgs);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8183 create-job failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ jobId?: string | number; txHash?: string }>(
+      stdout,
+      'twak erc8183 create-job',
+    );
+    return {
+      jobId: String(raw.jobId ?? '0'),
+      txHash: (raw.txHash ?? '0x0') as `0x${string}`,
+    };
+  }
+
+  async erc8183SetBudget(args: {
+    jobId: string;
+    amount: string;
+  }): Promise<{ txHash: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return { txHash: syntheticTxHash(`erc8183:set-budget:${args.jobId}`) };
+    }
+    const { exitCode, stdout, stderr } = await runTwak([
+      'erc8183',
+      'set-budget',
+      '--job-id',
+      args.jobId,
+      '--amount',
+      args.amount,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ]);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8183 set-budget failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 set-budget');
+    return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
+  }
+
+  async erc8183Fund(args: {
+    jobId: string;
+    expectedBudget: string;
+  }): Promise<{ txHash: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return { txHash: syntheticTxHash(`erc8183:fund:${args.jobId}`) };
+    }
+    const { exitCode, stdout, stderr } = await runTwak([
+      'erc8183',
+      'fund',
+      '--job-id',
+      args.jobId,
+      '--expected-budget',
+      args.expectedBudget,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ]);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8183 fund failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 fund');
+    return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
+  }
+
+  async erc8183Submit(args: {
+    jobId: string;
+    deliverable: `0x${string}`;
+    deliverableUrl?: string;
+  }): Promise<{ txHash: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return { txHash: syntheticTxHash(`erc8183:submit:${args.jobId}`) };
+    }
+    const cliArgs = [
+      'erc8183',
+      'submit',
+      '--job-id',
+      args.jobId,
+      '--deliverable',
+      args.deliverable,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ];
+    if (args.deliverableUrl) {
+      cliArgs.push('--deliverable-url', args.deliverableUrl);
+    }
+    const { exitCode, stdout, stderr } = await runTwak(cliArgs);
+    if (exitCode !== 0) {
+      throw new Error(`twak erc8183 submit failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 submit');
+    return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
+  }
+
+  // =====================================================================
+  // EIP-191 personal_sign — used by ERC-8183 NegotiationHandler provider_sig
+  // =====================================================================
+
+  async walletSignMessage(args: {
+    message: string;
+  }): Promise<{ signature: `0x${string}`; digest: `0x${string}` }> {
+    if (DRY_RUN_MODE) {
+      return {
+        signature: syntheticTxHash(`sign:${args.message.slice(0, 32)}`),
+        digest: syntheticTxHash(`digest:${args.message.slice(0, 32)}`),
+      };
+    }
+    const { exitCode, stdout, stderr } = await runTwak([
+      'wallet',
+      'sign-message',
+      '--message',
+      args.message,
+      '--chain',
+      TWAK_CHAIN,
+      '--json',
+    ]);
+    if (exitCode !== 0) {
+      throw new Error(`twak wallet sign-message failed [exit=${exitCode}]: ${stderr}`);
+    }
+    const raw = parseJsonOutput<{ signature?: string; digest?: string }>(
+      stdout,
+      'twak wallet sign-message',
+    );
+    return {
+      signature: (raw.signature ?? '0x0') as `0x${string}`,
+      digest: (raw.digest ?? '0x0') as `0x${string}`,
+    };
+  }
+}
+
+interface RawErc8004RegisterResult {
+  agentId?: string | number;
+  tokenId?: string | number;
+  txHash?: string;
+  alreadyRegistered?: boolean;
 }
 
 export const twakClient = new TWAKClient();

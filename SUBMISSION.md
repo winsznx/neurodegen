@@ -2,7 +2,7 @@
 
 **Hackathon:** BNB Hack: AI Trading Agent Edition (CoinMarketCap × Trust Wallet)
 **Track:** Track 1 — Autonomous Trading Agents ($24,000)
-**Specials targeted:** Best Use of Trust Wallet Agent Kit ($2,000), Best Use of Agent Hub ($2,000)
+**Specials targeted:** Best Use of Trust Wallet Agent Kit ($2,000), Best Use of Agent Hub ($2,000), Best Use of BNB AI Agent SDK ($2,000)
 **Repo:** https://github.com/<owner>/neurodegen *(fill in before submitting)*
 **Live demo:** https://neurodegen.xyz
 **Live verification page (any trade):** https://neurodegen.xyz/proof/`<twakTxHash>`
@@ -21,6 +21,8 @@ Before pasting this into DoraHacks, run through:
 - [ ] Worker booted and `GET /api/health` returns `diagnostics.competition.registration.txHash` non-null
 - [ ] BscScan shows that registration tx mined successfully against `0x212c61b9b72c95d95bf29cf032f5e5635629aed5`
 - [ ] `ALLOWED_TOKENS_JSON` env var contains the 149-token list from the hackathon brief
+- [ ] `ENABLE_ERC8004_REGISTRATION=true` (default); `/api/health → diagnostics.bnbAgentSdk.erc8004.registration` is non-null
+- [ ] Optional but recommended for BNB SDK special: agent wallet holds ≥1 U token (`0xcE24439F…666666`); `ENABLE_ERC8183_JOBS=true`; first cycle produces a `JobSubmitted` event on BscScan
 - [ ] AttestationEmitter contract `0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4` reachable from BSC RPC
 - [ ] `/journal` page renders at least one committee session (ideally several from dry-run mode before flipping the switch)
 - [ ] Public GitHub URL filled in at top of this file + in the DoraHacks form
@@ -52,8 +54,12 @@ NeuroDegen V2 is an autonomous **investment-committee trading agent** for BNB Ch
 |---|---|
 | Competition contract | https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5 |
 | AttestationEmitter | https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4 |
+| ERC-8004 Identity Registry | https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432 |
+| ERC-8183 AgenticCommerce | https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6 |
 | Agent wallet | *(fill in: paste `TWAK_AGENT_WALLET_ADDRESS` from your Railway env)* |
 | Registration tx | *(fill in: paste `diagnostics.competition.registration.txHash` from `/api/health`)* |
+| ERC-8004 registration tx | *(fill in: paste `diagnostics.bnbAgentSdk.erc8004.registration.txHash` from `/api/health`)* |
+| First ERC-8183 job | *(fill in if `ENABLE_ERC8183_JOBS=true`: paste any `JobSubmitted` tx from BscScan)* |
 
 ---
 
@@ -84,10 +90,24 @@ Best Use of Agent Hub — the criterion is using the most of the CMC AI Agent Hu
 
 ---
 
+## BNB AI Agent SDK special-prize scoring map
+
+The Best Use of BNB AI Agent SDK rubric — "most inventive integration of the SDK". NeuroDegen integrates BOTH ERC-8004 (identity) AND ERC-8183 (agentic commerce) via the TWAK CLI's native subcommands, keeping TWAK as the sole signing path. Three on-chain protocols (AttestationEmitter commit-reveal + ERC-8183 commerce + ERC-8004 identity) are layered for redundant verifiability of the same trade decision.
+
+| Surface | How NeuroDegen uses it |
+|---|---|
+| ERC-8004 identity registry | Boot-time `twak erc8004 register` with a `data:application/json;base64,…` agent card embedding the canonical EIP-8004 type. Persisted to `worker_state`. Idempotent. Surfaced on `/api/health → diagnostics.bnbAgentSdk.erc8004.registration`. |
+| ERC-8183 agentic commerce | Per-decision self-employed job lifecycle: agent is both client and provider. Negotiation hash signed via TWAK personal_sign for `provider_sig`. `create-job → set-budget → fund → submit` runs after every executed trade. Deliverable manifest hash recomputes byte-for-byte from the persisted session row. |
+| NegotiationHandler | Off-chain EIP-191 personal_sign of the canonical JSON keccak digest — provider_sig is stored alongside the on-chain job so any observer can verify the agent agreed to its own price before funding. |
+| OptimisticPolicy dispute window | The 7-day window functions as a time-locked audit trail; anyone can settle the job after it closes by submitting the manifest. |
+
+Inventive composition: a single committee decision generates THREE on-chain records across THREE separate protocols, all cross-verifiable from BscScan alone.
+
+---
+
 ## What NeuroDegen does **not** claim
 
 - We do not claim profitability. The composition is the product.
-- We do not use BNB AI Agent SDK (Python-only; would add a sidecar runtime to a Node-only architecture without strengthening the trade path).
 - We do not trade perps (V1 used MYX; V2 is spot-only via TWAK).
 - We do not have a Telegram bot or copy-trade fan-out in V2 (V1-only; explicit V2.0 deferral).
 - We never hold user funds. The agent has its own TWAK wallet.

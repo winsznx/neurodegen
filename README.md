@@ -33,6 +33,8 @@ NeuroDegen runs a three-LLM committee — narrative analyst, quant analyst, risk
 | Web | [neurodegen.xyz](https://neurodegen.xyz) |
 | Verify any trade | `https://neurodegen.xyz/proof/<twakTxHash>` |
 | Registration status | `GET https://neurodegen.xyz/api/health` → `diagnostics.competition.registration` |
+| ERC-8004 identity | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) — see `diagnostics.bnbAgentSdk.erc8004` |
+| ERC-8183 commerce | [`0xea4daa3100a767e86fded867729ae7446476eba6`](https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6) |
 
 The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required — every flag is independently verifiable on BscScan.
 
@@ -115,6 +117,47 @@ Plus per-cycle: max 5 concurrent positions, daily PnL cap, mandate-driven consec
 
 ---
 
+## BNB AI Agent SDK integration
+
+NeuroDegen integrates the [BNB AI Agent SDK](https://github.com/bnb-chain/bnbagent-sdk) at two layers via the corresponding TWAK CLI subcommands (`twak erc8004 …`, `twak erc8183 …`, `twak wallet sign-message`). **TWAK remains the sole signing path** — the Node worker never touches a private key for any of the SDK calls.
+
+### ERC-8004 — agent identity
+
+At first boot the worker calls `twak erc8004 register` with a `data:application/json;base64,…` agent card embedding the canonical EIP-8004 type. The resulting `agentId` is persisted to `worker_state` so subsequent boots are no-ops. Registration is idempotent, has no deadline, and is non-fatal on failure. See [src/lib/services/bnbAgentRegistration.ts](src/lib/services/bnbAgentRegistration.ts).
+
+The agent card declares three supportedTrust profiles:
+
+- `erc-8004-identity` — this registration
+- `erc-8183-commerce` — the per-decision job lifecycle below
+- `neurodegen-attestation-commit-reveal` — the AttestationEmitter pattern
+
+### ERC-8183 — agentic commerce per committee decision
+
+When `ENABLE_ERC8183_JOBS=true` and the agent wallet holds U-tokens (`0xcE24439F…666666`, 18 dec), each executed committee decision triggers a **self-employed job lifecycle**: the agent's TWAK wallet is both the client and the provider. After the TWAK swap lands and the reveal attestation fires, the agent runs:
+
+1. **Negotiate** — build a `NegotiationContent` JSON (task, terms, deliverables, success_criteria), canonicalise via sorted-key JSON, keccak256 the canonical bytes, sign the digest via `twak wallet sign-message` (EIP-191 personal_sign) — the `provider_sig` proves the agent agreed to its own price before funding.
+2. **Create** — `twak erc8183 create-job` with `provider = agent wallet`, `evaluator = OptimisticPolicy`, `expiredAt = now + 24h`, `description` encoding both the negotiation hash and the reasoning hash.
+3. **Budget + Fund** — `twak erc8183 set-budget` then `twak erc8183 fund` for `ERC8183_JOB_BUDGET_WEI` (default `1e16` = 0.01 U).
+4. **Submit** — build a `DeliverableManifest` JSON embedding `{reasoningHash, twakTxHash, attestationCommitTx, attestationRevealTx, action, confidence, executedAt}`, canonicalise + keccak256 → `bytes32 deliverable`, call `twak erc8183 submit`.
+
+The 7-day OptimisticPolicy dispute window then acts as a tamper-evident time-locked audit trail: anyone can settle the job after the window closes, and the on-chain `JobSubmitted(jobId, provider, deliverable)` event hash matches `keccak256(canonical(manifest))` byte-for-byte.
+
+Fire-and-forget from `agentLoop`: any failure logs but never blocks the next cycle. See [src/lib/services/agenticCommerce.ts](src/lib/services/agenticCommerce.ts).
+
+### Why this composition wins "most inventive"
+
+Three on-chain protocols layered for **redundant verifiability** of the same decision:
+
+| Protocol | What it proves |
+|---|---|
+| **AttestationEmitter** (custom) | The reasoning hash was committed BEFORE the TWAK swap, then revealed AFTER it confirmed |
+| **ERC-8183 agentic commerce** | The committee was paid to execute the decision, agreed to its own price off-chain, and submitted a manifest whose hash recomputes from the persisted session row |
+| **ERC-8004 identity** | The wallet that committed, executed, and submitted is the same registered agent identity |
+
+Anyone can independently reconstruct the decision-to-execution chain from BscScan alone, cross-checking three distinct contracts — without ever calling our API.
+
+---
+
 ## x402 in the trade loop
 
 **Outbound** — Cognition calls into CMC's premium MCP tools (e.g. deep social, KOL velocity, token security score) only when the EV gate says the expected information value clears the micropayment cost. Each x402 call goes through `twak x402 request --max-payment` so payment authorisation never leaves the agent wallet. Daily spend tracker enforces a hard cap.
@@ -135,6 +178,8 @@ src/
     services/
       agentLoop.ts     main orchestrator
       competitionRegistration.ts
+      bnbAgentRegistration.ts        # ERC-8004 identity (boot-time, idempotent)
+      agenticCommerce.ts             # ERC-8183 job lifecycle (per-decision, opt-in)
       cognition/       narrativeAnalyst, quantAnalyst, riskClassifier, dissentTracker, committeeSession, sessionGraphBuilder
       execution/       twakExecutor, attestationEmitter, preExecutionChecker, riskManager, positionTracker, probeTradeScheduler
       attestationReader.ts  on-chain commit/reveal scanner used by /proof
@@ -199,6 +244,11 @@ DRY_RUN_MODE=false                     # MUST be false during the live window
 COMPETITION_REGISTRATION_DEADLINE=2026-06-22T00:00:00Z
 COMPETITION_TRADING_WINDOW_START=2026-06-22T00:00:00Z
 COMPETITION_TRADING_WINDOW_END=2026-06-28T23:59:59Z
+
+# BNB AI Agent SDK
+ENABLE_ERC8004_REGISTRATION=true       # publishes the agent identity on boot
+ENABLE_ERC8183_JOBS=false              # flip true after funding the wallet with U-tokens
+ERC8183_JOB_BUDGET_WEI=10000000000000000  # 0.01 U per job (1 U funds 100 jobs)
 
 # x402 inbound (optional revenue)
 ENABLE_X402_INBOUND=false

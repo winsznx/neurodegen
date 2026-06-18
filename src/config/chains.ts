@@ -14,6 +14,31 @@ export const COMPETITION_CONTRACT_ADDRESS: `0x${string}` =
   (process.env.COMPETITION_CONTRACT_ADDRESS as `0x${string}` | undefined) ??
   '0x212c61b9b72c95d95bf29cf032f5e5635629aed5';
 
+// ERC-8004 Identity Registry (UUPS proxy, MinimalUUPSMainnet v1.0.0) on BSC mainnet.
+// See bnbagent-sdk addresses.py + tw-agent-skills/wallet/references/erc8004.md.
+export const ERC8004_REGISTRY_ADDRESS: `0x${string}` =
+  (process.env.ERC8004_REGISTRY_ADDRESS as `0x${string}` | undefined) ??
+  '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432';
+
+// ERC-8183 Agentic Commerce on BSC mainnet.
+export const ERC8183_COMMERCE_ADDRESS: `0x${string}` =
+  (process.env.ERC8183_COMMERCE_ADDRESS as `0x${string}` | undefined) ??
+  '0xea4daa3100a767e86fded867729ae7446476eba6';
+
+export const ERC8183_EVALUATOR_ROUTER_ADDRESS: `0x${string}` =
+  (process.env.ERC8183_EVALUATOR_ROUTER_ADDRESS as `0x${string}` | undefined) ??
+  '0x51895229e12f9876011789b04f8698af06ccd6da';
+
+export const ERC8183_OPTIMISTIC_POLICY_ADDRESS: `0x${string}` =
+  (process.env.ERC8183_OPTIMISTIC_POLICY_ADDRESS as `0x${string}` | undefined) ??
+  '0x9c01845705b3078aa2e8cff7520a6376fd766de5';
+
+// ERC-8183 payment token (U, 18 decimals) on BSC mainnet.
+export const ERC8183_PAYMENT_TOKEN_ADDRESS: `0x${string}` =
+  (process.env.ERC8183_PAYMENT_TOKEN_ADDRESS as `0x${string}` | undefined) ??
+  '0xcE24439F2D9C6a2289F741120FE202248B666666';
+export const ERC8183_PAYMENT_TOKEN_DECIMALS = 18;
+
 export const ZERO_ADDRESS: `0x${string}` = '0x0000000000000000000000000000000000000000';
 
 // Common BEP-20 tokens used as quote currencies and probe-trade endpoints.

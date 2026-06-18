@@ -4,10 +4,20 @@ import { getLatestMetrics } from '@/lib/queries/metrics';
 import { ATTESTATION_CONTRACT_ADDRESS } from '@/config/chains';
 import { COMPETITION_CONTRACT_ADDRESS } from '@/config/competition';
 import {
+  ERC8004_REGISTRY_ADDRESS,
+  ERC8183_COMMERCE_ADDRESS,
+  ERC8183_PAYMENT_TOKEN_ADDRESS,
+} from '@/config/chains';
+import { ENABLE_ERC8004_REGISTRATION, ENABLE_ERC8183_JOBS } from '@/config/features';
+import {
   COMPETITION_REGISTRATION_KEY,
   preflightCompetitionState,
   type PersistedCompetitionRegistration,
 } from '@/lib/services/competitionRegistration';
+import {
+  ERC8004_REGISTRATION_KEY,
+  type PersistedErc8004Registration,
+} from '@/lib/services/bnbAgentRegistration';
 import { getWorkerState } from '@/lib/queries/workerState';
 
 const REQUIRED_ENV = [
@@ -40,6 +50,9 @@ export async function GET() {
     COMPETITION_REGISTRATION_KEY,
   ).catch(() => null);
   const preflightIssues = await preflightCompetitionState().catch(() => []);
+  const erc8004 = await getWorkerState<PersistedErc8004Registration>(
+    ERC8004_REGISTRATION_KEY,
+  ).catch(() => null);
 
   const services = {
     worker: resolved.ok,
@@ -70,6 +83,26 @@ export async function GET() {
             }
           : null,
         preflightIssues,
+      },
+      bnbAgentSdk: {
+        erc8004: {
+          enabled: ENABLE_ERC8004_REGISTRATION,
+          registry: ERC8004_REGISTRY_ADDRESS,
+          registration: erc8004
+            ? {
+                agentId: erc8004.agentId,
+                txHash: erc8004.txHash,
+                registeredAt: erc8004.registeredAt,
+                alreadyRegistered: erc8004.alreadyRegistered,
+                dryRun: erc8004.dryRun,
+              }
+            : null,
+        },
+        erc8183: {
+          enabled: ENABLE_ERC8183_JOBS,
+          commerce: ERC8183_COMMERCE_ADDRESS,
+          paymentToken: ERC8183_PAYMENT_TOKEN_ADDRESS,
+        },
       },
     },
   });

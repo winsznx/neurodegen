@@ -4,6 +4,7 @@ import {
   ensureCompetitionRegistration,
   preflightCompetitionState,
 } from '@/lib/services/competitionRegistration';
+import { ensureErc8004Registration } from '@/lib/services/bnbAgentRegistration';
 import { realtimeService } from '@/lib/services/realtimeService';
 import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
@@ -55,6 +56,10 @@ async function handleAdmin(
       case 'competition-preflight': {
         const issues = await preflightCompetitionState();
         return sendJson(res, 200, { ok: issues.length === 0, issues });
+      }
+      case 'erc8004-register': {
+        const result = await ensureErc8004Registration({});
+        return sendJson(res, result.ok ? 200 : 409, result);
       }
       default:
         return sendJson(res, 404, { error: `unknown op: ${op}` });
@@ -131,6 +136,20 @@ async function main(): Promise<void> {
   }
   for (const issue of await preflightCompetitionState()) {
     console.error(`[worker] PREFLIGHT: ${issue}`);
+  }
+
+  // ============================================================
+  // BNB AI Agent SDK — ERC-8004 identity registration. Idempotent,
+  // persisted to worker_state, no deadline. Non-fatal on failure: the
+  // trade loop is independent of identity registration.
+  // ============================================================
+  const erc8004 = await ensureErc8004Registration({});
+  if (erc8004.ok) {
+    console.warn(
+      `[worker] erc8004 registration ${erc8004.reason}: agentId=${erc8004.record.agentId} tx=${erc8004.record.txHash}`,
+    );
+  } else {
+    console.warn(`[worker] erc8004 registration not live: ${erc8004.reason} — ${erc8004.message}`);
   }
 
   const server = createServer((req, res) => {

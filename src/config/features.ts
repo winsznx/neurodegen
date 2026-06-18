@@ -26,6 +26,21 @@ export const DISABLE_DGRID_ROUTING: boolean = envBool('DISABLE_DGRID_ROUTING', f
 // Probe-trade compliance fallback. On by default. Defenders against quiet markets.
 export const ENABLE_PROBE_TRADE: boolean = envBool('ENABLE_PROBE_TRADE', true);
 
+// BNB AI Agent SDK integration — ERC-8004 identity registration runs at boot,
+// idempotent. Default ON (the registration is harmless when DRY_RUN_MODE=true
+// since twak returns a synthetic agentId).
+export const ENABLE_ERC8004_REGISTRATION: boolean = envBool('ENABLE_ERC8004_REGISTRATION', true);
+
+// ERC-8183 agentic-commerce job lifecycle per committee decision. Default OFF
+// because each job requires a tiny U-token balance for funding. Operator flips
+// on after funding the agent wallet with U.
+export const ENABLE_ERC8183_JOBS: boolean = envBool('ENABLE_ERC8183_JOBS', false);
+
+// Per-job budget (in U-token wei). 0.01 U at 18 decimals = 10^16. Small enough
+// that a 1 U starting balance funds 100 jobs.
+export const ERC8183_JOB_BUDGET_WEI: string =
+  process.env.ERC8183_JOB_BUDGET_WEI ?? '10000000000000000';
+
 // V2.1 deferrals — all default OFF, flip true to ship the feature in a V2.1 release branch.
 export const ENABLE_PERP_MODE: boolean = envBool('ENABLE_PERP_MODE', false);
 export const ENABLE_TELEGRAM_ALERTS: boolean = envBool('ENABLE_TELEGRAM_ALERTS', false);
