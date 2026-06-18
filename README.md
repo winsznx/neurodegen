@@ -1,563 +1,232 @@
-# NeuroDegen
+# NeuroDegen V2
 
-NeuroDegen commits its reasoning hash on-chain **before** submitting each trade, then reveals the execution pointer **after** confirmation. Any observer can reconstruct the full decision-to-action chain from BscScan alone, without trusting our database, our dashboard, or our demo. The agent ingests Four.meme bonding-curve signals, reasons across three LLM providers via DGrid, executes MYX perpetual orders through the official SDK, and mirrors those orders to user wallets via Privy session signers.
+An autonomous **investment-committee trading agent** for BNB Chain. Submission to the BNB Hack: AI Trading Agent Edition (CoinMarketCap × Trust Wallet × BNB Chain).
 
-The product is the composition, not the alpha. NeuroDegen does not claim profitable trading. It demonstrates end-to-end agentic execution under real conditions with a cryptographically verifiable link between each reasoning graph and the MYX order it produced.
+NeuroDegen runs a three-LLM committee — narrative analyst, quant analyst, risk classifier — that ingests live CoinMarketCap data via the CMC AI Agent Hub, executes BEP-20 swaps **only through Trust Wallet Agent Kit (TWAK)**, and commits its reasoning hash on-chain **before** every trade so any observer can independently reconstruct the decision-to-action chain from BscScan alone.
+
+**The product is the composition, not the alpha.** This codebase makes no profitability claim. It demonstrates an end-to-end autonomous agent under self-custody, with hard guardrails (149-token allowlist, drawdown ladder, slippage caps, EV-gated outbound payments) and a cryptographically verifiable audit trail.
 
 ---
 
-## Live Deployment
+## Competition compliance
+
+| Requirement | How NeuroDegen satisfies it |
+|---|---|
+| Self-custody (TWAK) | The TWAK CLI is the **sole signing path** for every trade. The Node worker never touches a private key. ([src/lib/services/execution/twakExecutor.ts](src/lib/services/execution/twakExecutor.ts)) |
+| On-chain agent registration | Worker calls `twak compete register --json` on first boot, persists the tx hash and participant address to `worker_state`. Idempotent across restarts; refuses to register after the deadline. ([src/lib/services/competitionRegistration.ts](src/lib/services/competitionRegistration.ts)) |
+| 149-token allowlist | Loaded from `ALLOWED_TOKENS_JSON` env at boot; `PreExecutionChecker.allowedTokenVerified()` rejects out-of-list symbols **before** any TWAK swap call. ([src/lib/services/execution/preExecutionChecker.ts](src/lib/services/execution/preExecutionChecker.ts)) |
+| ≥1 trade per UTC day | `probeTradeScheduler` fires a TWAK round-trip at 18:00 UTC if no qualifying trade has been recorded for the current day. `lastProbeDay` is persisted to Postgres so a worker restart cannot double-fire. ([src/lib/services/execution/probeTradeScheduler.ts](src/lib/services/execution/probeTradeScheduler.ts)) |
+| Drawdown disqualifier (30%) | Five-tier ladder (`normal/alert/defensive/halt/disqualified`) in `riskManager.classifyDrawdownTier`. Halt at 25% (competition floor), DQ at 30%, user mandate can tighten further. ([src/lib/services/execution/riskManager.ts](src/lib/services/execution/riskManager.ts)) |
+| Slippage protection | `MAX_SLIPPAGE_PCT` is enforced on every swap via TWAK's `slippagePct` parameter. ([src/config/execution.ts](src/config/execution.ts)) |
+| Native x402 | Both directions. **Inbound**: `/api/x402/session/[id]` sells session data via USDT-on-BSC micropayments (atomic proof recording). **Outbound**: the CMC AI Agent Hub client pays per premium tool call through `twak x402 request`. ([src/app/api/x402/session/[id]/route.ts](src/app/api/x402/session/%5Bid%5D/route.ts), [src/lib/clients/cmcHubClient.ts](src/lib/clients/cmcHubClient.ts)) |
+
+---
+
+## Live deployment
 
 | Artifact | Value |
 |---|---|
-| **Chain** | BNB Smart Chain (mainnet, chainId 56) |
-| **Agent wallet** | [`0x9fe816A8bD6933464c177ba94890aEDE5CD5aA5A`](https://bscscan.com/address/0x9fe816A8bD6933464c177ba94890aEDE5CD5aA5A) |
-| **Attestation contract** | [`0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) |
-| **Deploy tx** | [`0x0d1c472c...e37d64630a0`](https://bscscan.com/tx/0x0d1c472cd1cbffbdf57252e06b09295a5da8c76d709eef4360377e37d64630a0) |
-| **Smoke: regime attest** | [`0x2a5720bc...eefa8c6e3f7393`](https://bscscan.com/tx/0x2a5720bcf035a4e67069b4d036f072f1ea7d26a0cf322fb657eefa8c6e3f7393) |
-| **Smoke: reasoning commit** | [`0xcbd07114...91c2bd8f7f68`](https://bscscan.com/tx/0xcbd07114790424553ddcc04190931f71a428011a35dd09b3a7b591c2bd8f7f68) |
-| **Smoke: execution reveal** | [`0x7dea3fc4...e409c1321d`](https://bscscan.com/tx/0x7dea3fc4c07c662aae3c076ab93468f8cd9f34cde6e203e0bd36d7e409c1321d) |
+| Chain | BNB Smart Chain mainnet (chainId 56) |
+| Competition contract | [`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`](https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5) |
+| AttestationEmitter contract | [`0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) |
+| Agent wallet | provisioned via TWAK keychain; published via `/api/health` once the worker boots |
+| Web | [neurodegen.xyz](https://neurodegen.xyz) |
+| Verify any trade | `https://neurodegen.xyz/proof/<twakTxHash>` |
+| Registration status | `GET https://neurodegen.xyz/api/health` → `diagnostics.competition.registration` |
 
-Every position open, position close, regime change, reasoning commit, and execution reveal is written to the attestation contract. Anyone can reconstruct the chain of custody from BscScan alone — or use the built-in `/proof/[myxTxHash]` page to verify a specific trade in one click.
+The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required — every flag is independently verifiable on BscScan.
 
 ---
 
 ## Architecture
 
-NeuroDegen runs as two services sharing one Supabase + one attestation contract. The **worker** (Railway) holds the long-lived agent loop — Bitquery WebSocket, MYX polling, cognition cycles, execution, mirror fan-out, Telegram push. The **web** (Vercel) serves every user-facing surface — `/`, `/live`, `/track-record`, `/reasoning/[id]`, `/me`, `/proof/[txHash]` — plus admin + Telegram webhook endpoints. The worker forwards SSE events to the web over an admin-signed HTTP bridge; the web fans them out to connected browsers.
+NeuroDegen runs as two Railway services sharing one Supabase database and one BSC attestation contract.
+
+- **Worker** (`src/worker/index.ts`) — long-lived agent loop. Boot-time competition registration, perception ingestion from CMC, three-LLM committee deliberation, TWAK swap execution, commit-reveal attestation, daily probe scheduling.
+- **Web** (`src/app/`) — Next.js 16 App Router. SSE relay, public health/proof/journal pages, inbound x402 endpoint, admin proxy to the worker.
 
 ```mermaid
 flowchart TD
-  BQ["Bitquery WS · Four.meme events"] --> PERC
-  MYXR["MYX REST · market snapshots"] --> PERC
-  PY["Pyth Hermes · oracle prices"] --> PERC
+  CMC["CoinMarketCap AI Agent Hub · MCP + x402"] --> PERC
+  PYTH["Pyth Hermes · oracle prices"] --> PERC
 
-  PERC["Perception · normalize + aggregate"] --> COG["Cognition · regime + reasoning graph"]
+  PERC["Perception · normalize + aggregate"] --> COG["Cognition · three-LLM committee"]
 
-  COG --> CL["Claude · /v1/messages"]
-  COG --> GP["GPT-4o · /v1/chat/completions"]
-  COG --> DS["DeepSeek v3.2 · /v1/chat/completions"]
-  CL --> GRAPH["Reasoning Graph"]
-  GP --> GRAPH
-  DS --> GRAPH
+  COG --> NA["Narrative Analyst · Claude Sonnet 4.6"]
+  COG --> QA["Quant Analyst · GPT-4o"]
+  COG --> RC["Risk Classifier · DeepSeek v3.2"]
+  NA --> SESSION
+  QA --> SESSION
+  RC --> SESSION
 
-  GRAPH --> PRE["Pre-execution checks"]
-  PRE --> COMMIT["on-chain commit · ReasoningCommitted"]
-  COMMIT --> MYXTX["MYX perp order · createIncreaseOrder"]
-  MYXTX --> REVEAL["on-chain reveal · ExecutionRevealed"]
+  SESSION["CommitteeSession · final action + reasoning hash"] --> PRE
+  PRE["PreExecutionChecker · 8 guardrails"] --> COMMIT
+  COMMIT["AttestationEmitter.commitReasoning"] --> TWAK
+  TWAK["twak swap --json"] --> REVEAL
+  REVEAL["AttestationEmitter.revealExecution"]
   REVEAL -.->|keccak match| COMMIT
 
-  MYXTX --> MIRROR["Mirror dispatcher · per-user sizing"]
-  MIRROR --> USRTX["Per-user MYX tx · Privy session signer"]
-  MIRROR --> NOTIF["Telegram notifier"]
-  NOTIF --> TG["Telegram bot · grammY"]
+  TWAK --> SB[("Supabase · positions, sessions")]
+  TWAK --> SSE["/api/events/stream · SSE"]
+  SSE --> UI["/journal · /proof · /session"]
 
-  MYXTX --> BRIDGE["admin-signed HTTP bridge"]
-  BRIDGE --> SSE["/api/events/stream · SSE"]
-  SSE --> UI["/live · /track-record · /me · /proof"]
-
-  PERC -.-> SB[("Supabase · cold storage")]
-  GRAPH -.-> SB
-  MYXTX -.-> SB
-  UI -.->|reads| SB
-
-  COMMIT -.-> ATT["Attestation contract · 0xe21f…7dc4 · BSC"]
+  COMMIT -.-> ATT["AttestationEmitter · 0xe21f…7dc4 · BSC"]
   REVEAL -.-> ATT
   UI -.->|reads events| ATT
 ```
 
 ### Layer responsibilities
 
-**Perception** — Bitquery v2 WebSocket subscriptions for five Four.meme events (TokenCreate, TokenPurchase, LiquidityAdded, PairCreated, PoolCreated). MYX REST polling for market snapshots every 15s. Pyth Hermes for BTC/ETH/BNB oracle prices. All events normalized to typed domain objects, pushed through rolling-window aggregators, flushed to Supabase in 5s batches.
+**Perception** — CMC AI Agent Hub via MCP JSON-RPC `tools/call`. Free tier for baseline data; premium tools (deep social, KOL activity, security-risk score) gated through TWAK x402. Pyth Hermes for BTC/ETH/BNB oracle prices used in the divergence check. Outputs an `AggregateMetrics` snapshot per cycle: regime, fear & greed, top movers, KOL activity, funding rates, market liquidity score, security-risk per candidate token.
 
-**Cognition** — Three-model mixture routed through DGrid. Claude (Anthropic native `/v1/messages` format) scores narrative sentiment. GPT-4o (OpenAI-compatible `/v1/chat/completions`) extracts structured features. DeepSeek v3.2 (OpenAI-compatible) makes the binary action call. If any DGrid call fails, the fallback handler retries via direct provider APIs using operator-configured BYOK keys, so cognition never hangs on a gateway outage. Every cycle produces a `ReasoningGraph` capturing all three model calls, inputs, outputs, latencies, and aggregation logic.
+**Cognition** — Three independent LLM members, each with a single role:
 
-**Execution** — MYX v2 perpetuals via the official `@myx-trade/sdk` (pinned `1.0.18`, single-adapter pattern). Pre-execution gate runs six sequential checks (oracle divergence, crowd score from funding rate, slippage headroom, collateral sufficiency, concurrent-position cap, cooldown). Orders are built as `PlaceOrderParams` with SDK-native decimal handling, submitted through `MyxClient.order.createIncreaseOrder`, then tracked through the full keeper state machine (submitted → pending → filled → managed → closed/expired/liquidated).
+- **Narrative Analyst** (Claude Sonnet 4.6) — `narrativeSummary`, `sentimentScore`, `confidenceLevel`, `direction`, `flaggedAnomalies`, `topThesisToken`.
+- **Quant Analyst** (GPT-4o) — `features`, `dominantDirection`, `liquidityAdequate`, `fundingRateWarning`, `recommendedToken`.
+- **Risk Classifier** (DeepSeek v3.2) — receives both analysts' outputs plus the dissent verdict, emits the final `action ∈ {open_long, close_position, adjust_parameters, hold}` with `targetToken` and `confidence`.
 
-**Copy-trade monetization** — Users log in via Privy, grant a session-signer scope on their embedded wallet, and set three preferences: leverage multiplier, max position USD, and min confidence threshold. When the agent opens a position, the `MirrorDispatcher` fans out to every active subscription, runs per-user sizing (clamping to each user's limits), builds a `PlaceOrderParams`, and submits through a per-user `MyxClient` that signs with the user's Privy wallet. Users keep their own keys. The agent never holds user funds.
+All three are routed through the [DGrid](https://dgrid.ai) LLM gateway with a BYOK → DGrid primary → DGrid fallback chain. The dissent tracker collapses the analyst pair into a half-size or hold modifier; analyst parse-failures are treated as hidden dissent (no false unanimity). Every session is canonicalized and keccak-hashed; the hash is the on-chain attestation primary key.
 
-**Attestation** — A minimal immutable contract (`NeurodegenAttestation.sol`) emits an event for every decisive action: `PositionOpened`, `PositionClosed`, `RegimeChanged`, `ReasoningCommitted` (pre-submit, includes `reasoningHash` + `actionIntent`), and `ExecutionRevealed` (post-confirmation, links `reasoningHash` → `myxTxHash` + `orderId`). The commit-reveal pair gives an independent verifier a cryptographic timeline: the agent committed to the reasoning *before* the MYX tx was sent, and revealed the execution pointer *after* it confirmed. Anyone can audit the full chain on-chain without ever trusting our API.
+**Execution** — `twakExecutor.execute()` is the only path to a signed BSC transaction. Eight pre-execution checks fire in sequence (oracle divergence, security-risk score, honeypot flag, slippage headroom, allowlist membership, drawdown tier, daily PnL cap, exposure cap). On pass, the executor commits the reasoning hash on-chain, calls `twakClient.executeSwap()` (TWAK CLI → BSC), then reveals the execution pointer linking `reasoningHash → twakTxHash`.
 
----
+**Attestation** — A minimal immutable Solidity contract (`NeurodegenAttestation.sol`) emits five event types: `RegimeChanged`, `PositionOpened`, `PositionClosed`, `ReasoningCommitted` (pre-submit, includes `reasoningHash` + `actionIntent`), `ExecutionRevealed` (post-confirmation, links `reasoningHash` → `twakTxHash`). The contract is verified on BscScan and read directly by the `/proof` page so verification doesn't depend on our database.
 
-## Verifiable proof chain
+**Risk** — Mandate-aware ladder with a global competition-survival floor:
 
-Go to `/proof/<myxTxHash>` for any NeuroDegen trade. The page:
-
-1. Fetches the `ExecutionRevealed` event on the attestation contract.
-2. Extracts the `reasoningHash` and looks up the matching `ReasoningCommitted` event.
-3. Fetches the full reasoning graph from Supabase using that hash as the key.
-4. Recomputes `keccak256(serialize(graph))` and verifies it matches the on-chain hash.
-5. Displays commit timestamp, execution timestamp, time delta, hash match status, and a deep-link to the full reasoning view.
-
-One-line headline: *"Reasoning was committed N seconds before execution. Hash verified."* If the hash mismatches, the page says so in red.
-
-This closes the gap that every analytics-tool competitor leaves open: our LLM reasoning is not only auditable, it is *cryptographically tied to the on-chain action it produced*.
-
----
-
-## Public track record
-
-`/track-record` is a live ledger of every position the agent has ever opened and closed. No cherry-picking, no backtested returns — the page reads from the `positions` table and independently verifies against `PositionOpened` / `PositionClosed` events emitted on the attestation contract. You see:
-
-- Lifetime stats: opened, closed, win rate, cumulative P&L, best / worst trade
-- Per-pair breakdown with inline win-rate bars
-- Most recent 20 closed trades with entry, exit, leverage, duration, exit reason, and a one-click link to `/proof/<txHash>` for each
-- An "on-chain verified" banner counting the attestation events observed across the indexed block range
-
-Auto-refreshes via SSE — when the agent closes a new position anywhere in the system, every open `/track-record` tab rerenders without a full reload.
-
----
-
-## Readable reasoning
-
-`/reasoning/[id]` is the daily-use surface for understanding *why* the agent traded. Instead of raw JSON dumps, every reasoning chain is rendered as:
-
-- A plain-English narrative at the top: *"Perception: N launches/hr, X BNB/hr inflow, regime active. Cognition: Claude read sentiment as bullish (0.41, 72% confident). GPT-4o found 6 features weight-skewed bullish. DeepSeek voted open_long at 68% confidence. Execution: open_long BTC/USDT with $4 at 10x."*
-- **Sentiment view** (Claude output) — narrative paragraph + fear/neutral/greed bar with score marker + confidence % + flagged-pattern chips
-- **Features view** (GPT-4o output) — grid of feature cards with bullish/bearish/neutral tags and weight bars, aggregate totals
-- **Decision view** (DeepSeek output) — action verdict + confidence bar with threshold marker + rationale + "overridden to hold" warning if below the minimum confidence threshold
-
-Raw prompts, raw inputs, and raw model outputs are still one click away (`view raw input / output`) for reviewers who want to audit the exact bytes.
-
----
-
-## Telegram notifications
-
-Users link Telegram with one tap from `/me`. The backend mints a short-lived token, the UI opens `t.me/neurodegen_bot?start=<token>`, the bot's webhook resolves the token and writes the `user_id ↔ chat_id` binding. No copy/paste, no manual codes — the deep link is the auth.
-
-Once linked, every event that affects the user's mirror is pushed to their chat as a rich HTML card:
-
-| Event | What the user sees |
-|---|---|
-| `mirror_opened` | `🟢 LONG BTC/USDT · $4 × 10x ($40 notional) · entry $76,382 · conf 72%` + link to the proof page |
-| `mirror_closed` | `✅ LONG BTC/USDT closed · +$0.12 (+3.0%) · reason: take-profit triggered` + proof link |
-| `mirror_skipped` | `⏭ BTC/USDT signal skipped · reason: below 50% confidence threshold` (off by default) |
-| `health_alerts` | `⚠️ perception degraded · <cause>` |
-| `agent_status` | `▶️ agent started at cycle 482` / `⏸ agent stopped` |
-| `daily_summary` | End-of-UTC-day digest: opens, closes, W/L, net P&L, best, worst, link to `/track-record` |
-
-Every notification type is independently toggleable per user, both in the `/me` UI and inline inside the Telegram chat (`/settings`). The bot also accepts `/status`, `/pause`, `/resume`, `/unlink` and inline buttons for one-tap mirror control without leaving Telegram.
-
-Implementation: [grammY](https://grammy.dev) with `webhookCallback(bot, 'std/http', { secretToken })` — the Fetch-native adapter that runs inside Next.js App Router. Telegram-side secret token validation is built in.
-
----
-
-## Operational Controls
-
-All toggles below are Railway environment variables on the **worker** service. Change a value → click **Redeploy** in Railway. No code change or git push required.
-
-### 1. Start / Stop the Agent
-
-The agent loop is a long-running process on Railway. To pause reasoning and execution while keeping the process alive:
-
-```bash
-POST /api/agent/start   # resume the cognition + execution cycle
-POST /api/agent/stop    # pause it (perception continues in the background)
-GET  /api/agent/status  # cycle count, current regime, health flags
-```
-
-All three require the `x-admin-secret` header matching `ADMIN_SECRET`.
-
-To kill the process entirely, set Railway instances to 0 (Settings → Scaling → 0 replicas).
-
----
-
-### 2. Start / Stop Trade Execution
-
-The agent can perceive and reason without placing real orders. Two env vars control this:
-
-| Variable | Default | Effect |
+| Drawdown | Tier | Behaviour |
 |---|---|---|
-| `ENABLE_EXECUTION` | `false` | `false` = execution gateway never initializes, no orders possible |
-| `DRY_RUN_MODE` | `true` | `true` = submitter returns a synthetic tx hash, MYX contract is never called |
+| < 15% | normal | full size |
+| 15–20% | alert | 50% size |
+| 20–25% | defensive | close-only (no new opens) |
+| 25–30% | halt | all execution blocked |
+| ≥ 30% | disqualified | competition-fixed |
 
-To go live: set `ENABLE_EXECUTION=true` and `DRY_RUN_MODE=false` on the Railway worker.
-
----
-
-### 3. Close a Specific Open Position
-
-To manually close one position without stopping the agent:
-
-```bash
-POST /api/agent/close/:positionId
-# Header: x-admin-secret: <ADMIN_SECRET>
-```
-
-The gateway submits a full-size decrease order and marks the position `closed` in the database.
+Plus per-cycle: max 5 concurrent positions, daily PnL cap, mandate-driven consecutive-loss halt, per-position size cap, per-token max exposure ratio, and a live total-exposure cap derived from the actual open-position book (not stale state).
 
 ---
 
-### 4. AI Model Routing (DGrid → BYOK fallback)
+## Observability + transparency
 
-The cognition pipeline calls three models per cycle. By default it routes through DGrid AI Gateway. When DGrid credits are depleted or you want to use your own keys:
-
-| Variable | Default | Effect |
-|---|---|---|
-| `ENABLE_BYOK_ROUTING` | `false` | `true` = failed DGrid calls fall through to your own API keys |
-| `ANTHROPIC_API_KEY` | — | Covers **sentiment** + **classification** — the two most important stages |
-| `OPENAI_API_KEY` | — | Covers **feature extraction** only; optional — Claude handles it as final fallback |
-
-**Only `ANTHROPIC_API_KEY` is required to unblock the pipeline.** Both keys are already present in Railway variables; you only need to flip `ENABLE_BYOK_ROUTING=true`.
+- `/api/health` — env preflight, worker reachability, database health, competition registration state, preflight issues (loud if trading window opens with no registration or with `DRY_RUN_MODE=true`)
+- `/api/events/stream` — SSE feed of `perception_event`, `committee_session_complete`, `position_update`, `regime_change`, `health_degradation`, `agent_status_snapshot`
+- `/journal` — paginated session log with reasoning hash, on-chain commit/reveal txs, dissent verdict, plain-language explanation
+- `/session/[id]` — full committee session detail: each analyst's prompt, raw model output, parsed JSON, latency, cost
+- `/proof/[twakTxHash]` — independent on-chain verification
 
 ---
 
-### 5. Confidence Threshold (when the agent trades)
+## x402 in the trade loop
 
-The classifier assigns a confidence score (0–1) per cycle. An order is only submitted when the score meets or exceeds this threshold.
+**Outbound** — Cognition calls into CMC's premium MCP tools (e.g. deep social, KOL velocity, token security score) only when the EV gate says the expected information value clears the micropayment cost. Each x402 call goes through `twak x402 request --max-payment` so payment authorisation never leaves the agent wallet. Daily spend tracker enforces a hard cap.
 
-| Variable | Default | Effect |
-|---|---|---|
-| `MIN_CONFIDENCE_TO_ACT` | `0.25` | Lower = more trades, higher false-positive risk |
-
-Typical values:
-- `0.20` — trades on moderate signals including bot-heavy markets
-- `0.25` — balanced default
-- `0.30` — only clean retail-driven setups
-
-Tunable live from Railway, no redeploy needed.
+**Inbound** — `GET /api/x402/session/[id]` returns a `402 Payment Required` challenge with a USDT-on-BSC recipient + amount when called without an `X-Payment-Proof` header. With a valid USDT transfer receipt to the configured revenue address, the proof is atomically inserted to `consumed_x402_proofs` (race-safe via primary-key unique violation) and the session is returned. The revenue address is normalised via `getAddress()` at module load so case-mismatched env vars surface immediately.
 
 ---
 
-## How it lands against each track
-
-- **Main Sprint.** A cryptographic chain of custody from LLM reasoning to on-chain action. Every trade carries a commit-before-submit on attestation contract [`0xe21f…7dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) and a reveal-after-confirmation referencing the same `reasoningHash`. Pick any MYX tx we produced, open `/proof/<txHash>`, and verify the entire decision in one click, with no API trust.
-- **MYX Finance.** Real perpetual orders through the official `@myx-trade/sdk`. The same execution gateway fans out to Privy-custodied user wallets so one agent trade mirrors to many subscribers.
-- **DGrid.** Three providers wired in production: Claude on `/v1/messages`, GPT-4o and DeepSeek v3.2 on `/v1/chat/completions`. A direct-provider fallback keeps the cognition loop responsive under gateway outages.
-- **Pieverse.** A proper x402 HTTP endpoint at `/api/skill` that settles in pieUSD on BSC. Payment proof is verified by fetching the tx receipt and inspecting the `Transfer` log — no shared secrets, no facilitator trust. [SKILL.md](./SKILL.md) manifest is ready for ClawHub publication pending Pieverse merchant credential verification.
-
----
-
-## Quick start
-
-### Prerequisites
-- Node.js 18+
-- pnpm 8+
-- Supabase project (free tier)
-- DGrid API key (dgrid.ai)
-- Bitquery v2 Bearer token
-- BSC RPC endpoint (QuickNode, Alchemy, or public)
-- Privy app (privy.io) with one authorization key registered
-- An EOA funded with BNB for gas
-
-### Setup
-
-```bash
-git clone <repo-url>
-cd neurodegen
-pnpm install
-cp .env.example .env.local
-# Fill in every value — see "Environment variables" below
-npx supabase db push  # runs 001 + 002 + 003 + 004
-pnpm dev             # web (Next.js) — runs on :3000
-# In a second terminal, to run the agent worker locally:
-pnpm worker          # tsx watch + --env-file=.env.local
-```
-
-### Deploy the attestation contract
-
-```bash
-pnpm attestation:compile   # solc → artifacts/NeurodegenAttestation.json
-pnpm attestation:deploy    # deploys to BSC, prints address
-# copy printed address into .env.local as ATTESTATION_CONTRACT_ADDRESS
-# flip ENABLE_ATTESTATION=true in src/config/features.ts
-```
-
-### Start the agent
-
-```bash
-curl -X POST http://localhost:3000/api/agent/start \
-  -H "X-Admin-Secret: $ADMIN_SECRET"
-```
-
-### Verify a trade end-to-end
-
-After the first real cycle produces a MYX order:
-
-```bash
-curl https://neurodegen.xyz/api/positions | head -n 1
-# Grab a myxTxHash from the response, then visit:
-# https://neurodegen.xyz/proof/<myxTxHash>
-```
-
-The proof page fetches the `ReasoningCommitted` + `ExecutionRevealed` events for that `reasoningHash`, recomputes `keccak256` of the stored reasoning graph, and confirms the on-chain hash matches — no API trust required.
-
-### Onboard a user for copy-trade
-
-1. Visit `/onboard`
-2. Connect via Privy (email or wallet)
-3. Set leverage multiplier, max position USD, min confidence
-4. Approve the session-signer grant
-5. Fund the displayed embedded wallet address with:
-   - **BNB** for gas (~0.01 BNB covers many trades at BSC fees)
-   - **USDT** for trade collateral (your chosen max position size × a few cycles)
-
----
-
-## Production deployment
-
-NeuroDegen ships as **two services** sharing one Supabase database and one BSC attestation contract:
-
-- **`neurodegen-web`** on **Vercel** — serves the UI + API routes, including the Telegram webhook. Next.js 16 App Router.
-- **`neurodegen-worker`** on **Railway** — long-running Node process that hosts the agent loop (Bitquery WS, MYX polling, cognition, execution, mirror fan-out, daily-summary scheduler).
-
-The worker pushes every real-time event to the web service via an admin-signed HTTP bridge (`/api/events/broadcast`), which re-broadcasts over SSE to connected browsers and fans out Telegram pushes.
-
-### 1. Supabase
-
-Create a project and run the migrations:
-
-```bash
-supabase link --project-ref <your-project-ref>
-supabase db push   # applies 001_initial + 002_copy_trade + 003_add_wallet_id + 004_telegram
-```
-
-After pushing, open **Data API → Exposed schemas** and tick the `neurodegen` schema + each of the eight tables. Then grant Postgres `USAGE` + table privileges in the SQL editor (see DEFERRED.md for the one-liner grant script).
-
-### 2. Attestation contract (one-time)
-
-```bash
-pnpm attestation:ship    # compile + deploy to BSC
-# copy the printed address → ATTESTATION_CONTRACT_ADDRESS in .env.local and Vercel + Railway env
-```
-
-Already deployed for this project at [`0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4).
-
-### 3. Telegram bot (one-time)
-
-1. Open [@BotFather](https://t.me/BotFather), run `/newbot`, pick a name + username.
-2. BotFather returns an HTTP API token — keep it secret.
-3. Generate a webhook secret: `openssl rand -hex 32`
-4. In BotFather, run `/setcommands` → select your bot → paste:
-   ```
-   status - Agent + your mirror snapshot
-   settings - Toggle notification types
-   pause - Pause your mirroring
-   resume - Resume your mirroring
-   unlink - Disconnect this chat
-   help - Show command list
-   ```
-
-### 4. Vercel (web)
-
-```bash
-vercel link              # link the local folder to a Vercel project
-vercel --prod            # production deploy
-```
-
-Under **Project Settings → Environment Variables** (scoped to `Production`), set everything listed in the **Web env** section below. Point `neurodegen.xyz` at the project and set `NEXT_PUBLIC_APP_URL=https://neurodegen.xyz`.
-
-After the first deploy, register the Telegram webhook **once**:
-
-```bash
-curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
-  -d "url=https://neurodegen.xyz/api/telegram/webhook" \
-  -d "secret_token=${TELEGRAM_WEBHOOK_SECRET}" \
-  -d "allowed_updates=[\"message\",\"callback_query\"]"
-```
-
-### 5. Railway (worker)
-
-In a new Railway project on the same repo, create a service. Under **Settings → Config-as-code Path**, point it at `/railway.worker.toml`. Railway will pick up the worker's `pnpm worker:start` entry, expose the health endpoint on `$PORT`, and restart on failure.
-
-Set the **Worker env** variables listed below. Crucially:
-
-- `WORKER_MODE=true` — makes `realtimeService` forward events over HTTP instead of fanning out locally (since the worker has no SSE clients of its own).
-- `WEB_BROADCAST_URL=https://neurodegen.xyz/api/events/broadcast` — the web's broadcast receiver.
-- `ADMIN_SECRET` — must match the web's value, or the broadcast receiver rejects the POST.
-
-### 6. Go live
-
-Flip execution flags in [src/config/features.ts](src/config/features.ts) and redeploy the **worker** (the web is read-only execution-wise):
-
-```ts
-export const ENABLE_EXECUTION: boolean = true;
-export const DRY_RUN_MODE: boolean = false;
-```
-
-Start the agent from the web service (the request is proxied to the worker via the shared `agentLoop` singleton initialization path):
-
-```bash
-curl -X POST https://neurodegen.xyz/api/agent/start \
-  -H "X-Admin-Secret: $ADMIN_SECRET"
-```
-
-First cycle with a real action produces a commit → MYX submit → reveal sequence on BscScan. Visit `/proof/<myxTxHash>` to verify, or check `/track-record` for the rolling ledger.
-
----
-
-## Environment variables
-
-See [.env.example](.env.example) for the complete, described list. Split between the two services:
-
-### Web env (Vercel `neurodegen-web`)
-
-| Group | Vars |
-|---|---|
-| **Chain** | `BSC_RPC_URL`, `BSC_RPC_URL_FALLBACK`, `BSC_LOGS_RPC_URL`, `ATTESTATION_CONTRACT_ADDRESS` |
-| **LLM routing** (BYOK for proof page) | `DGRID_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` |
-| **Auth (Privy)** | `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET`, `PRIVY_AUTH_PRIVATE_KEY`, `PRIVY_VERIFICATION_KEY`, `NEXT_PUBLIC_PRIVY_SIGNER_ID` |
-| **Storage** | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
-| **Monetization (Pieverse)** | `PIEVERSE_REVENUE_ADDRESS`, `PIEVERSE_PIEUSD_ADDRESS` |
-| **Telegram** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` |
-| **Admin** | `ADMIN_SECRET` |
-| **Public** | `NEXT_PUBLIC_APP_URL` |
-
-### Worker env (Railway `neurodegen-worker`)
-
-| Group | Vars |
-|---|---|
-| **Coordination** | `WORKER_MODE=true`, `WEB_BROADCAST_URL=https://<web-domain>/api/events/broadcast`, `ADMIN_SECRET` (same as web) |
-| **Chain** | `BSC_RPC_URL`, `BSC_RPC_URL_FALLBACK`, `NEURODEGEN_AGENT_PRIVATE_KEY`, `ATTESTATION_CONTRACT_ADDRESS`, `MYX_BROKER_ADDRESS` |
-| **Data** | `BITQUERY_API_KEY`, `BITQUERY_WS_TOKEN`, `PYTH_HERMES_URL`, `MYX_API_BASE_URL` |
-| **LLM routing** | `DGRID_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` |
-| **Auth (Privy — for copy-trade signer)** | `PRIVY_APP_SECRET`, `PRIVY_AUTH_PRIVATE_KEY` |
-| **Storage** | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
-| **Telegram** (for outbound notifications) | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` |
-| **Public** | `NEXT_PUBLIC_APP_URL` (used in notification links) |
-
-`.env.local` on your dev machine can hold the union of both — `pnpm dev` (web) and `pnpm worker` (worker) will both read what they need. Railway injects its own env vars at runtime; do not commit `.env.local`.
-
----
-
-## Project structure
+## Repository layout
 
 ```
 src/
-├── app/
-│   ├── api/
-│   │   ├── agent/              # start, stop, status, trigger, close/[positionId]
-│   │   ├── auth/               # session, logout
-│   │   ├── events/             # stream (SSE), broadcast (worker→web bridge)
-│   │   ├── health/             # cross-service health
-│   │   ├── me/                 # user, positions, subscription, telegram, telegram/preferences
-│   │   ├── positions/          # agent position history
-│   │   ├── reasoning/          # graph list + detail
-│   │   ├── skill/              # Pieverse x402
-│   │   └── telegram/webhook/   # grammY webhookCallback (std/http adapter)
-│   ├── live/                   # real-time perception + cognition + execution
-│   ├── track-record/           # public ledger of every position, live-refresh via SSE
-│   ├── reasoning/[id]/         # narrative + parsed model views + OG image
-│   ├── proof/[txHash]/         # on-chain verification + OG image
-│   ├── me/                     # onboarding, wallet, mirror settings, telegram, positions
-│   ├── onboard/                # first-time Privy + session-signer flow
-│   └── opengraph-image.tsx     # root OG
-├── components/
-│   ├── ui/                     # Card, Button, Badge, Skeleton, ShapeGrid (hex canvas bg)
-│   ├── layout/                 # NavBar, Shell, DarkModeApplier
-│   ├── providers/              # PrivyAuthProvider
-│   └── features/
-│       ├── auth/               # ConnectButton
-│       ├── copyTrade/          # UserPositionTable, WalletCard, PreferenceRow
-│       ├── perception/         # EventCard, EventFeed, AggregateMetrics
-│       ├── cognition/          # RegimeIndicator, ReasoningChainView, ReasoningNarrative,
-│       │                       # SentimentView, FeaturesView, ClassificationView, ModelCallDetail
-│       ├── execution/          # PositionTable, PositionRow, OrderStatusBadge, RiskGauge
-│       └── landing/            # HeroSection, PipelineDiagram, PartnerLogos,
-│                               # LandingBackground, WhyTrustThis
-├── lib/
-│   ├── abis/                   # Attestation, Four.meme (MYX uses SDK)
-│   ├── auth/                   # Privy session helpers
-│   ├── clients/
-│   │   ├── dgrid/              # claude, openai, gemini, router (BYOK Anthropic wired)
-│   │   ├── byok/               # anthropicDirect fallback + primary
-│   │   ├── telegram.ts         # grammY bot singleton + link URL builder
-│   │   ├── chain.ts            # viem public + agent wallet + logs client
-│   │   ├── myxSdk.ts           # SDK singleton (single adapter file)
-│   │   ├── myxPools.ts
-│   │   ├── privy.ts
-│   │   ├── bitquery.ts
-│   │   ├── pyth.ts
-│   │   └── supabase.ts
-│   ├── services/
-│   │   ├── perception/         # ingester, poller, normalizer, aggregator, coldStorage
-│   │   ├── cognition/          # regimeClassifier, reasoningGraphBuilder, fallbackHandler, reasoningOrchestrator
-│   │   ├── execution/          # preExecutionChecker, orderBuilder, txSubmitter, positionTracker,
-│   │   │                       # attestationEmitter, executionGateway (adds closeSinglePosition)
-│   │   ├── monetization/       # skillWrapper, copyTradeSizing, userMyxClient, mirrorDispatcher, mirrorExit
-│   │   ├── notifications/      # dispatcher, formatters, dailySummary
-│   │   ├── telegram/           # botHandlers (grammY commands + callbacks)
-│   │   ├── attestationHistory.ts  # on-chain event indexer for /track-record
-│   │   ├── attestationReader.ts   # narrow-window log reader for /proof
-│   │   ├── agentLoop.ts        # orchestrator (hot state, cognition, execution, health notifs)
-│   │   └── realtimeService.ts  # env-aware: worker forwards HTTP, web fans out SSE
-│   ├── queries/                # events, metrics, positions, reasoningChains,
-│   │                           # subscriptions, userPositions, users, telegram
-│   ├── stores/                 # In-memory hot state
-│   └── utils/                  # decimalScaling, prompts, validation, reasoningHash, format, cn
-├── hooks/                      # useSSE, useAgentStatus, usePositions, useMe,
-│                               # useWalletBalances, useTelegramLink
-├── worker/                     # Railway long-running entry — agentLoop + dailySummary scheduler
-├── types/                      # perception, cognition, execution, myx, users, telegram, pieverse
-└── config/                     # all tunable parameters (risk retuned for $10 agent wallet)
-
-contracts/
-└── NeurodegenAttestation.sol   # Immutable attestation contract (commit-reveal extended)
-
-supabase/migrations/
-├── 001_initial_schema.sql
-├── 002_copy_trade.sql
-├── 003_add_wallet_id.sql
-└── 004_telegram.sql            # telegram_link_tokens + telegram_subscriptions + notifications_log
-
-railway.toml                    # web service config
-railway.worker.toml             # worker service config (point Railway 2nd service here)
+  app/                 Next.js 16 routes: /journal, /session, /proof, /api/*
+  config/              chains, competition, execution, risk, monetization, cognition
+  lib/
+    clients/           cmcHubClient, twakClient, llm/{router,openaiClient,dgrid,anthropic}, pyth, chain, supabase
+    queries/           positions, sessions, x402proofs, workerState, metrics, perceptionEvents
+    services/
+      agentLoop.ts     main orchestrator
+      competitionRegistration.ts
+      cognition/       narrativeAnalyst, quantAnalyst, riskClassifier, dissentTracker, committeeSession, sessionGraphBuilder
+      execution/       twakExecutor, attestationEmitter, preExecutionChecker, riskManager, positionTracker, probeTradeScheduler
+      attestationReader.ts  on-chain commit/reveal scanner used by /proof
+    stores/            hotState (eviction-safe SSE relay)
+    utils/             adminAuth (constant-time), allowedTokens, canonicalSerialize, prompts (sanitised)
+  types/               cognition, execution, perception, mandate, monetization
+  worker/index.ts      worker entrypoint (HTTP /health + /admin/* + boot-time competition registration)
+contracts/             NeurodegenAttestation.sol + deploy scripts
+supabase/migrations/   schema + RLS policies
 ```
 
 ---
 
-## Tech stack
+## Local development
 
-- **Next.js 16.2.3** (App Router, Turbopack) / **TypeScript** (strict, ES2020)
-- **viem 2.47.17** — chain interactions
-- **@myx-trade/sdk 1.0.18** — perpetual orders (pinned exact)
-- **@privy-io/react-auth 3.22.1** + **@privy-io/node 0.15.0** — embedded wallets + session signers
-- **DGrid** — multi-model inference router
-- **Anthropic SDK** — direct BYOK fallback for cognition
-- **Bitquery v2** — Four.meme event stream (GraphQL + WS)
-- **Pyth Hermes** — oracle price feeds
-- **Supabase** (Postgres) — cold storage + auth session cookies
-- **Tailwind CSS v4** — `@theme` CSS-based config
-- **solc 0.8.28** — attestation contract compilation
-- **Vercel** — hosting
+```bash
+pnpm install
+pnpm tsc --noEmit          # type-check
+pnpm vitest run            # unit + integration tests (117 passing)
+pnpm build                 # next build
+pnpm dev                   # web (port 3000)
+pnpm worker                # agent worker (port 8080, env from .env.local)
+```
+
+### Required env
+
+```
+# Database
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_URL=
+
+# Chain
+BSC_RPC_URL=
+ATTESTATION_CONTRACT_ADDRESS=0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4
+COMPETITION_CONTRACT_ADDRESS=0x212c61b9b72c95d95bf29cf032f5e5635629aed5
+
+# TWAK (self-custody)
+TWAK_BIN=twak                          # path to TWAK CLI
+TWAK_AGENT_WALLET_ADDRESS=0x...        # provisioned by `twak wallet create`
+
+# CMC Hub
+CMC_PRO_API_KEY=
+CMC_X402_ENDPOINT=                     # premium tools endpoint
+
+# LLM (BYOK preferred; DGrid is fallback)
+DGRID_API_KEY=
+ANTHROPIC_API_KEY=                     # optional BYOK
+OPENAI_API_KEY=                        # optional BYOK
+DEEPSEEK_API_KEY=                      # optional BYOK
+
+# Worker ↔ web
+ADMIN_SECRET=                          # constant-time compared via crypto.timingSafeEqual
+WEB_BROADCAST_URL=                     # web's /api/events/broadcast
+WORKER_ADMIN_URL=                      # web → worker /admin proxy target
+
+# Competition + safety
+ALLOWED_TOKENS_JSON=                   # 149-token list
+ENABLE_EXECUTION=true
+ENABLE_PROBE_TRADE=true
+DRY_RUN_MODE=false                     # MUST be false during the live window
+COMPETITION_REGISTRATION_DEADLINE=2026-06-22T00:00:00Z
+COMPETITION_TRADING_WINDOW_START=2026-06-22T00:00:00Z
+COMPETITION_TRADING_WINDOW_END=2026-06-28T23:59:59Z
+
+# x402 inbound (optional revenue)
+ENABLE_X402_INBOUND=false
+X402_REVENUE_ADDRESS=                  # checksummed; normalized at module load
+```
 
 ---
 
-## API surface
+## Hardening summary
 
-| Route | Method | Auth | Purpose |
-|---|---|---|---|
-| `/api/agent/status` | GET | Public | Live agent status + regime |
-| `/api/agent/start` | POST | Admin | Start the agent loop |
-| `/api/agent/stop` | POST | Admin | Stop the agent loop |
-| `/api/agent/trigger` | POST | Admin | Force one cycle |
-| `/api/agent/close/[positionId]` | POST | Admin | Close a single open position without stopping the agent |
-| `/api/reasoning` | GET | Public | Recent reasoning chains |
-| `/api/reasoning/[id]` | GET | Public | One reasoning chain |
-| `/api/positions` | GET | Public | Agent's position history |
-| `/api/events/stream` | GET | Public | SSE feed of perception/cognition/execution events |
-| `/api/events/broadcast` | POST | Admin | Worker → web event relay (internal) |
-| `/api/health` | GET | Public | Cross-service health |
-| `/api/auth/session` | POST | Privy token | Upsert user on first login |
-| `/api/auth/logout` | POST | Session cookie | Clear cookie |
-| `/api/me` | GET | Session cookie | User + subscription |
-| `/api/me/subscription` | GET / PATCH | Session cookie | Read or update mirror prefs |
-| `/api/me/positions` | GET | Session cookie | User's mirror positions |
-| `/api/me/telegram` | GET / POST / DELETE | Session cookie | Read link status / mint link token / unlink |
-| `/api/me/telegram/preferences` | PATCH | Session cookie | Toggle notification types |
-| `/api/telegram/webhook` | POST | Bot secret token | grammY webhook (command + callback handlers) |
-| `/api/skill` | POST | x402 | Pieverse command endpoint |
-| `/opengraph-image` | GET | Public | Root OG card |
-| `/reasoning/[id]/opengraph-image` | GET | Public | Per-chain OG (action + pair + confidence + rationale) |
-| `/proof/[txHash]/opengraph-image` | GET | Public | Per-proof OG (side + pair + size + leverage) |
+Phase E (the audit-driven production-hardening pass) landed 22 fixes, verified by an adversarial multi-agent workflow with 32/32 claims confirmed. Highlights:
+
+- Concurrency: re-entrancy guards on cycle and regime evaluation; portfolio-NaN guards; hotState evict snapshot-before-delete; live-derived exposure
+- x402: atomic proof insertion (`recordProof` IS the check, no TOCTOU); checksummed revenue-address normalisation
+- Admin auth: `crypto.timingSafeEqual` everywhere (`src/lib/utils/adminAuth.ts`)
+- Cognition: quant prompt sanitization parity with narrative; `computeDissent` parse-status awareness (no false unanimity); quiet-regime `$0` collapse-to-hold (no misleading "Committee opened …" explanation)
+- Resilience: `Promise.allSettled` analyst fan-out with synthetic-neutral fallback; session-number collision retry with **hash rebuild** (preserves on-chain integrity); `DRY_RUN` flag on every execution record
+- Persistence: `worker_state` table for restart-safe probe scheduler + competition registration
+- Observability: refreshed 2026 LLM rate card; `health_degradation` SSE on CMC-null skip
+
+See `git log --oneline` for the per-phase commits (Phase A+B, Phase C, Phase E).
 
 ---
 
-## Team
+## Disclaimers
 
-- **Winszn** — sole author: architecture, perception, cognition, execution, on-chain attestation, copy-trade layer, frontend, submission
+This is competition code, not investment advice. The agent trades real BNB Smart Chain assets autonomously; assume losses are possible and uncapped beyond the 30% disqualification floor. The agent will not trade tokens outside the 149-token allowlist, will not submit transactions outside TWAK, and will not bypass `PreExecutionChecker`. No user funds are held; the agent operates only on its own TWAK wallet.
 
 ## License
 
-[AGPL-3.0](./LICENSE) — if you run a modified copy as a network service, you must make the source available to its users. Chosen over MIT so a forked agent can't privatize the commit-reveal attestation system behind a closed dashboard.
+AGPL-3.0-only.

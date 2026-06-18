@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { fetchWorkerStatusRaw } from '@/lib/services/workerAdminProxy';
 import { getLatestMetrics } from '@/lib/queries/metrics';
 import { ATTESTATION_CONTRACT_ADDRESS } from '@/config/chains';
+import { COMPETITION_CONTRACT_ADDRESS } from '@/config/competition';
+import {
+  COMPETITION_REGISTRATION_KEY,
+  preflightCompetitionState,
+  type PersistedCompetitionRegistration,
+} from '@/lib/services/competitionRegistration';
+import { getWorkerState } from '@/lib/queries/workerState';
 
 const REQUIRED_ENV = [
   'BSC_RPC_URL',
@@ -29,10 +36,16 @@ export async function GET() {
     databaseError = err instanceof Error ? err.message : String(err);
   }
 
+  const registration = await getWorkerState<PersistedCompetitionRegistration>(
+    COMPETITION_REGISTRATION_KEY,
+  ).catch(() => null);
+  const preflightIssues = await preflightCompetitionState().catch(() => []);
+
   const services = {
     worker: resolved.ok,
     database: databaseHealthy,
     envConfigured: missing.length === 0,
+    competitionRegistered: registration?.registered === true,
   };
   const healthy = Object.values(services).every(Boolean);
 
@@ -45,6 +58,19 @@ export async function GET() {
       workerStatus: resolved.ok ? resolved.status : null,
       workerError: resolved.ok ? null : resolved.detail,
       attestationContract: ATTESTATION_CONTRACT_ADDRESS,
+      competition: {
+        contract: COMPETITION_CONTRACT_ADDRESS,
+        registration: registration
+          ? {
+              participant: registration.participant,
+              txHash: registration.txHash,
+              registeredAt: registration.registeredAt,
+              alreadyRegistered: registration.alreadyRegistered,
+              dryRun: registration.dryRun,
+            }
+          : null,
+        preflightIssues,
+      },
     },
   });
 }

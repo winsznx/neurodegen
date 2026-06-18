@@ -1,5 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { agentLoop } from '@/lib/services/agentLoop';
+import {
+  ensureCompetitionRegistration,
+  preflightCompetitionState,
+} from '@/lib/services/competitionRegistration';
 import { realtimeService } from '@/lib/services/realtimeService';
 import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
@@ -43,6 +47,14 @@ async function handleAdmin(
       }
       case 'status': {
         return sendJson(res, 200, agentLoop.getStatus());
+      }
+      case 'competition-register': {
+        const result = await ensureCompetitionRegistration();
+        return sendJson(res, result.ok ? 200 : 409, result);
+      }
+      case 'competition-preflight': {
+        const issues = await preflightCompetitionState();
+        return sendJson(res, 200, { ok: issues.length === 0, issues });
       }
       default:
         return sendJson(res, 404, { error: `unknown op: ${op}` });
@@ -100,6 +112,25 @@ async function main(): Promise<void> {
     console.warn(
       `[worker] ⚠ using seed allowlist (${allowlistResult.count} tokens); reason: ${allowlistResult.reason}`,
     );
+  }
+
+  // ============================================================
+  // Competition registration: must happen ONCE before the trading window
+  // opens, persisted to worker_state so restarts don't re-register and so
+  // every cycle can prove it's eligible. Failure logs loudly but does NOT
+  // crash the worker — the operator can re-run via /admin/competition/register
+  // (handled below) once the underlying issue is fixed.
+  // ============================================================
+  const reg = await ensureCompetitionRegistration();
+  if (reg.ok) {
+    console.warn(
+      `[worker] competition registration ${reg.reason}: tx=${reg.record.txHash} participant=${reg.record.participant} alreadyRegistered=${reg.record.alreadyRegistered}`,
+    );
+  } else {
+    console.error(`[worker] competition registration NOT live: ${reg.reason} — ${reg.message}`);
+  }
+  for (const issue of await preflightCompetitionState()) {
+    console.error(`[worker] PREFLIGHT: ${issue}`);
   }
 
   const server = createServer((req, res) => {
