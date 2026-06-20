@@ -81,7 +81,7 @@ export default function OpenGraphImage() {
             zIndex: 1,
           }}
         >
-          {['BNB Chain', 'DGrid', 'MYX Finance', 'Pieverse', 'Privy Copy-Trade'].map((label) => (
+          {['BNB Chain', 'TWAK', 'CMC Agent Hub', 'DGrid', 'ERC-8004/8183'].map((label) => (
             <div
               key={label}
               style={{

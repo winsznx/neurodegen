@@ -17,10 +17,13 @@ export const ENABLE_X402_INBOUND: boolean = envBool('ENABLE_X402_INBOUND', true)
 // per call when projected alpha justifies the spend.
 export const ENABLE_X402_OUTBOUND: boolean = envBool('ENABLE_X402_OUTBOUND', true);
 
-// BYOK direct Anthropic + OpenAI before DGrid fallback. On by default; flips to off lets DGrid
-// carry the load and saves BYOK credits.
+// DGrid is the primary reasoning gateway for V2: every committee cycle routes
+// narrative + quant + risk through DGrid first, with BYOK Anthropic/OpenAI as
+// a fallback ONLY when those env vars are set. The risk classifier (DeepSeek
+// v3.2) has no BYOK path and always uses DGrid. Flip PREFER_BYOK_ROUTING=true
+// at the env layer to invert (e.g. if DGrid quota is exhausted mid-window).
 export const ENABLE_BYOK_ROUTING: boolean = envBool('ENABLE_BYOK_ROUTING', true);
-export const PREFER_BYOK_ROUTING: boolean = envBool('PREFER_BYOK_ROUTING', true);
+export const PREFER_BYOK_ROUTING: boolean = envBool('PREFER_BYOK_ROUTING', false);
 export const DISABLE_DGRID_ROUTING: boolean = envBool('DISABLE_DGRID_ROUTING', false);
 
 // Probe-trade compliance fallback. On by default. Defenders against quiet markets.

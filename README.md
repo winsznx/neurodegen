@@ -4,7 +4,38 @@ An autonomous **investment-committee trading agent** for BNB Chain. Submission t
 
 NeuroDegen runs a three-LLM committee — narrative analyst, quant analyst, risk classifier — that ingests live CoinMarketCap data via the CMC AI Agent Hub, executes BEP-20 swaps **only through Trust Wallet Agent Kit (TWAK)**, and commits its reasoning hash on-chain **before** every trade so any observer can independently reconstruct the decision-to-action chain from BscScan alone.
 
-**The product is the composition, not the alpha.** This codebase makes no profitability claim. It demonstrates an end-to-end autonomous agent under self-custody, with hard guardrails (149-token allowlist, drawdown ladder, slippage caps, EV-gated outbound payments) and a cryptographically verifiable audit trail.
+**The product is the composition, not the alpha.** This codebase makes no profitability claim. It demonstrates an end-to-end autonomous agent under self-custody, with hard guardrails (149-token allowlist, drawdown ladder, slippage caps, EV-gated outbound payments) and a cryptographically verifiable audit trail across three independent on-chain rails.
+
+---
+
+## For judges (human or AI)
+
+Five short docs, each one cites file:line so claims can be audited without trusting this README.
+
+| Document | What's in it |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Layered three-rail design (commit-reveal + ERC-8183 commerce + ERC-8004 identity), async patterns, restart-safe state, the 8-flag `/proof` verification |
+| [SECURITY.md](SECURITY.md) | Self-custody integrity proof, hard "never X" constraints with enforcers, TOCTOU protections, prompt-injection mitigations, known gaps |
+| [ADVERSARIAL_TESTING.md](ADVERSARIAL_TESTING.md) | Phase E/F/G/H multi-agent skeptic audit receipts (32/32, 5/5, 8/8 claims confirmed), test design philosophy, gaps we accept |
+| [SUBMISSION.md](SUBMISSION.md) | DoraHacks submission package, pre-deploy checklist, per-special scoring map, operator runbook |
+| [LICENSE](LICENSE) | AGPL-3.0-only |
+
+Source-of-truth: this is open-source. Fork it, point at your own TWAK wallet, redeploy on Railway, and run your own verifiable agent.
+
+---
+
+## Who is this for
+
+NeuroDegen is a **spectator product + reference implementation**, not a consumer app:
+
+1. **Agent builders** who want to deploy a verifiable trading agent under their own self-custody. Fork the repo, point at your own TWAK wallet, set your own mandate, register on the competition contract — your agent inherits the same on-chain audit guarantees.
+2. **Self-custody power users** who refuse to trust opaque "alpha bots" and want to watch / read / pay an agent whose every decision is cryptographically anchored to BSC events.
+3. **Researchers + auditors** who want a working composition of EIP-8004 (identity), EIP-8183 (agentic commerce), x402 (micropayments), and TWAK self-custody signing — all wired and running.
+
+What this is NOT (deliberate scope choices):
+
+- **Not a copy-trade product.** V1 had a Privy-based mirror dispatcher. V2 explicitly removed it (deferred to V2.1) because we couldn't preserve self-custody integrity for both the agent AND user wallets within the comp window. Spectators pay 0.01 USDT to read a session via x402, full stop.
+- **Not an alpha product.** No profitability claim. Ever.
 
 ---
 
@@ -104,6 +135,22 @@ All three are routed through the [DGrid](https://dgrid.ai) LLM gateway with a BY
 | ≥ 30% | disqualified | competition-fixed |
 
 Plus per-cycle: max 5 concurrent positions, daily PnL cap, mandate-driven consecutive-loss halt, per-position size cap, per-token max exposure ratio, and a live total-exposure cap derived from the actual open-position book (not stale state).
+
+---
+
+## Reasoning gateway — DGrid is primary
+
+Every committee cycle (narrative + quant + risk) routes through the **DGrid LLM gateway** as the primary path. BYOK Anthropic + OpenAI keys, if set, are tried as a fallback ONLY. The risk classifier (DeepSeek v3.2) has no BYOK path and **always** uses DGrid.
+
+| Analyst | Primary | Fallback |
+|---|---|---|
+| Narrative (Claude Sonnet 4.6) | DGrid `anthropic/claude-sonnet-4.6` | BYOK `ANTHROPIC_API_KEY` → DGrid `claude-haiku-4.5` |
+| Quant (GPT-4o) | DGrid `openai/gpt-4o` | BYOK `OPENAI_API_KEY` → DGrid `openai/gpt-4o-mini` |
+| Risk (DeepSeek v3.2) | DGrid `deepseek/deepseek-v3.2` | DGrid `openai/gpt-4o-mini` |
+
+To invert (BYOK first), set `PREFER_BYOK_ROUTING=true`. To shut DGrid off entirely, set `DISABLE_DGRID_ROUTING=true`. Both are documented in [.env.example](.env.example).
+
+The router preflight ([src/lib/clients/llm/router.ts:103-178](src/lib/clients/llm/router.ts#L103-L178)) checks env-set on each candidate and walks the chain; on success it records `routingDecision` (`'dgrid_primary' | 'dgrid_fallback' | 'direct'`) into the session row so `/journal` shows which gateway carried each call.
 
 ---
 
@@ -279,4 +326,4 @@ This is competition code, not investment advice. The agent trades real BNB Smart
 
 ## License
 
-AGPL-3.0-only.
+AGPL-3.0-only. Full text at [LICENSE](LICENSE). Source-available; modifications must remain under AGPL.
