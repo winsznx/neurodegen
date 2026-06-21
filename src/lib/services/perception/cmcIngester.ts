@@ -91,6 +91,7 @@ export class CmcIngester {
     tokenAddress: `0x${string}`,
     regime: RegimeLabel,
     signalMagnitude: number,
+    tokenSymbol?: string,
   ): Promise<{ decision: EVDecision; event: CMCSecurityEvent | null }> {
     const decision = evaluateEV({
       triggeringSignal: 'security_check',
@@ -106,9 +107,14 @@ export class CmcIngester {
       // (twakClient.payX402, wired at worker boot via setCmcX402PayHook)
       // and attaches the X-Payment header automatically. The settlement
       // tx hash + proof header are observed there.
+      // CMC MCP get_crypto_metrics requires id (numeric). Resolve from the
+      // optional tokenSymbol; fall back to passing token_address for tools
+      // that still accept it. If neither resolves, skip the premium fetch.
+      const lookupSym = (tokenSymbol ?? '').toUpperCase();
+      const argsBySymbol = lookupSym ? { symbol: lookupSym } : { token_address: tokenAddress, network: 'bsc' as const };
       const raw = await cmcHubClient.callX402<unknown>(
         'get_crypto_metrics' as CmcTool,
-        { token_address: tokenAddress, network: 'bsc' },
+        argsBySymbol as Record<string, unknown>,
       );
       const event = normalizeSecurity(raw.data);
       if (event) {

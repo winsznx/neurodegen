@@ -112,6 +112,21 @@ function getCmcX402Pay(): ((url: string, maxAtomic: bigint) => Promise<string>) 
 }
 
 /**
+ * Translate {symbol?, id?} arguments to the {id} shape every CMC MCP tool
+ * actually requires. If the caller passed a symbol we lookup the CMC id via
+ * the static map; if it was already an id we pass through. Unknown symbols
+ * are dropped silently (callers should log if the tracked list mismatches).
+ */
+export function resolveCmcIdParam(args: { symbol?: string; id?: string }): Record<string, unknown> {
+  if (args.id) return { id: args.id };
+  if (args.symbol) {
+    const id = cmcIdFor(args.symbol);
+    if (id !== null) return { id: String(id) };
+  }
+  return {};
+}
+
+/**
  * CMC MCP returns columnar `{headers: string[], rows: unknown[][]}` for the
  * quote tools. Reshape into an array of plain objects so the downstream
  * normalizers see a uniform shape.
@@ -304,11 +319,11 @@ export class CmcHubClient {
   }
 
   async getCryptoInfo(args: { symbol?: string; id?: string }): Promise<CmcToolCallResult<unknown>> {
-    return callMcp('get_crypto_info', args, false);
+    return callMcp('get_crypto_info', resolveCmcIdParam(args), false);
   }
 
   async getCryptoMetrics(args: { symbol?: string; id?: string }): Promise<CmcToolCallResult<unknown>> {
-    return callMcp('get_crypto_metrics', args, false);
+    return callMcp('get_crypto_metrics', resolveCmcIdParam(args), false);
   }
 
   async getGlobalMetrics(): Promise<CmcToolCallResult<unknown>> {
@@ -334,7 +349,9 @@ export class CmcHubClient {
   async getTechnicalAnalysis(args: { symbol?: string; id?: string; interval?: string }): Promise<
     CmcToolCallResult<unknown>
   > {
-    return callMcp('get_crypto_technical_analysis', args, false);
+    const payload: Record<string, unknown> = resolveCmcIdParam(args);
+    if (args.interval) payload.interval = args.interval;
+    return callMcp('get_crypto_technical_analysis', payload, false);
   }
 
   /**

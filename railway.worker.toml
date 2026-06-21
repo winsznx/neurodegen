@@ -12,7 +12,11 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.worker"
 
 [deploy]
-startCommand = "pnpm worker:start"
+# Railway's startCommand REPLACES the Dockerfile CMD. The ENTRYPOINT
+# (twak-bootstrap.sh) should still run, but to guarantee the wallet
+# bootstrap fires we invoke the script explicitly here. It will exec
+# `pnpm worker:start` after the keystore is in place.
+startCommand = "/usr/local/bin/twak-bootstrap.sh pnpm worker:start"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ALWAYS"

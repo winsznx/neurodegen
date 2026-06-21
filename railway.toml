@@ -10,7 +10,10 @@
 builder = "railpack"
 # After pnpm build, copy .next/static and public/ into the standalone tree
 # so node server.js can serve them (Next.js standalone convention).
-buildCommand = "pnpm install --frozen-lockfile && pnpm build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public"
+# Use rm -rf + cp -r so this is idempotent across rebuilds (raw cp -r into
+# a target that already exists nests the source under it on subsequent
+# builds and Next.js can't find its assets).
+buildCommand = "pnpm install --frozen-lockfile && pnpm build && rm -rf .next/standalone/.next/static .next/standalone/public && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public"
 
 [deploy]
 # next start does NOT work with output: 'standalone' (Next 16 logs the
