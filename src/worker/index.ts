@@ -6,6 +6,7 @@ import {
 } from '@/lib/services/competitionRegistration';
 import { ensureErc8004Registration } from '@/lib/services/bnbAgentRegistration';
 import { realtimeService } from '@/lib/services/realtimeService';
+import { telegramAlerter } from '@/lib/services/telegramAlerter';
 import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
 
@@ -185,6 +186,26 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Telegram alerter — fire-and-forget. start() is a no-op when
+  // ENABLE_TELEGRAM_ALERTS=false or token/chat env missing.
+  telegramAlerter.start();
+  if (telegramAlerter.isStarted()) {
+    const status = agentLoop.getStatus();
+    void telegramAlerter
+      .notifyBoot({
+        regime: status.regime,
+        openPositionCount: status.openPositionCount,
+        drawdownPct: status.drawdownPct,
+        gitSha: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
+      })
+      .catch((err) => {
+        console.error(
+          '[worker] telegramAlerter.notifyBoot threw:',
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+  }
+
   const statusTimer = setInterval(() => {
     realtimeService.broadcast({
       type: 'agent_status_snapshot',
@@ -197,6 +218,7 @@ async function main(): Promise<void> {
     console.warn(`[worker] received ${signal}, shutting down`);
     clearInterval(statusTimer);
     server.close();
+    telegramAlerter.stop();
     try {
       await agentLoop.stop();
     } catch (err) {

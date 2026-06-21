@@ -24,8 +24,11 @@ function jsonReplacer(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? value.toString() : value;
 }
 
+export type SSEEventListener = (event: SSEEvent) => void;
+
 export class RealtimeService {
   private clients = new Set<WritableStreamDefaultWriter<Uint8Array>>();
+  private listeners = new Set<SSEEventListener>();
 
   addClient(writer: WritableStreamDefaultWriter<Uint8Array>): () => void {
     this.clients.add(writer);
@@ -34,7 +37,31 @@ export class RealtimeService {
     };
   }
 
+  /**
+   * Subscribe a synchronous in-process listener invoked before SSE fanout /
+   * worker forward. Used by the Telegram alerter (and any future in-process
+   * subscriber) to observe every event with zero latency. Throwing listeners
+   * are isolated; they do not break fanout to other listeners or SSE clients.
+   * Returns a disposer.
+   */
+  addListener(fn: SSEEventListener): () => void {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
   broadcast(event: SSEEvent): void {
+    for (const fn of this.listeners) {
+      try {
+        fn(event);
+      } catch (err) {
+        console.error(
+          '[realtime] listener threw:',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
     if (isWorker()) {
       void this.forwardToWeb(event);
       return;

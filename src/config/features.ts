@@ -46,7 +46,10 @@ export const ERC8183_JOB_BUDGET_WEI: string =
 
 // V2.1 deferrals — all default OFF, flip true to ship the feature in a V2.1 release branch.
 export const ENABLE_PERP_MODE: boolean = envBool('ENABLE_PERP_MODE', false);
-export const ENABLE_TELEGRAM_ALERTS: boolean = envBool('ENABLE_TELEGRAM_ALERTS', false);
+// Operator alerts via Telegram Bot API (outbound-only). Defaults true: the
+// alerter is a no-op unless TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID are also set,
+// so flipping the default is safe — empty env leaves the feature dormant.
+export const ENABLE_TELEGRAM_ALERTS: boolean = envBool('ENABLE_TELEGRAM_ALERTS', true);
 export const ENABLE_NLP_MANDATE_PARSER: boolean = envBool('ENABLE_NLP_MANDATE_PARSER', false);
 
 // Dry-run: when true, twakClient.executeSwap returns a synthetic tx hash instead of shelling out.

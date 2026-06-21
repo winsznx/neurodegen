@@ -11,6 +11,7 @@ import {
   ERC8183_JOB_BUDGET_WEI,
 } from '@/config/features';
 import { twakClient } from '@/lib/clients/twakClient';
+import { telegramAlerter } from '@/lib/services/telegramAlerter';
 import { canonicalize } from '@/lib/utils/canonicalSerialize';
 import type {
   ActionRecommendation,
@@ -286,5 +287,30 @@ export async function runCommerceJobForSession(args: {
     return result;
   }
 
+  // Telegram alerter hook — fire-and-forget; never let alert failure surface.
+  void telegramAlerter
+    .notifyErc8183JobSubmitted({
+      jobId: result.jobId!,
+      serviceName: `committee_decision:${args.session.finalAction.action}`,
+      costUSD: weiToUsdApprox(ERC8183_JOB_BUDGET_WEI),
+    })
+    .catch(() => undefined);
+
   return result;
+}
+
+/**
+ * Approximate ERC8183 U-token wei to USD for display only. The U-token is
+ * spec'd at parity with USD ($1 == 1 U at 18 decimals), so wei / 1e18 is the
+ * display USD amount. This is informational only — never used for accounting.
+ */
+function weiToUsdApprox(weiStr: string): number {
+  try {
+    const wei = BigInt(weiStr);
+    // Convert to USD with 4-decimal precision: wei / 1e14 / 1e4.
+    const scaled = Number(wei / 10n ** 14n) / 10_000;
+    return Number.isFinite(scaled) ? scaled : 0;
+  } catch {
+    return 0;
+  }
 }
