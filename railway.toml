@@ -8,10 +8,14 @@
 
 [build]
 builder = "railpack"
-buildCommand = "pnpm install --frozen-lockfile && pnpm build"
+# After pnpm build, copy .next/static and public/ into the standalone tree
+# so node server.js can serve them (Next.js standalone convention).
+buildCommand = "pnpm install --frozen-lockfile && pnpm build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public"
 
 [deploy]
-startCommand = "pnpm start"
+# next start does NOT work with output: 'standalone' (Next 16 logs the
+# warning then degrades). Run the generated server.js directly.
+startCommand = "node .next/standalone/server.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
