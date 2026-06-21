@@ -54,7 +54,7 @@ export function Shell({ children, backgroundVariant = 'app' }: ShellProps) {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4 font-mono text-[11px] text-text-tertiary">
           <div className="flex flex-col gap-1">
-            <span>neurodegen v1.0.0 · four.meme ai sprint · bnb chain</span>
+            <span>neurodegen v2 · BNB Hack: AI Trading Agent · BNB Chain mainnet</span>
             <span>agent is a demonstration, not a trading strategy</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
