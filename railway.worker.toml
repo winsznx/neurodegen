@@ -5,10 +5,11 @@
 #   - web    → worker: http://${{ neurodegen-worker.RAILWAY_PRIVATE_DOMAIN }}:8080
 
 [build]
-builder = "railpack"
-# Worker runs through tsx at runtime — no Next.js compile step needed, but we
-# install deps once at build time so spawn() is fast.
-buildCommand = "pnpm install --frozen-lockfile"
+builder = "dockerfile"
+# We need TWAK CLI on PATH at runtime; Railway's default `railpack` doesn't
+# install npm globals. Custom Dockerfile pins Node 22 + pnpm 10.33 + the
+# @trustwallet/cli@latest binary.
+dockerfilePath = "Dockerfile.worker"
 
 [deploy]
 startCommand = "pnpm worker:start"

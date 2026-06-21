@@ -133,6 +133,8 @@ contract NeurodegenAttestationV2 {
     );
 
     error NotAgent();
+    error ZeroAddress();
+    error InvalidExpiry();
 
     modifier onlyAgent() {
         if (msg.sender != agent) revert NotAgent();
@@ -140,7 +142,7 @@ contract NeurodegenAttestationV2 {
     }
 
     constructor(address _agent) {
-        require(_agent != address(0), "agent required");
+        if (_agent == address(0)) revert ZeroAddress();
         agent = _agent;
     }
 
@@ -216,10 +218,12 @@ contract NeurodegenAttestationV2 {
         uint256 amountAtomic,
         address token
     ) external onlyAgent {
+        if (subscriber == address(0)) revert ZeroAddress();
         emit SubscriberPaid(sessionId, subscriber, amountAtomic, token, block.timestamp);
     }
 
     function attestMandate(bytes32 mandateHash, address principal) external onlyAgent {
+        if (principal == address(0)) revert ZeroAddress();
         emit MandateAttested(mandateHash, principal, block.timestamp);
     }
 
@@ -229,6 +233,7 @@ contract NeurodegenAttestationV2 {
         bytes32 jointMandateHash,
         uint256 expiresAt
     ) external onlyAgent {
+        if (expiresAt <= block.timestamp) revert InvalidExpiry();
         emit CoLaunchProposed(selfAgentId, partnerAgentId, jointMandateHash, expiresAt, block.timestamp);
     }
 

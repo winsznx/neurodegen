@@ -14,6 +14,10 @@
     "attestation:compile": "tsx scripts/compileAttestation.ts",
     "attestation:deploy": "tsx scripts/deployAttestation.ts",
     "attestation:ship": "pnpm attestation:compile && pnpm attestation:deploy",
+    "attestation:v2:compile": "tsx scripts/compileAttestationV2.ts",
+    "attestation:v2:deploy": "tsx scripts/deployAttestationV2.ts",
+    "attestation:v2:verify": "tsx scripts/verifyAttestationV2.ts",
+    "attestation:v2:ship": "pnpm attestation:v2:compile && pnpm attestation:v2:deploy",
     "logo:build": "tsx scripts/buildLogo.ts"
   },
   "dependencies": {

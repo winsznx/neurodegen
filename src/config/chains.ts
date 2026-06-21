@@ -5,9 +5,14 @@ export const ATTESTATION_CONTRACT_ADDRESS: `0x${string}` =
   (process.env.ATTESTATION_CONTRACT_ADDRESS as `0x${string}` | undefined) ??
   '0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4';
 
-// First block at which the deployed AttestationEmitter exists. Used as a `fromBlock`
-// floor when scanning historical commit/reveal logs from the /proof page.
-export const ATTESTATION_DEPLOY_BLOCK: bigint = 93750710n;
+// First block at which the deployed AttestationEmitter (V1 or V2) exists. Used
+// as a `fromBlock` floor when scanning historical commit/reveal logs from the
+// /proof page. V1 lives at block 93750710 (mainnet); when ATTESTATION_CONTRACT_ADDRESS
+// is switched to the V2 deploy, set ATTESTATION_DEPLOY_BLOCK to the V2 deploy block
+// via env so log scans don't time out crawling the full chain.
+export const ATTESTATION_DEPLOY_BLOCK: bigint = process.env.ATTESTATION_DEPLOY_BLOCK
+  ? BigInt(process.env.ATTESTATION_DEPLOY_BLOCK)
+  : 93750710n;
 
 // Competition registration contract on BSC mainnet (per TWAK `twak compete register`).
 export const COMPETITION_CONTRACT_ADDRESS: `0x${string}` =
