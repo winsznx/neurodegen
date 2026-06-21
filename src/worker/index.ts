@@ -7,6 +7,7 @@ import {
 import { ensureErc8004Registration } from '@/lib/services/bnbAgentRegistration';
 import { realtimeService } from '@/lib/services/realtimeService';
 import { telegramAlerter } from '@/lib/services/telegramAlerter';
+import { tickDailySummary } from '@/lib/services/telegramDailySummary';
 import { twakHttpClient } from '@/lib/clients/twakHttpClient';
 import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
@@ -207,6 +208,15 @@ async function main(): Promise<void> {
       });
   }
 
+  // Telegram daily summary: tick every minute, fires once per UTC day after
+  // SUMMARY_HOUR_UTC. Idempotent via worker_state persistence.
+  const dailySummaryTimer = setInterval(() => {
+    void tickDailySummary();
+  }, 60_000);
+  // Run once immediately at boot so we catch a missed-summary if the worker
+  // was down at the configured hour.
+  void tickDailySummary();
+
   const statusTimer = setInterval(() => {
     realtimeService.broadcast({
       type: 'agent_status_snapshot',
@@ -218,6 +228,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     console.warn(`[worker] received ${signal}, shutting down`);
     clearInterval(statusTimer);
+    clearInterval(dailySummaryTimer);
     server.close();
     telegramAlerter.stop();
     try {
