@@ -53,21 +53,16 @@ const DEAD_RPC_URLS = new Set<string>([
   'https://old-thrilling-waterfall.bsc.quiknode.pro/a8e2ec6da71fcbed7a6e7ea3c659c30ca7ec5447/',
 ]);
 
-function resolveLogsRpcUrl(): string {
-  const envUrl = process.env.BSC_LOGS_RPC_URL;
-  if (!envUrl || DEAD_RPC_URLS.has(envUrl)) return BSC_LOGS_RPC_DEFAULT;
-  return envUrl;
-}
-
-const logsPrimaryUrl = resolveLogsRpcUrl();
-// Always include NodeReal as a fallback so a broken primary RPC degrades to
-// 'slow' rather than 'silent'.
+// Hard-pin to NodeReal default. Env override was causing the production
+// web service to use a dead QuickNode URL even after the dead-URL blacklist
+// was added (Railway env var precedence + viem fallback didn't recover in
+// the way the local tests suggested). Simpler: ignore env, always use the
+// verified-working default. Operator can edit BSC_LOGS_RPC_DEFAULT in this
+// file if they want a different RPC.
+void DEAD_RPC_URLS; // referenced for completeness; runtime ignores env
 export const logsPublicClient: PublicClient<Transport, Chain> = createPublicClient({
   chain: bscChain,
-  transport:
-    logsPrimaryUrl === BSC_LOGS_RPC_DEFAULT
-      ? http(logsPrimaryUrl)
-      : fallback([http(logsPrimaryUrl), http(BSC_LOGS_RPC_DEFAULT)]),
+  transport: http(BSC_LOGS_RPC_DEFAULT),
 });
 
 export function getAgentWalletClient(): WalletClient {
