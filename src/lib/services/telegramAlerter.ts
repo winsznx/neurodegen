@@ -153,35 +153,63 @@ class TelegramAlerter {
   /**
    * Boot notification called once by the worker after agent loop starts.
    *
-   * Dedupe across restarts: skip the alert if the LAST persisted boot was for
-   * the same commit AND landed less than 10 minutes ago. This kills the
-   * Telegram spam when a flurry of deploys happens (we shipped 8 commits in
-   * an afternoon on 06/26 — each producing a redundant boot alert).
+   * Dedupe strategy (Phase Y — fix Telegram boot spam during heavy commit
+   * cadence):
    *
-   * Persists via worker_state so the check survives the restart itself.
+   * Suppress the alert when NONE of these are true:
+   *   - First boot on a new UTC day (always fire — daily heartbeat)
+   *   - Open-position count changed since last persisted boot
+   *   - Drawdown tier flipped (normal → alert / defensive / halt / DQ)
+   *   - Wallet value swung >$5 since last boot
+   *
+   * The commit SHA changing is NOT a reason to alert on its own — operators
+   * already know they deployed; what matters is whether agent STATE
+   * meaningfully changed. Previously 13+ redundant boot messages landed on
+   * 06/27 because we did 13 deploys with no agent-state delta between any
+   * of them.
+   *
+   * Persists snapshot + day to worker_state so dedupe survives restarts.
    */
   async notifyBoot(snapshot: BootSnapshot): Promise<void> {
     if (!this.canSend('boot')) return;
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    const drawdownTier = drawdownToTier(snapshot.drawdownPct);
+
     try {
-      const last = await getWorkerState<{ commit: string; at: number }>(
-        BOOT_DEDUPE_KEY,
-      ).catch(() => null);
-      const now = Date.now();
-      if (
-        last &&
-        last.commit === snapshot.gitSha &&
-        now - last.at < BOOT_DEDUPE_WINDOW_MS
-      ) {
-        // Same commit, recent restart — almost certainly a redeploy cycle, not
-        // a meaningful boot. Just refresh the timestamp and skip the alert.
-        await setWorkerState(BOOT_DEDUPE_KEY, { commit: snapshot.gitSha, at: now }).catch(
-          () => undefined,
-        );
-        return;
+      const last = await getWorkerState<{
+        day: string;
+        commit: string;
+        positions: number;
+        drawdownTier: DrawdownTier;
+        walletUSD: number;
+        at: number;
+      }>(BOOT_DEDUPE_KEY).catch(() => null);
+
+      const persist = async () =>
+        setWorkerState(BOOT_DEDUPE_KEY, {
+          day: today,
+          commit: snapshot.gitSha,
+          positions: snapshot.openPositionCount,
+          drawdownTier,
+          walletUSD: snapshot.walletValueUSD,
+          at: now.getTime(),
+        }).catch(() => undefined);
+
+      if (last) {
+        const sameDay = last.day === today;
+        const positionsChanged = last.positions !== snapshot.openPositionCount;
+        const tierChanged = last.drawdownTier !== drawdownTier;
+        const bigWalletSwing = Math.abs(last.walletUSD - snapshot.walletValueUSD) > 5;
+
+        // Suppress: same day AND no material state change.
+        if (sameDay && !positionsChanged && !tierChanged && !bigWalletSwing) {
+          await persist();
+          return;
+        }
       }
-      await setWorkerState(BOOT_DEDUPE_KEY, { commit: snapshot.gitSha, at: now }).catch(
-        () => undefined,
-      );
+
+      await persist();
     } catch {
       // worker_state read failures should NEVER suppress a legit alert — fall
       // through to fire as before.
