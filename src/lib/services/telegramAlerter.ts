@@ -21,12 +21,15 @@ import {
 } from '@/config/risk';
 import { realtimeService, type SSEEvent, type SSEEventType } from './realtimeService';
 import { TelegramClient, escapeMarkdownV2 } from '@/lib/clients/telegramClient';
+import { getWorkerState, setWorkerState } from '@/lib/queries/workerState';
 
 const RATE_LIMIT_MS = 30_000;
 const HEALTH_DEDUPE_WINDOW_MS = 5 * 60 * 1_000;
 const HEALTH_MESSAGE_TRUNCATE = 80;
 const REGIME_RATIONALE_TRUNCATE = 140;
 const HEALTH_RENDERED_TRUNCATE = 200;
+const BOOT_DEDUPE_KEY = 'telegram_boot_dedupe_v1';
+const BOOT_DEDUPE_WINDOW_MS = 10 * 60 * 1_000; // 10 minutes
 
 export type DrawdownTier = 'normal' | 'alert' | 'defensive' | 'halt';
 
@@ -67,6 +70,10 @@ interface PositionUpdateLike {
   pnlUSD?: number | null;
   exitReason?: string | null;
   twakTxHash?: string;
+  /** Marker the probe-trade scheduler sets on its broadcasts. */
+  kind?: string;
+  forward?: string;
+  reverse?: string;
 }
 
 interface CommitteeSessionLike {
@@ -141,9 +148,42 @@ class TelegramAlerter {
     return this.started;
   }
 
-  /** Boot notification called once by the worker after agent loop starts. */
+  /**
+   * Boot notification called once by the worker after agent loop starts.
+   *
+   * Dedupe across restarts: skip the alert if the LAST persisted boot was for
+   * the same commit AND landed less than 10 minutes ago. This kills the
+   * Telegram spam when a flurry of deploys happens (we shipped 8 commits in
+   * an afternoon on 06/26 — each producing a redundant boot alert).
+   *
+   * Persists via worker_state so the check survives the restart itself.
+   */
   async notifyBoot(snapshot: BootSnapshot): Promise<void> {
     if (!this.canSend('boot')) return;
+    try {
+      const last = await getWorkerState<{ commit: string; at: number }>(
+        BOOT_DEDUPE_KEY,
+      ).catch(() => null);
+      const now = Date.now();
+      if (
+        last &&
+        last.commit === snapshot.gitSha &&
+        now - last.at < BOOT_DEDUPE_WINDOW_MS
+      ) {
+        // Same commit, recent restart — almost certainly a redeploy cycle, not
+        // a meaningful boot. Just refresh the timestamp and skip the alert.
+        await setWorkerState(BOOT_DEDUPE_KEY, { commit: snapshot.gitSha, at: now }).catch(
+          () => undefined,
+        );
+        return;
+      }
+      await setWorkerState(BOOT_DEDUPE_KEY, { commit: snapshot.gitSha, at: now }).catch(
+        () => undefined,
+      );
+    } catch {
+      // worker_state read failures should NEVER suppress a legit alert — fall
+      // through to fire as before.
+    }
     const text = this.fmtBoot(snapshot);
     this.markSent('boot');
     this.fire(text);
@@ -190,7 +230,28 @@ class TelegramAlerter {
 
   private handlePositionUpdate(p: PositionUpdateLike): void {
     if (!p) return;
+
+    // Probe-trade events have shape `{kind:'probe_trade', forward, reverse}`
+    // — no tokenSymbol, no sizeUSD, no status. Rendering them through
+    // fmtPositionOpen produces useless "OPEN LONG unknown $0.00" spam.
+    // Render them as their own thing OR drop them entirely (operator can
+    // verify probe trades via BscScan; we don't need them in Telegram).
+    if (p.kind === 'probe_trade') {
+      // Skip — compliance probes are not high-signal trades.
+      return;
+    }
+
+    // Defensive filter: a real position open MUST have a token symbol AND a
+    // positive size. Without both, the message degrades to "OPEN LONG
+    // unknown $0.00" which is misleading.
     const isClose = p.status === 'closed';
+    if (!isClose && (!p.tokenSymbol || !p.sizeUSD || p.sizeUSD <= 0)) {
+      console.warn(
+        `[tg-alerter] dropping malformed position_update: tokenSymbol=${p.tokenSymbol ?? 'null'} sizeUSD=${p.sizeUSD ?? 0}`,
+      );
+      return;
+    }
+
     const text = isClose ? this.fmtPositionClose(p) : this.fmtPositionOpen(p);
     // position_update is exempt from the 30s floor every open/close is unique
     // and high-signal. Still touch lastSentAt for observability.
