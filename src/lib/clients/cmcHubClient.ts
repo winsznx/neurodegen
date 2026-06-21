@@ -6,6 +6,54 @@ const CMC_X402_ENDPOINT = process.env.CMC_X402_ENDPOINT ?? 'https://mcp.coinmark
 
 const MCP_PROTOCOL_VERSION = '2024-11-05';
 
+const CMC_X402_MAX_USD_PER_CALL = Number(process.env.CMC_X402_MAX_USD_PER_CALL ?? '0.02');
+// Base mainnet USDC; used to validate 402 payment requirements against tampering.
+const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const BASE_CHAIN_ID = 8453;
+
+interface PaymentRequirement {
+  scheme?: string;
+  network?: string;
+  chainId?: number;
+  asset?: string;
+  payTo?: string;
+  maxAmountRequired?: string | number;
+  validAfter?: number;
+  validBefore?: number;
+}
+
+interface PaymentChallenge {
+  accepts?: PaymentRequirement[];
+}
+
+/**
+ * Validate a 402 payment requirement before signing. Defense against a tampered
+ * server (or MITM) that swaps the recipient address or asks for an unbounded
+ * amount. Returns null if safe to pay, or a reason string if it should be rejected.
+ */
+export function validatePaymentRequirement(req: PaymentRequirement): string | null {
+  if (!req.scheme || req.scheme.toLowerCase() !== 'exact') {
+    return `unsupported scheme ${req.scheme ?? '<none>'}`;
+  }
+  if (!req.network || req.network.toLowerCase() !== 'base') {
+    return `unsupported network ${req.network ?? '<none>'}`;
+  }
+  if (req.chainId !== undefined && Number(req.chainId) !== BASE_CHAIN_ID) {
+    return `unexpected chainId ${req.chainId} (need ${BASE_CHAIN_ID})`;
+  }
+  if (!req.asset || req.asset.toLowerCase() !== USDC_BASE_ADDRESS.toLowerCase()) {
+    return `unexpected asset ${req.asset ?? '<none>'}`;
+  }
+  if (!req.payTo) return 'missing payTo';
+  const maxAtomic = Number(req.maxAmountRequired ?? 0);
+  if (!Number.isFinite(maxAtomic) || maxAtomic <= 0) return 'invalid maxAmountRequired';
+  const capAtomic = Math.ceil(CMC_X402_MAX_USD_PER_CALL * 1_000_000);
+  if (maxAtomic > capAtomic) {
+    return `price $${(maxAtomic / 1_000_000).toFixed(4)} exceeds cap $${CMC_X402_MAX_USD_PER_CALL.toFixed(4)}`;
+  }
+  return null;
+}
+
 export type CmcTool =
   | 'get_crypto_quotes_latest'
   | 'search_cryptos'
@@ -25,6 +73,12 @@ export interface CmcToolCallResult<T> {
   transport: 'mcp_free' | 'mcp_x402';
   rawCostUSDC: number;
   toolName: CmcTool;
+  /**
+   * Tx hash from the facilitator's X-Payment-Response header after a paid call
+   * settles. Lets the operator audit every x402 payment from BscScan/Basescan
+   * with no DB trust required. Present only on the x402 transport.
+   */
+  settlementTxHash: string | null;
 }
 
 interface JsonRpcResponse<T> {
@@ -81,21 +135,12 @@ async function callMcp<T>(
     );
   }
 
-  const headers: Record<string, string> = {
+  const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
   };
   if (!useX402 && key) {
-    headers['X-CMC-MCP-API-KEY'] = key;
-  }
-
-  if (useX402) {
-    const payHook = getCmcX402Pay();
-    if (payHook) {
-      const maxAtomic = BigInt(Math.ceil(X402_COST_PER_CALL_USDC * 1_000_000));
-      const proof = await payHook(endpoint, maxAtomic);
-      headers['X-Payment'] = proof;
-    }
+    baseHeaders['X-CMC-MCP-API-KEY'] = key;
   }
 
   const body = {
@@ -108,11 +153,49 @@ async function callMcp<T>(
     },
   };
 
-  const response = await fetch(endpoint, {
+  // Two-leg x402: send without X-Payment first; only sign + replay after we
+  // see a 402 with payment requirements we trust. This is the spec-correct
+  // flow and stops us from blindly paying a tampered recipient or a price
+  // higher than CMC_X402_MAX_USD_PER_CALL.
+  let response = await fetch(endpoint, {
     method: 'POST',
-    headers,
+    headers: baseHeaders,
     body: JSON.stringify(body),
   });
+  let settlementTxHash: string | null = null;
+
+  if (useX402 && response.status === 402) {
+    let challenge: PaymentChallenge;
+    try {
+      challenge = (await response.json()) as PaymentChallenge;
+    } catch {
+      throw new Error(`CMC MCP 402 with non-JSON body [tool=${toolName}]`);
+    }
+    const accepts = challenge.accepts ?? [];
+    if (accepts.length === 0) {
+      throw new Error(`CMC MCP 402 with empty accepts[] [tool=${toolName}]`);
+    }
+    const req =
+      accepts.find(
+        (r) => (r.scheme ?? '').toLowerCase() === 'exact' && (r.network ?? '').toLowerCase() === 'base',
+      ) ?? accepts[0];
+    const reject = validatePaymentRequirement(req);
+    if (reject) {
+      throw new Error(`CMC MCP 402 rejected [tool=${toolName}]: ${reject}`);
+    }
+    const payHook = getCmcX402Pay()!;
+    const maxAtomic = BigInt(Math.ceil(Number(req.maxAmountRequired ?? 0)));
+    const proof = await payHook(endpoint, maxAtomic);
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { ...baseHeaders, 'X-Payment': proof },
+      body: JSON.stringify(body),
+    });
+    settlementTxHash =
+      response.headers.get('X-Payment-Response') ??
+      response.headers.get('x-payment-response') ??
+      null;
+  }
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -158,6 +241,7 @@ async function callMcp<T>(
     transport: useX402 ? 'mcp_x402' : 'mcp_free',
     rawCostUSDC: useX402 ? X402_COST_PER_CALL_USDC : 0,
     toolName,
+    settlementTxHash,
   };
 }
 

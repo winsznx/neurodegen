@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation';
 import { keccak256, stringToBytes } from 'viem';
 import { Shell } from '@/components/layout/Shell';
+import { CopyHash } from '@/components/CopyHash';
 import { getPositionByTxHash } from '@/lib/queries/positions';
 import { getSessionById, getSessionByReasoningHash } from '@/lib/queries/sessions';
 import { canonicalize } from '@/lib/utils/canonicalSerialize';
 import { ATTESTATION_CONTRACT_ADDRESS } from '@/config/chains';
 import { loadProofChain } from '@/lib/services/attestationReader';
+import { bscScanTx, bscScanAddr, fmtRel } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,77 +133,143 @@ export default async function ProofPage({ params }: ProofProps) {
   ];
 
   const allVerified = flags.every((f) => f.ok);
-  const headline = allVerified
-    ? chain.commitToRevealSeconds !== null
-      ? `Verified. Reasoning was committed ${chain.commitToRevealSeconds} seconds before execution. Hash recomputes against on-chain.`
-      : 'Verified.'
-    : 'Verification incomplete.';
+  const dbFlags = flags.slice(0, 2);
+  const chainFlags = flags.slice(2, 7);
+  const matchFlags = flags.slice(7);
 
   return (
     <Shell>
       <section className="mx-auto max-w-3xl px-6 py-10">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-tertiary">proof</p>
-        <h1 className="mt-2 font-display text-3xl text-text-primary">{headline}</h1>
-        <p className="mt-3 text-text-secondary">
-          Every committee decision is committed to BSC at{' '}
-          <a
-            href={`https://bscscan.com/address/${ATTESTATION_CONTRACT_ADDRESS}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-accent hover:underline"
-          >
-            {ATTESTATION_CONTRACT_ADDRESS.slice(0, 10)}…
-          </a>{' '}
-          before TWAK signs the swap, then revealed after BSC confirms. This page reads the
-          contract events directly + recomputes the reasoning hash from our database.
+        {allVerified ? (
+          <div className="rounded-xl border border-positive/40 bg-positive/5 p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-positive/15 text-positive">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-positive">verified on-chain</p>
+            </div>
+            <h1 className="mt-4 font-display text-3xl text-text-primary">
+              {chain.commitToRevealSeconds !== null
+                ? `Committed ${chain.commitToRevealSeconds}s before execution.`
+                : 'Every flag matches.'}
+            </h1>
+            <p className="mt-3 text-text-secondary">
+              The reasoning hash was published to BSC before TWAK signed the swap, then linked to
+              the execution after confirmation. Anyone can replay this from the AttestationEmitter
+              contract events alone.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('NeuroDegen V2 verified this trade on-chain before TWAK signed it')}&url=${encodeURIComponent(`https://neurodegen.xyz/proof/${txHash}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-positive/40 bg-positive/10 px-3 py-2 text-[12px] font-mono text-positive transition-colors hover:bg-positive/20"
+              >
+                Share on X
+              </a>
+              <a
+                href={`https://bscscan.com/address/${ATTESTATION_CONTRACT_ADDRESS}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-[12px] font-mono text-text-secondary transition-colors hover:border-accent hover:text-accent"
+              >
+                Attestation contract
+              </a>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-tertiary">proof</p>
+            <h1 className="mt-2 font-display text-3xl text-text-primary">Verification incomplete.</h1>
+            <p className="mt-3 text-text-secondary">
+              At least one flag failed below. This usually means the BSC RPC is lagging on event
+              indexing, or this trade is still finalising. Refresh in 60 seconds.
+            </p>
+          </>
+        )}
+
+        <p className="mt-6 text-[12px] text-text-tertiary">
+          Verified against contract{' '}
+          <CopyHash value={ATTESTATION_CONTRACT_ADDRESS} href={bscScanAddr(ATTESTATION_CONTRACT_ADDRESS)} head={10} tail={6} />
         </p>
 
-        <ul className="mt-8 space-y-3">
-          {flags.map((f) => (
-            <li
-              key={f.label}
-              className="flex items-start justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3"
-            >
-              <div className="flex flex-col">
-                <span className="font-mono text-[12px] text-text-primary">{f.label}</span>
-                <span className="font-mono text-[10px] text-text-tertiary mt-1 break-all">
-                  {f.detail}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                {f.bscscanUrl ? (
-                  <a
-                    href={f.bscscanUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-mono text-accent hover:underline"
-                  >
-                    BscScan↗
-                  </a>
-                ) : null}
-                <span
-                  className={`font-mono text-[11px] ${f.ok ? 'text-positive' : 'text-red-400'}`}
-                >
-                  {f.ok ? 'OK' : 'FAIL'}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <FlagGroup title="Database" flags={dbFlags} />
+        <FlagGroup title="On-chain events" flags={chainFlags} />
+        <FlagGroup title="Match" flags={matchFlags} />
 
-        <div className="mt-8 rounded-md border border-border bg-surface p-4 font-mono text-[11px] text-text-secondary">
-          <p>session: #{session.sessionNumber}</p>
-          <p className="break-all">reasoning hash: {session.reasoningHash}</p>
-          <p className="break-all">recomputed:      {recomputedHash}</p>
-          <p className="break-all">twak tx: {position.twakTxHash}</p>
+        <div className="mt-10 rounded-md border border-border bg-surface p-5 font-mono text-[11px] text-text-secondary">
+          <p className="mb-3 font-display text-[10px] uppercase tracking-[0.2em] text-text-tertiary">trade detail</p>
+          <p className="flex flex-wrap items-center gap-2">
+            <span className="text-text-tertiary">session</span>
+            <span className="text-text-primary">#{session.sessionNumber}</span>
+            <span className="text-text-tertiary">·</span>
+            <span className="text-text-tertiary">{fmtRel(session.createdAt)}</span>
+          </p>
+          <p className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-text-tertiary">reasoning hash</span>
+            <CopyHash value={session.reasoningHash} head={10} tail={8} />
+          </p>
+          <p className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-text-tertiary">twak tx</span>
+            <CopyHash value={position.twakTxHash} href={bscScanTx(position.twakTxHash)} head={10} tail={8} />
+          </p>
           {chain.commit ? (
-            <p className="break-all">commit tx: {chain.commit.txHash}</p>
+            <p className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-text-tertiary">commit tx</span>
+              <CopyHash value={chain.commit.txHash} href={bscScanTx(chain.commit.txHash)} head={10} tail={8} />
+            </p>
           ) : null}
           {chain.reveal ? (
-            <p className="break-all">reveal tx: {chain.reveal.txHash}</p>
+            <p className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-text-tertiary">reveal tx</span>
+              <CopyHash value={chain.reveal.txHash} href={bscScanTx(chain.reveal.txHash)} head={10} tail={8} />
+            </p>
           ) : null}
         </div>
       </section>
     </Shell>
+  );
+}
+
+interface FlagGroupProps {
+  title: string;
+  flags: Array<{ label: string; ok: boolean; detail: string; bscscanUrl?: string | null }>;
+}
+
+function FlagGroup({ title, flags }: FlagGroupProps): React.ReactElement {
+  return (
+    <div className="mt-8">
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-text-tertiary">{title}</p>
+      <ul className="mt-3 space-y-2">
+        {flags.map((f) => (
+          <li
+            key={f.label}
+            className="flex items-start justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3"
+          >
+            <div className="flex flex-col">
+              <span className="font-mono text-[12px] text-text-primary">{f.label}</span>
+              <span className="mt-1 break-all font-mono text-[10px] text-text-tertiary">{f.detail}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              {f.bscscanUrl ? (
+                <a
+                  href={f.bscscanUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[10px] text-accent hover:underline"
+                >
+                  BscScan
+                </a>
+              ) : null}
+              <span className={`font-mono text-[11px] ${f.ok ? 'text-positive' : 'text-red-400'}`}>
+                {f.ok ? 'OK' : 'FAIL'}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
