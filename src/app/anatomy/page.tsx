@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { erc20Abi, formatUnits } from 'viem';
 import { Shell } from '@/components/layout/Shell';
+import { OnChainActivityFeed } from '@/components/features/agent/OnChainActivityFeed';
 import { getRecentSessions } from '@/lib/queries/sessions';
 import { getPositionHistory } from '@/lib/queries/positions';
 import { pythHermesClient } from '@/lib/clients/pyth';
@@ -561,7 +562,12 @@ export default async function AnatomyPage() {
           </div>
         </Row>
 
+        {/* Live on-chain activity from BscScan — receipts for everything above */}
         <div className="mt-10 border border-border-strong bg-surface/60 px-4 py-4">
+          <OnChainActivityFeed agentAddress={AGENT_WALLET} limit={10} />
+        </div>
+
+        <div className="mt-6 border border-border-strong bg-surface/60 px-4 py-4">
           <div className="flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-text-muted">
             <span>
               <span className="text-accent">[F1]</span> 149-token allowlist · filtered
