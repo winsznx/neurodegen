@@ -170,27 +170,28 @@ async function main(): Promise<void> {
     }
 
     const swap = await parseSwap(client, hash);
-    if (!swap) {
+    if (!swap || !swap.sent || !swap.received) {
       console.warn(`[backfill] skip ${hash.slice(0, 14)} — not a swap (no receipt or no Transfer pair)`);
-      if (!swap) skippedNotSwap++;
-      else skippedNoReceipt++;
+      skippedNotSwap++;
       continue;
     }
+    const sent = swap.sent;
+    const received = swap.received;
 
     // Insert as MANAGED if `received` is a non-stable, CLOSED if it's a stable
     // (round-trip back to USDT/USDC implies the position was already closed).
-    const isClosed = STABLE_RE.test(swap.received.symbol);
-    const sentUSD = STABLE_USD(swap.sent.symbol) * swap.sent.amount; // 0 for non-stable inputs
-    const receivedUSD = STABLE_USD(swap.received.symbol) * swap.received.amount;
+    const isClosed = STABLE_RE.test(received.symbol);
+    const sentUSD = STABLE_USD(sent.symbol) * sent.amount; // 0 for non-stable inputs
+    const receivedUSD = STABLE_USD(received.symbol) * received.amount;
     const sizeUSD = sentUSD > 0 ? sentUSD : receivedUSD > 0 ? receivedUSD : 0;
     const entryPrice =
-      swap.received.amount > 0 && sizeUSD > 0 ? sizeUSD / swap.received.amount : 0;
+      received.amount > 0 && sizeUSD > 0 ? sizeUSD / received.amount : 0;
 
     const row = {
       position_id: crypto.randomUUID(),
       session_id: null, // probe / external
-      token_symbol: swap.received.symbol,
-      token_address: getAddress(swap.received.contract),
+      token_symbol: received.symbol,
+      token_address: getAddress(received.contract),
       direction: 'spot',
       size_usd: sizeUSD,
       leverage: 1,
@@ -218,7 +219,7 @@ async function main(): Promise<void> {
       continue;
     }
     console.warn(
-      `[backfill] inserted ${hash.slice(0, 14)} | ${swap.sent.amount.toFixed(4)} ${swap.sent.symbol} -> ${swap.received.amount.toFixed(4)} ${swap.received.symbol} | block ${swap.blockNumber} | ${isClosed ? 'CLOSED' : 'MANAGED'}`,
+      `[backfill] inserted ${hash.slice(0, 14)} | ${sent.amount.toFixed(4)} ${sent.symbol} -> ${received.amount.toFixed(4)} ${received.symbol} | block ${swap.blockNumber} | ${isClosed ? 'CLOSED' : 'MANAGED'}`,
     );
     inserted++;
   }

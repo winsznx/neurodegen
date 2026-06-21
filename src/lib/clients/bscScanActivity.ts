@@ -23,6 +23,12 @@ const TRANSFER_EVENT = parseAbiItem(
 // Default: ~28800 blocks at 3s blocks = ~24h. Operator can widen via env.
 const DEFAULT_LOOKBACK_BLOCKS = Number(process.env.BSCSCAN_LOOKBACK_BLOCKS ?? '28800');
 
+// NodeReal's public demo endpoint silently underscans wide topic-filtered
+// ranges. Verified: 5000-10000 block windows work reliably; 28800-block
+// windows return 0 even when activity exists inside the range. Chunking by
+// 10000 (~8.3h at 3s blocks) is the safe sweet spot.
+const PAGINATE_CHUNK_BLOCKS = Number(process.env.BSCSCAN_CHUNK_BLOCKS ?? '10000');
+
 interface TokenMeta {
   symbol: string;
   decimals: number;
@@ -84,26 +90,39 @@ export async function fetchAgentSwaps(
   if (latest === null) return [];
   const fromBlock = latest > lookback ? latest - lookback : 0n;
 
-  const [outLogs, inLogs] = await Promise.all([
-    logsPublicClient
-      .getLogs({
-        event: TRANSFER_EVENT,
-        args: { from: agentAddress },
-        fromBlock,
-        toBlock: latest,
-      })
-      .catch(() => []),
-    logsPublicClient
-      .getLogs({
-        event: TRANSFER_EVENT,
-        args: { to: agentAddress },
-        fromBlock,
-        toBlock: latest,
-      })
-      .catch(() => []),
-  ]);
+  // Paginate in chunks because NodeReal's free demo silently underscans
+  // wide topic-filtered ranges. Single-block + 10k-block windows confirmed
+  // working; 28800-block windows return empty even when activity exists.
+  const chunkSize = BigInt(PAGINATE_CHUNK_BLOCKS);
+  const chunks: { from: bigint; to: bigint }[] = [];
+  for (let from = fromBlock; from <= latest; from += chunkSize + 1n) {
+    const to = from + chunkSize > latest ? latest : from + chunkSize;
+    chunks.push({ from, to });
+  }
 
-  const allLogs = [...outLogs, ...inLogs] as unknown as TransferLog[];
+  // Parallel-fetch every chunk × {from-filter, to-filter}.
+  const chunkResults = await Promise.all(
+    chunks.flatMap((c) => [
+      logsPublicClient
+        .getLogs({
+          event: TRANSFER_EVENT,
+          args: { from: agentAddress },
+          fromBlock: c.from,
+          toBlock: c.to,
+        })
+        .catch(() => []),
+      logsPublicClient
+        .getLogs({
+          event: TRANSFER_EVENT,
+          args: { to: agentAddress },
+          fromBlock: c.from,
+          toBlock: c.to,
+        })
+        .catch(() => []),
+    ]),
+  );
+
+  const allLogs = chunkResults.flat() as unknown as TransferLog[];
   if (allLogs.length === 0) return [];
 
   const byTx = new Map<string, TransferLog[]>();

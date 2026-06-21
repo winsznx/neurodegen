@@ -38,7 +38,13 @@ export function createBscPublicClient(): PublicClient<Transport, Chain> {
 
 export const publicClient: PublicClient<Transport, Chain> = createBscPublicClient();
 
-const BSC_LOGS_RPC_DEFAULT = 'https://bsc.drpc.org';
+// Default logs RPC: NodeReal's public demo endpoint. Supports getLogs up to
+// 50,000 blocks (~43h at 3s blocks), no auth, ~700ms response. drpc caps at
+// 10k AND aggressively rate-limits; publicnode/ankr require API keys for
+// archive queries; QuickNode at old-thrilling-waterfall is dead (TLS handshake
+// fails). Verified via Workflow probe of 10 free BSC RPCs on 2026-06-27.
+const BSC_LOGS_RPC_DEFAULT =
+  'https://bsc-mainnet.nodereal.io/v1/64a9df0874fb4a93b9d0a3849de012d3';
 
 export const logsPublicClient: PublicClient<Transport, Chain> = createPublicClient({
   chain: bscChain,
