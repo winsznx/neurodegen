@@ -37,6 +37,8 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY contracts ./contracts
 COPY supabase ./supabase
+COPY scripts/twak-bootstrap.sh /usr/local/bin/twak-bootstrap.sh
+RUN chmod +x /usr/local/bin/twak-bootstrap.sh
 
 ENV NODE_ENV=production
 ENV PORT=8080
@@ -45,4 +47,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -fsS http://localhost:8080/health || exit 1
 
+# twak-bootstrap restores ~/.twak/wallet.json from TWAK_WALLET_JSON env (if set),
+# then execs the actual worker. Without a wallet, every TWAK signing call would
+# fail loudly at runtime; this guarantees the keystore is in place at start.
+ENTRYPOINT ["/usr/local/bin/twak-bootstrap.sh"]
 CMD ["pnpm", "worker:start"]
