@@ -8,8 +8,8 @@ async function main(): Promise<void> {
   const agent = '0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF' as `0x${string}`;
   console.warn('agent:', agent);
 
-  console.warn('\n--- 24h lookback ---');
-  const swaps24 = await fetchAgentSwaps(agent, { limit: 10, lookbackBlocks: 28800 });
+  console.warn('\n--- 48h lookback (86400 blocks) ---');
+  const swaps24 = await fetchAgentSwaps(agent, { limit: 10, lookbackBlocks: 86400 });
   console.warn(`got ${swaps24.length} swaps`);
   for (const s of swaps24.slice(0, 5)) {
     console.warn(

@@ -20,13 +20,16 @@ const TRANSFER_EVENT = parseAbiItem(
   'event Transfer(address indexed from, address indexed to, uint256 value)',
 );
 
-// Default: ~28800 blocks at 3s blocks = ~24h. Operator can widen via env.
-const DEFAULT_LOOKBACK_BLOCKS = Number(process.env.BSCSCAN_LOOKBACK_BLOCKS ?? '28800');
+// Default: 86,400 blocks. BSC's effective block time fluctuates between
+// 1.5s-3s — at the faster end, the historical 28800-block-for-24h default
+// only covered ~12 hours. 86,400 gives ~48-72h of coverage even when blocks
+// are sub-2s, comfortably catching yesterday + today's probe activity.
+const DEFAULT_LOOKBACK_BLOCKS = Number(process.env.BSCSCAN_LOOKBACK_BLOCKS ?? '86400');
 
 // NodeReal's public demo endpoint silently underscans wide topic-filtered
-// ranges. Verified: 5000-10000 block windows work reliably; 28800-block
-// windows return 0 even when activity exists inside the range. Chunking by
-// 10000 (~8.3h at 3s blocks) is the safe sweet spot.
+// ranges. Verified: 10000-block windows work reliably and return all logs;
+// 28800-block windows return 0 even when activity exists. 10000 is the safe
+// sweet spot. 86400-block lookback = 9 chunks ~3-5s parallel.
 const PAGINATE_CHUNK_BLOCKS = Number(process.env.BSCSCAN_CHUNK_BLOCKS ?? '10000');
 
 interface TokenMeta {
