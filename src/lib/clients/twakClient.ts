@@ -60,6 +60,25 @@ function resolveSwapToken(symbol: string): string {
   return symbol;
 }
 
+/**
+ * Spawn TWAK and throw a `formatTwakError`-formatted Error on non-zero exit.
+ * Returns the stdout on success. Use everywhere a TWAK call is mandatory; the
+ * raw `runTwak` is reserved for paths that need to inspect both streams
+ * (e.g. exit-1 with valid JSON on stdout means "operation refused but
+ * informative").
+ *
+ * V2 Phase R audit fix: 10 of 14 throw sites in this file were swallowing
+ * stdout (only stderr was surfaced) — the same bug the 403 hunt blew up over.
+ * Centralising here so every TWAK error message is uniformly rich.
+ */
+async function runTwakOrThrow(args: string[]): Promise<string> {
+  const { exitCode, stdout, stderr } = await runTwak(args);
+  if (exitCode !== 0) {
+    throw new Error(formatTwakError(args, exitCode, stdout, stderr));
+  }
+  return stdout;
+}
+
 function formatTwakError(args: string[], exitCode: number, stdout: string, stderr: string): string {
   // Some TWAK CLI errors land on stdout (especially JSON-formatted ones) while
   // exit code is non-zero. Surface both so we can diagnose silent failures.
@@ -208,10 +227,7 @@ export class TWAKClient {
         chain: 'bsc',
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak(['compete', 'register', '--json']);
-    if (exitCode !== 0) {
-      throw new Error(`twak compete register failed [exit=${exitCode}]: ${stderr}`);
-    }
+    const stdout = await runTwakOrThrow(['compete', 'register', '--json']);
     const raw = parseJsonOutput<RawCompeteResult>(stdout, 'twak compete register');
     return {
       txHash: (raw.txHash ?? '0x0') as `0x${string}`,
@@ -230,10 +246,7 @@ export class TWAKClient {
         deadline: process.env.COMPETITION_REGISTRATION_DEADLINE ?? null,
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak(['compete', 'status', '--json']);
-    if (exitCode !== 0) {
-      throw new Error(`twak compete status failed [exit=${exitCode}]: ${stderr}`);
-    }
+    const stdout = await runTwakOrThrow(['compete', 'status', '--json']);
     const raw = parseJsonOutput<RawCompeteResult>(stdout, 'twak compete status');
     return {
       registered: raw.registered === true,
@@ -479,7 +492,7 @@ export class TWAKClient {
         settlementTxHash: syntheticTxHash(`x402:${args.url}`),
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'x402',
       'request',
       args.url,
@@ -488,9 +501,6 @@ export class TWAKClient {
       '--yes',
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak x402 request failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<RawX402Result>(stdout, 'twak x402');
     return {
       proofHeader: raw.proofHeader,
@@ -512,7 +522,7 @@ export class TWAKClient {
         alreadyRegistered: false,
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'erc8004',
       'register',
       '--uri',
@@ -521,9 +531,6 @@ export class TWAKClient {
       TWAK_CHAIN,
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8004 register failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<RawErc8004RegisterResult>(stdout, 'twak erc8004 register');
     return {
       agentId: String(raw.agentId ?? raw.tokenId ?? '0'),
@@ -539,7 +546,7 @@ export class TWAKClient {
     if (DRY_RUN_MODE) {
       return { txHash: syntheticTxHash(`erc8004:set-uri:${args.agentId}`) };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'erc8004',
       'set-uri',
       '--agent-id',
@@ -550,9 +557,6 @@ export class TWAKClient {
       TWAK_CHAIN,
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8004 set-uri failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8004 set-uri');
     return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
   }
@@ -592,10 +596,7 @@ export class TWAKClient {
     if (args.hook) {
       cliArgs.push('--hook', args.hook);
     }
-    const { exitCode, stdout, stderr } = await runTwak(cliArgs);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8183 create-job failed [exit=${exitCode}]: ${stderr}`);
-    }
+    const stdout = await runTwakOrThrow(cliArgs);
     const raw = parseJsonOutput<{ jobId?: string | number; txHash?: string }>(
       stdout,
       'twak erc8183 create-job',
@@ -613,7 +614,7 @@ export class TWAKClient {
     if (DRY_RUN_MODE) {
       return { txHash: syntheticTxHash(`erc8183:set-budget:${args.jobId}`) };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'erc8183',
       'set-budget',
       '--job-id',
@@ -624,9 +625,6 @@ export class TWAKClient {
       TWAK_CHAIN,
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8183 set-budget failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 set-budget');
     return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
   }
@@ -638,7 +636,7 @@ export class TWAKClient {
     if (DRY_RUN_MODE) {
       return { txHash: syntheticTxHash(`erc8183:fund:${args.jobId}`) };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'erc8183',
       'fund',
       '--job-id',
@@ -649,9 +647,6 @@ export class TWAKClient {
       TWAK_CHAIN,
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8183 fund failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 fund');
     return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
   }
@@ -678,10 +673,7 @@ export class TWAKClient {
     if (args.deliverableUrl) {
       cliArgs.push('--deliverable-url', args.deliverableUrl);
     }
-    const { exitCode, stdout, stderr } = await runTwak(cliArgs);
-    if (exitCode !== 0) {
-      throw new Error(`twak erc8183 submit failed [exit=${exitCode}]: ${stderr}`);
-    }
+    const stdout = await runTwakOrThrow(cliArgs);
     const raw = parseJsonOutput<{ txHash?: string }>(stdout, 'twak erc8183 submit');
     return { txHash: (raw.txHash ?? '0x0') as `0x${string}` };
   }
@@ -699,7 +691,7 @@ export class TWAKClient {
         digest: syntheticTxHash(`digest:${args.message.slice(0, 32)}`),
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    const stdout = await runTwakOrThrow([
       'wallet',
       'sign-message',
       '--message',
@@ -708,9 +700,6 @@ export class TWAKClient {
       TWAK_CHAIN,
       '--json',
     ]);
-    if (exitCode !== 0) {
-      throw new Error(`twak wallet sign-message failed [exit=${exitCode}]: ${stderr}`);
-    }
     const raw = parseJsonOutput<{ signature?: string; digest?: string }>(
       stdout,
       'twak wallet sign-message',

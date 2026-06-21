@@ -147,11 +147,15 @@ export async function fireProbe(): Promise<{
         Number.parseFloat(forward.toAmountTokens) > 0
           ? sizeUSD / Number.parseFloat(forward.toAmountTokens)
           : 0;
-      const day = utcDayBucket(new Date());
       positionId = crypto.randomUUID();
       const position: PositionState = {
         positionId,
-        sessionId: `probe-${day}`,
+        // sessionId=null because the probe scheduler is not a committee
+        // session. The DB column is UUID with FK to committee_sessions; an
+        // invented string 'probe-YYYY-MM-DD' would fail both the type check
+        // and the foreign-key constraint. Probe positions are identifiable
+        // via exitReason='probe_trade_unwind' on close + null sessionId.
+        sessionId: null,
         tokenSymbol: PROBE_TRADE_TO_SYMBOL,
         tokenAddress: toAddress,
         direction: 'spot',

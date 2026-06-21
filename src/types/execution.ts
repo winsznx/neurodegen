@@ -24,7 +24,13 @@ export type ExitReason =
 
 export interface PositionState {
   positionId: string;
-  sessionId: string;
+  /**
+   * UUID of the committee_sessions row that produced this position. Nullable
+   * for positions created outside the committee flow (e.g. probe-trade
+   * scheduler). The DB column is `UUID REFERENCES committee_sessions ON DELETE
+   * SET NULL`, so an orphan FK cannot satisfy the constraint — use null.
+   */
+  sessionId: string | null;
   tokenSymbol: string;
   tokenAddress: `0x${string}`;
   direction: PositionDirection;

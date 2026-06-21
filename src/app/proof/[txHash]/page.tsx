@@ -47,6 +47,10 @@ export default async function ProofPage({ params }: ProofProps) {
     );
   }
 
+  // Probe-trade positions have sessionId=null (no committee session). The
+  // /proof page is meant for committee-attested trades only; bounce probe
+  // trades to 404.
+  if (!position.sessionId) notFound();
   const session = await getSessionById(position.sessionId).catch(() => null);
   if (!session) notFound();
 

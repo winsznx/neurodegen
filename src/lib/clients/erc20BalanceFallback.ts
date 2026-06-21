@@ -27,7 +27,7 @@ import { publicClient } from './chain';
  */
 export const STABLECOIN_SYMBOLS = new Set<string>([
   'USDT', 'USDC', 'BUSD', 'DAI', 'FDUSD', 'TUSD', 'FRAX', 'USDD',
-  'USDE', 'USD1', 'USDF', 'USDF', 'FRXUSD', 'LISUSD', 'DUSD', 'XUSD', 'EURI',
+  'USDE', 'USD1', 'USDF', 'USDf', 'FRXUSD', 'LISUSD', 'DUSD', 'XUSD', 'EURI',
 ]);
 
 export interface Erc20BalanceReadResult {

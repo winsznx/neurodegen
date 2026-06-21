@@ -3,7 +3,7 @@ import { getSupabaseAdmin, getSupabaseClient } from '@/lib/clients/supabase';
 
 interface PositionRow {
   position_id: string;
-  session_id: string;
+  session_id: string | null;
   token_symbol: string;
   token_address: string;
   direction: string;
