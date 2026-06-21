@@ -19,7 +19,15 @@ import type {
   ExecutionResultRecord,
 } from '@/types/cognition';
 
-const JOB_EXPIRY_SECONDS = 24 * 60 * 60; // 24h
+/**
+ * Job expiry: 30 days from creation. On BSC mainnet the OptimisticPolicy
+ * dispute window is 7 days, and `submit` requires `now ≤ expiredAt − disputeWindow`
+ * (otherwise reverts with `SubmissionTooLate()`). 24h expiry — our original
+ * value — would have been guaranteed to revert. 30 days gives generous margin
+ * for the deliverable to be submitted any time within the first ~23 days of
+ * the job lifecycle. Confirmed against `skills/wallet/references/erc8183.md`.
+ */
+const JOB_EXPIRY_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
 export interface NegotiationContent {
   chain_id: 56;
@@ -224,6 +232,8 @@ export async function runCommerceJobForSession(args: {
   }
 
   // 2. createJob - self-employed: provider == client == agent wallet.
+  // Hook MUST be the EvaluatorRouter address — a zero hook reverts with
+  // HookRequired() per the official skill docs (erc8183.md L196).
   const description = `negotiationHash=${negotiationHash};reasoningHash=${args.session.reasoningHash}`;
   try {
     const created = await twakClient.erc8183CreateJob({
@@ -231,6 +241,7 @@ export async function runCommerceJobForSession(args: {
       evaluator: ERC8183_OPTIMISTIC_POLICY_ADDRESS,
       expiredAt: Math.floor(now.getTime() / 1000) + JOB_EXPIRY_SECONDS,
       description,
+      hook: ERC8183_EVALUATOR_ROUTER_ADDRESS,
     });
     result.jobId = created.jobId;
     result.createTx = created.txHash;
