@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "worker": "tsx watch --env-file=.env.local src/worker/index.ts",
     "worker:start": "tsx src/worker/index.ts",
