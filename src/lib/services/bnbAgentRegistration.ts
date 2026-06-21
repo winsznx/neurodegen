@@ -22,12 +22,12 @@ export type EnsureErc8004Result =
 
 /**
  * Generate the ERC-8004 agent-card JSON. Inlined as a `data:application/json;base64,…`
- * URI — the canonical format the bnbagent-sdk uses. No IPFS dependency.
+ * URI - the canonical format the bnbagent-sdk uses. No IPFS dependency.
  *
  * The card surfaces the running NeuroDegen instance: name, public description,
  * and the service endpoint(s) that other agents could call (the public web URL).
  * It is on-chain provable that this agent identity is owned by the agent's
- * TWAK wallet — the on-chain `Registered(uint256 indexed agentId, string
+ * TWAK wallet - the on-chain `Registered(uint256 indexed agentId, string
  * agentURI, address indexed owner)` event embeds both.
  */
 export function buildAgentCardJson(args: {
@@ -75,7 +75,7 @@ export function buildAgentCardUri(cardJson: string): string {
  * is false. Skips in DRY_RUN_MODE because the registry call is synthetic and
  * would never be accepted as on-chain proof.
  *
- * Unlike competition registration, ERC-8004 has no deadline — we can register
+ * Unlike competition registration, ERC-8004 has no deadline - we can register
  * any time. Failures log loudly but never crash the worker.
  */
 export async function ensureErc8004Registration(args: {
@@ -107,7 +107,7 @@ export async function ensureErc8004Registration(args: {
       ok: false,
       reason: 'dry_run_skipped',
       message:
-        'DRY_RUN_MODE=true — skipping on-chain ERC-8004 registration. Flip off before deploy to publish identity.',
+        'DRY_RUN_MODE=true - skipping on-chain ERC-8004 registration. Flip off before deploy to publish identity.',
     };
   }
 

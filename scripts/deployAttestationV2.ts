@@ -20,7 +20,7 @@ function loadArtifact(): { abi: readonly unknown[]; bytecode: `0x${string}` } {
 
 async function main(): Promise<void> {
   // Deployer pays gas. Defaults to the agent's own key (NEURODEGEN_AGENT_PRIVATE_KEY)
-  // when DEPLOYER_PRIVATE_KEY is unset — for a hackathon submission the same
+  // when DEPLOYER_PRIVATE_KEY is unset - for a hackathon submission the same
   // wallet can deploy and own the contract; the constructor takes the agent
   // address (derived from the key) so the contract is immutably tied to it.
   // Set DEPLOYER_PRIVATE_KEY explicitly to use a separate funded wallet.
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
 
   const chain = network === 'testnet' ? bscTestnet : bsc;
   const deployer = privateKeyToAccount(deployerPk as `0x${string}`);
-  // Agent address defaults to the deployer's own address — same wallet owns
+  // Agent address defaults to the deployer's own address - same wallet owns
   // and signs from the contract. Override via NEURODEGEN_AGENT_ADDRESS only if
   // deployer ≠ agent (separate signing wallets).
   const agentAddress = (process.env.NEURODEGEN_AGENT_ADDRESS ?? deployer.address) as `0x${string}`;
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   // BSC deploy gas for a 2.9KB contract is ≈ 600k gas × 1-3 gwei = 0.0006-0.0018 BNB.
   // Require 0.0005 BNB as a sane floor; the script estimates the actual cost first.
   if (balance < 500_000_000_000_000n) {
-    throw new Error('deployer balance below 0.0005 BNB — refusing to broadcast');
+    throw new Error('deployer balance below 0.0005 BNB - refusing to broadcast');
   }
 
   const hash = await walletClient.deployContract({

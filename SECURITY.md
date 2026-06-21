@@ -10,7 +10,7 @@ If you find a security issue, open a GitHub issue or DM the operator (DoraHacks 
 
 ## Self-custody integrity
 
-**Claim:** TWAK is the sole signing path. The Node worker never touches a user private key, and the only `process.env.*_PRIVATE_KEY` it reads is the agent's OWN attestation-emitter key — used ONLY for emitting events to the V1 AttestationEmitter (no value transfer).
+**Claim:** TWAK is the sole signing path. The Node worker never touches a user private key, and the only `process.env.*_PRIVATE_KEY` it reads is the agent's OWN attestation-emitter key - used ONLY for emitting events to the V1 AttestationEmitter (no value transfer).
 
 **Evidence:**
 
@@ -31,10 +31,10 @@ The AttestationEmitter writes events only. It cannot transfer value. The `onlyAg
 ```bash
 $ grep -rn "writeContract\|signTransaction" src/lib/clients/twakClient.ts \
                                               src/lib/services/execution/twakExecutor.ts
-# (no matches — all signing is delegated to the TWAK CLI process)
+# (no matches - all signing is delegated to the TWAK CLI process)
 ```
 
-## Hard constraints — enforced in code
+## Hard constraints - enforced in code
 
 | Constraint | Enforcer | File:line |
 |---|---|---|
@@ -53,21 +53,21 @@ These are V2 Phase 2 audit findings that landed in commit `a0154c9`:
 
 | Concern | Fix | File:line |
 |---|---|---|
-| Two concurrent x402 proofs claimed the same tx hash | Atomic `INSERT … ON CONFLICT` — the insert IS the consumption check | [`x402proofs.ts:31-52`](src/lib/queries/x402proofs.ts#L31-L52) |
+| Two concurrent x402 proofs claimed the same tx hash | Atomic `INSERT … ON CONFLICT` - the insert IS the consumption check | [`x402proofs.ts:31-52`](src/lib/queries/x402proofs.ts#L31-L52) |
 | Concurrent agent cycles interleaving | `cycleInFlight` flag wrapped in `try/finally` | [`agentLoop.ts:86, 250, 515`](src/lib/services/agentLoop.ts#L86) |
 | Concurrent cycles claiming the same `sessionNumber` | `SessionNumberCollisionError` → rebuild + retry (rehash) | [`sessions.ts:87-106`](src/lib/queries/sessions.ts#L87-L106), [`committeeSession.ts:91-127`](src/lib/services/cognition/committeeSession.ts#L91-L127) |
 | Hot-state map mutated mid-iteration | Snapshot keys first, then delete | [`hotState.ts`](src/lib/stores/hotState.ts) |
 | Stale total-exposure in risk state | Derived live from `openPositions` on every call | [`riskManager.ts`](src/lib/services/execution/riskManager.ts) |
 
-## Admin endpoint auth — constant-time
+## Admin endpoint auth - constant-time
 
 Pre-Phase E, admin secret comparison used `===` which leaks the byte index of the first mismatch via timing.
 
 **Fix:** [`adminAuth.verifyAdminSecret()`](src/lib/utils/adminAuth.ts#L14-L21) uses Node `crypto.timingSafeEqual`. Called from:
 
-- [`/api/events/broadcast`](src/app/api/events/broadcast/route.ts) — SSE relay from worker
-- [`workerAdminProxy.ts`](src/lib/services/workerAdminProxy.ts) — web → worker admin proxy
-- [`worker/index.ts`](src/worker/index.ts) — worker HTTP admin server
+- [`/api/events/broadcast`](src/app/api/events/broadcast/route.ts) - SSE relay from worker
+- [`workerAdminProxy.ts`](src/lib/services/workerAdminProxy.ts) - web → worker admin proxy
+- [`worker/index.ts`](src/worker/index.ts) - worker HTTP admin server
 
 ## Prompt-injection surface
 
@@ -84,7 +84,7 @@ LLM analysts receive CMC-sourced strings (token names, narrative labels, news he
 
 ## Replay protection on the attestation contract
 
-[`contracts/NeurodegenAttestation.sol:51-54`](contracts/NeurodegenAttestation.sol#L51-L54) — `onlyAgent()` modifier restricts every write to `msg.sender == agent`. Anyone can read events; only the agent wallet can write. No nonce needed because the contract has no state — only events.
+[`contracts/NeurodegenAttestation.sol:51-54`](contracts/NeurodegenAttestation.sol#L51-L54) - `onlyAgent()` modifier restricts every write to `msg.sender == agent`. Anyone can read events; only the agent wallet can write. No nonce needed because the contract has no state - only events.
 
 ## Dependency hygiene
 
@@ -92,7 +92,7 @@ LLM analysts receive CMC-sourced strings (token names, narrative labels, news he
 
 | Removed | V1 reason | V2 impact of leaving it |
 |---|---|---|
-| `@privy-io/node`, `@privy-io/react-auth` | V1 copy-trade session signers | Would taint the self-custody-integrity scoring rubric (TWAK special prize) — judges grep for it |
+| `@privy-io/node`, `@privy-io/react-auth` | V1 copy-trade session signers | Would taint the self-custody-integrity scoring rubric (TWAK special prize) - judges grep for it |
 | `@myx-trade/sdk` | V1 perp execution | Unused; bundle bloat |
 | `grammy` | V1 Telegram bot | Unused; bundle bloat |
 | `@vercel/og` | V1 OG card | `next/og` ships with Next.js itself |
@@ -107,7 +107,7 @@ We do not have:
 1. **No E2E worker+web+DB boot test.** All tests mock TWAK CLI and Supabase. We rely on the smoke `attestation:*` scripts ([`scripts/`](scripts/)) for integration verification.
 2. **No BSC fork test.** Contracts are exercised via unit tests of the off-chain encoder/canonicaliser; no `anvil --fork-url` step in CI.
 3. **No real TWAK CLI fixture.** TWAK is mocked. We have a runbook ([`SUBMISSION.md`](SUBMISSION.md)) for manual integration smoke against the live CLI.
-4. **Pyth oracle unavailability is treated as pass.** [`preExecutionChecker.ts:112-149`](src/lib/services/execution/preExecutionChecker.ts#L112-L149) — if Pyth is down, oracle-divergence check passes. Mitigation: the other 7 checks (security score, honeypot, slippage, allowlist, drawdown, daily PnL, exposure cap) remain in effect.
+4. **Pyth oracle unavailability is treated as pass.** [`preExecutionChecker.ts:112-149`](src/lib/services/execution/preExecutionChecker.ts#L112-L149) - if Pyth is down, oracle-divergence check passes. Mitigation: the other 7 checks (security score, honeypot, slippage, allowlist, drawdown, daily PnL, exposure cap) remain in effect.
 5. **DeepSeek v3.2 has no BYOK route.** Always via DGrid. If DGrid is down, the risk classifier falls back to GPT-4o-mini (also via DGrid). Both being down = full cognition outage.
 
 ## Audit lineage

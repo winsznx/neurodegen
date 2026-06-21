@@ -95,7 +95,7 @@ const EMPTY_RESULT: CommerceJobResult = {
 /**
  * Build the off-chain ERC-8183 NegotiationContent for a committee session.
  *
- * The content schema mirrors bnbagent-sdk's `_build_description_content` —
+ * The content schema mirrors bnbagent-sdk's `_build_description_content` -
  * canonicalized via sorted-key JSON, hashed with keccak256, signed via
  * EIP-191 personal_sign (TWAK `wallet sign-message`). The signature is
  * stored alongside the on-chain job so any observer can verify that the
@@ -173,7 +173,7 @@ export function keccakOfCanonical(value: unknown): `0x${string}` {
 
 /**
  * Run the ERC-8183 job lifecycle for one committee decision. Self-employed:
- * the agent's TWAK wallet is BOTH the client and the provider — it pays
+ * the agent's TWAK wallet is BOTH the client and the provider - it pays
  * itself to execute the trade, and submits a tamper-evident manifest as the
  * deliverable. The OptimisticPolicy contract serves as the evaluator so the
  * job can be settled by anyone after the 7-day dispute window.
@@ -196,7 +196,7 @@ export async function runCommerceJobForSession(args: {
     return { ...EMPTY_RESULT, skippedReason: 'DRY_RUN_MODE=true' };
   }
   if (!args.executionResult.executed) {
-    return { ...EMPTY_RESULT, skippedReason: 'execution skipped — no swap to wrap' };
+    return { ...EMPTY_RESULT, skippedReason: 'execution skipped, no swap to wrap' };
   }
   if (args.session.finalAction.action === 'hold') {
     return { ...EMPTY_RESULT, skippedReason: 'final action is hold' };
@@ -223,7 +223,7 @@ export async function runCommerceJobForSession(args: {
     );
   }
 
-  // 2. createJob — self-employed: provider == client == agent wallet.
+  // 2. createJob - self-employed: provider == client == agent wallet.
   const description = `negotiationHash=${negotiationHash};reasoningHash=${args.session.reasoningHash}`;
   try {
     const created = await twakClient.erc8183CreateJob({
@@ -253,7 +253,7 @@ export async function runCommerceJobForSession(args: {
     return result;
   }
 
-  // 4. fund — the agent is self-funding (client and provider are the same wallet).
+  // 4. fund - the agent is self-funding (client and provider are the same wallet).
   try {
     const funded = await twakClient.erc8183Fund({
       jobId: result.jobId!,
@@ -287,7 +287,7 @@ export async function runCommerceJobForSession(args: {
     return result;
   }
 
-  // Telegram alerter hook — fire-and-forget; never let alert failure surface.
+  // Telegram alerter hook - fire-and-forget; never let alert failure surface.
   void telegramAlerter
     .notifyErc8183JobSubmitted({
       jobId: result.jobId!,
@@ -302,7 +302,7 @@ export async function runCommerceJobForSession(args: {
 /**
  * Approximate ERC8183 U-token wei to USD for display only. The U-token is
  * spec'd at parity with USD ($1 == 1 U at 18 decimals), so wei / 1e18 is the
- * display USD amount. This is informational only — never used for accounting.
+ * display USD amount. This is informational only - never used for accounting.
  */
 function weiToUsdApprox(weiStr: string): number {
   try {

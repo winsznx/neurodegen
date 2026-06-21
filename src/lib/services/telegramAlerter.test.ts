@@ -69,7 +69,7 @@ describe('escapeMarkdownV2', () => {
     // #when
     const out = escapeMarkdownV2(reserved);
 
-    // #then — every char now has a leading backslash
+    // #then - every char now has a leading backslash
     expect(out).toBe(reserved.split('').map((c) => `\\${c}`).join(''));
   });
 
@@ -224,7 +224,7 @@ describe('TelegramClient', () => {
     // #when
     const result = await client.sendMessage('hi');
 
-    // #then — initial attempt + 3 retries = 4 total
+    // #then - initial attempt + 3 retries = 4 total
     expect(fetchSpy).toHaveBeenCalledTimes(4);
     expect(result.ok).toBe(false);
     expect(result.giveUpReason).toBe('429-give-up');
@@ -289,7 +289,7 @@ describe('TelegramClient', () => {
     });
     const client = new TelegramClient({ enabled: true });
 
-    // #when — fire three concurrently
+    // #when - fire three concurrently
     const [r1, r2, r3] = await Promise.all([
       client.sendMessage('a'),
       client.sendMessage('b'),
@@ -353,7 +353,7 @@ describe('telegramAlerter', () => {
     const fetchSpy = mockFetchOk();
     telegramAlerter.start();
 
-    // #when — two health_degradation events with the same payload
+    // #when - two health_degradation events with the same payload
     realtimeService.broadcast({
       type: 'health_degradation',
       data: { source: 'agent_loop', message: 'kaboom' },
@@ -366,7 +366,7 @@ describe('telegramAlerter', () => {
     });
     await flush();
 
-    // #then — only the first fires
+    // #then - only the first fires
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -375,7 +375,7 @@ describe('telegramAlerter', () => {
     const fetchSpy = mockFetchOk();
     telegramAlerter.start();
 
-    // #when — different source ⇒ both fire (rate-limit is exempt because of distinct dedupe key + same type)
+    // #when - different source ⇒ both fire (rate-limit is exempt because of distinct dedupe key + same type)
     realtimeService.broadcast({
       type: 'health_degradation',
       data: { source: 'agent_loop', message: 'msg-a' },
@@ -390,7 +390,7 @@ describe('telegramAlerter', () => {
     });
     await flush();
 
-    // #then — same source|message within 5min window: still 1 send
+    // #then - same source|message within 5min window: still 1 send
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -399,7 +399,7 @@ describe('telegramAlerter', () => {
     const fetchSpy = mockFetchOk();
     telegramAlerter.start();
 
-    // #when — two distinct open positions back-to-back
+    // #when - two distinct open positions back-to-back
     realtimeService.broadcast({
       type: 'position_update',
       data: {
@@ -441,7 +441,7 @@ describe('telegramAlerter', () => {
     const fetchSpy = mockFetchOk();
     telegramAlerter.start();
 
-    // #when — cross 5% (normal→alert)
+    // #when - cross 5% (normal→alert)
     realtimeService.broadcast({
       type: 'agent_status_snapshot',
       data: { drawdownPct: 0.06 },
@@ -470,7 +470,7 @@ describe('telegramAlerter', () => {
     });
     await flush();
 
-    // #when — same tier
+    // #when - same tier
     realtimeService.broadcast({
       type: 'agent_status_snapshot',
       data: { drawdownPct: 0.07 },
@@ -490,7 +490,7 @@ describe('telegramAlerter', () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     telegramAlerter.start();
 
-    // #when / #then — broadcast must not throw, must not leak unhandled rejection
+    // #when / #then - broadcast must not throw, must not leak unhandled rejection
     let unhandled = false;
     const onUnhandled = (): void => {
       unhandled = true;
@@ -563,7 +563,7 @@ describe('telegramAlerter', () => {
     expect(body.text).toContain('*BNB*');
     // `$` is NOT MarkdownV2-reserved; `.` IS, so 612.40 → 612\.40
     expect(body.text).toContain('$612\\.40');
-    // Inside link parens only `)` and `\` are reserved — `.` stays raw.
+    // Inside link parens only `)` and `\` are reserved - `.` stays raw.
     expect(body.text).toContain('[tx](https://bscscan.com/tx/0xabc123)');
   });
 
@@ -594,7 +594,7 @@ describe('telegramAlerter', () => {
   });
 
   it('registers no listener when ENABLE_TELEGRAM_ALERTS=false', async () => {
-    // #given — flip flag via the module mock
+    // #given - flip flag via the module mock
     const featuresMod = await import('@/config/features');
     const original = featuresMod.ENABLE_TELEGRAM_ALERTS;
     Object.defineProperty(featuresMod, 'ENABLE_TELEGRAM_ALERTS', {

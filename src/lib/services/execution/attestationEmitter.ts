@@ -19,7 +19,7 @@ function actionToBytes32(action: string): `0x${string}` {
 
 /**
  * Hash an on-chain swap tx hash into bytes32 for the `revealExecution.orderId`
- * field. V1 audit §1.2b: V1 wrote keccak(localUuid) — useless. V2 writes
+ * field. V1 audit §1.2b: V1 wrote keccak(localUuid) - useless. V2 writes
  * keccak(twakTxHash) so the on-chain reveal is verifiably bound to the swap.
  */
 export function orderIdFromTxHash(twakTxHash: `0x${string}`): `0x${string}` {

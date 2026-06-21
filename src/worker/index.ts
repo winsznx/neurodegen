@@ -88,12 +88,12 @@ function preflightEnv(): void {
   }
   if (process.env.WORKER_MODE !== 'true') {
     console.error(
-      '[worker] ⚠ WORKER_MODE is not "true" — realtimeService will NOT forward to the web. Set WORKER_MODE=true in Railway env.',
+      '[worker] ⚠ WORKER_MODE is not "true" - realtimeService will NOT forward to the web. Set WORKER_MODE=true in Railway env.',
     );
   }
   if (!process.env.WEB_BROADCAST_URL) {
     console.error(
-      '[worker] ⚠ WEB_BROADCAST_URL is not set — events have nowhere to forward.',
+      '[worker] ⚠ WEB_BROADCAST_URL is not set - events have nowhere to forward.',
     );
   }
 }
@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   // Competition registration: must happen ONCE before the trading window
   // opens, persisted to worker_state so restarts don't re-register and so
   // every cycle can prove it's eligible. Failure logs loudly but does NOT
-  // crash the worker — the operator can re-run via /admin/competition/register
+  // crash the worker - the operator can re-run via /admin/competition/register
   // (handled below) once the underlying issue is fixed.
   // ============================================================
   const reg = await ensureCompetitionRegistration();
@@ -133,14 +133,14 @@ async function main(): Promise<void> {
       `[worker] competition registration ${reg.reason}: tx=${reg.record.txHash} participant=${reg.record.participant} alreadyRegistered=${reg.record.alreadyRegistered}`,
     );
   } else {
-    console.error(`[worker] competition registration NOT live: ${reg.reason} — ${reg.message}`);
+    console.error(`[worker] competition registration NOT live: ${reg.reason} - ${reg.message}`);
   }
   for (const issue of await preflightCompetitionState()) {
     console.error(`[worker] PREFLIGHT: ${issue}`);
   }
 
   // ============================================================
-  // BNB AI Agent SDK — ERC-8004 identity registration. Idempotent,
+  // BNB AI Agent SDK - ERC-8004 identity registration. Idempotent,
   // persisted to worker_state, no deadline. Non-fatal on failure: the
   // trade loop is independent of identity registration.
   // ============================================================
@@ -150,7 +150,7 @@ async function main(): Promise<void> {
       `[worker] erc8004 registration ${erc8004.reason}: agentId=${erc8004.record.agentId} tx=${erc8004.record.txHash}`,
     );
   } else {
-    console.warn(`[worker] erc8004 registration not live: ${erc8004.reason} — ${erc8004.message}`);
+    console.warn(`[worker] erc8004 registration not live: ${erc8004.reason} - ${erc8004.message}`);
   }
 
   const server = createServer((req, res) => {
@@ -186,7 +186,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Telegram alerter — fire-and-forget. start() is a no-op when
+  // Telegram alerter - fire-and-forget. start() is a no-op when
   // ENABLE_TELEGRAM_ALERTS=false or token/chat env missing.
   telegramAlerter.start();
   if (telegramAlerter.isStarted()) {

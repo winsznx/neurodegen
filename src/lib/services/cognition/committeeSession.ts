@@ -40,7 +40,7 @@ export interface CommitteeSessionInputs {
  *  4. SessionGraphBuilder assembles the canonical CommitteeSession.
  *  5. Result persists to Supabase via `insertCommitteeSession`.
  *
- * The caller — `agentLoop.runCycle()` — owns the session number assignment
+ * The caller - `agentLoop.runCycle()` - owns the session number assignment
  * and the persistence (so the test harness can build sessions without a DB).
  */
 export async function runCommitteeSession(
@@ -49,7 +49,7 @@ export async function runCommitteeSession(
   const sessionId = crypto.randomUUID();
   const createdAt = Date.now();
 
-  // V2 Phase 2 audit fix: previously this was `Promise.all` — if either
+  // V2 Phase 2 audit fix: previously this was `Promise.all` - if either
   // analyst threw (network failure, gateway down), the whole cycle died and
   // the agent went silent until the next tick. Use `allSettled` so one
   // failing analyst falls back to a neutral synthetic result; both failing
@@ -84,7 +84,7 @@ export async function runCommitteeSession(
 
   // V2 Phase 2 audit fix: `sessionNumber` is part of the reasoning-hash
   // preimage. If a concurrent cycle inserts the same number first, we must
-  // rebuild the session (and recompute the hash) before retrying — otherwise
+  // rebuild the session (and recompute the hash) before retrying - otherwise
   // the on-chain attestation will reference stale data.
   let session: CommitteeSession | null = null;
   let nextNumber = await getNextSessionNumber().catch(() => 1);
@@ -120,7 +120,7 @@ export async function runCommitteeSession(
         err instanceof Error ? err.message : String(err),
       );
       // Fall back to the in-memory session so the agent loop can still execute
-      // — the row will be inserted on a later attempt by reconciliation.
+      // - the row will be inserted on a later attempt by reconciliation.
       session = candidate;
       break;
     }
@@ -131,7 +131,7 @@ export async function runCommitteeSession(
 
 function logAnalystFailure(role: 'narrative' | 'quant', reason: unknown): void {
   console.error(
-    `[committee] ${role} analyst threw — falling back to synthetic neutral:`,
+    `[committee] ${role} analyst threw - falling back to synthetic neutral:`,
     reason instanceof Error ? reason.message : String(reason),
   );
 }
@@ -154,7 +154,7 @@ function buildSyntheticCall(role: 'narrative' | 'quant'): ModelCallRecord {
 
 function buildSyntheticNarrative(): NarrativeAnalystResult {
   const parsed: NarrativeAnalystOutput = {
-    narrativeSummary: 'narrative analyst unavailable — synthetic neutral fallback',
+    narrativeSummary: 'narrative analyst unavailable - synthetic neutral fallback',
     kolMentionedTokens: [],
     sentimentScore: 0,
     confidenceLevel: 0,

@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'crypto';
 /**
  * Constant-time comparison of the request-supplied secret against the
  * configured `ADMIN_SECRET` env var. Returns false if either side is missing
- * or if the lengths differ — both cases are exposed via the immediate `!secret`
+ * or if the lengths differ - both cases are exposed via the immediate `!secret`
  * / `!expected` short-circuit before reaching the constant-time path, which
  * is fine because length is not the value being protected.
  *

@@ -80,7 +80,7 @@ function fromRow(row: CommitteeSessionRow): CommitteeSession {
 /**
  * Insert a committee session. Surfaces the raw Postgres error code on the
  * thrown error so callers can detect a session_number unique violation
- * (code 23505) and retry with a recomputed hash — `sessionNumber` is part of
+ * (code 23505) and retry with a recomputed hash - `sessionNumber` is part of
  * the reasoning-hash preimage, so a naive retry that mutates only the
  * sessionNumber would desync the on-chain commit from the DB row.
  */

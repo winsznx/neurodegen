@@ -10,7 +10,7 @@ const __dirname = dirname(__filename);
 /**
  * Etherscan expects the exact compiler version that produced the bytecode in
  * the form `v0.8.28+commit.7893614a`. solc.version() returns
- * `0.8.28+commit.7893614a.Emscripten.clang` — strip the platform suffix and
+ * `0.8.28+commit.7893614a.Emscripten.clang` - strip the platform suffix and
  * prepend the `v`.
  */
 function compilerVersionTag(): string {
@@ -33,10 +33,10 @@ async function main(): Promise<void> {
   // Etherscan launched a v2 multichain API in 2024 that accepts ONE key across
   // 50+ chains including BSC. Prefer ETHERSCAN_API_KEY (multichain) if set,
   // fall back to BSCSCAN_API_KEY (legacy single-chain).
-  // BscScan deprecated their V1 API in 2024 — only the Etherscan V2 multichain
+  // BscScan deprecated their V1 API in 2024 - only the Etherscan V2 multichain
   // endpoint accepts new verification submissions. The user can name the env
-  // var ETHERSCAN_API_KEY, BSCSCAN_API_KEY, or BNBSCAN_API_KEY — same key
-  // backing all of them — and we always submit to the V2 endpoint.
+  // var ETHERSCAN_API_KEY, BSCSCAN_API_KEY, or BNBSCAN_API_KEY - same key
+  // backing all of them - and we always submit to the V2 endpoint.
   const apiKey =
     process.env.ETHERSCAN_API_KEY ??
     process.env.BSCSCAN_API_KEY ??
@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   const sourcePath = resolve(__dirname, '../contracts/NeurodegenAttestationV2.sol');
   const source = readFileSync(sourcePath, 'utf8');
 
-  // The constructor takes one `address agent` arg — ABI-encode it as the
+  // The constructor takes one `address agent` arg - ABI-encode it as the
   // 64-char hex string BscScan expects (no 0x prefix).
   const encoded = encodeAbiParameters(
     [{ type: 'address' }],
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   const submit = await fetch(submitUrl, { method: 'POST', body: submitBody });
   const submitJson = (await submit.json()) as { status: string; message: string; result: string };
   if (submitJson.status !== '1') {
-    throw new Error(`verify submit failed: ${submitJson.message} — ${submitJson.result}`);
+    throw new Error(`verify submit failed: ${submitJson.message} - ${submitJson.result}`);
   }
   const guid = submitJson.result;
   console.log(`[verify-v2] submitted, guid=${guid}`);

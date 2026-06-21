@@ -78,7 +78,7 @@ export class PositionTracker {
         closedAt: new Date().toISOString(),
       });
     } else {
-      // No price available — mark CLOSED with a distinct exit reason so the
+      // No price available - mark CLOSED with a distinct exit reason so the
       // UI can render "external close, price unknown" instead of a misleading $0 PnL.
       await updatePositionStatus(p.positionId, {
         status: 'CLOSED',

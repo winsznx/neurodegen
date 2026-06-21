@@ -8,7 +8,7 @@
  * runs, and the hot path costs nothing.
  *
  * Rate limit: 30s minimum gap per event-type key (suppresses health_degradation
- * storms when LLM kill persists). position_update is exempt — every open/close
+ * storms when LLM kill persists). position_update is exempt every open/close
  * is high-signal and unique by txHash. health_degradation also dedupes on
  * `${source}|${message[:80]}` within a 5-minute window.
  */
@@ -141,7 +141,7 @@ class TelegramAlerter {
     return this.started;
   }
 
-  /** Boot notification — called once by the worker after agent loop starts. */
+  /** Boot notification called once by the worker after agent loop starts. */
   async notifyBoot(snapshot: BootSnapshot): Promise<void> {
     if (!this.canSend('boot')) return;
     const text = this.fmtBoot(snapshot);
@@ -149,7 +149,7 @@ class TelegramAlerter {
     this.fire(text);
   }
 
-  /** ERC-8183 job submission hook — fired from agenticCommerce after submit ok. */
+  /** ERC-8183 job submission hook fired from agenticCommerce after submit ok. */
   async notifyErc8183JobSubmitted(payload: Erc8183JobSubmittedPayload): Promise<void> {
     if (!this.canSend('erc8183_job_submitted')) return;
     const text = this.fmtErc8183Job(payload);
@@ -192,7 +192,7 @@ class TelegramAlerter {
     if (!p) return;
     const isClose = p.status === 'closed';
     const text = isClose ? this.fmtPositionClose(p) : this.fmtPositionOpen(p);
-    // position_update is exempt from the 30s floor — every open/close is unique
+    // position_update is exempt from the 30s floor every open/close is unique
     // and high-signal. Still touch lastSentAt for observability.
     this.markSent('position_update');
     this.fire(text);
@@ -287,8 +287,8 @@ class TelegramAlerter {
     const token = p.tokenSymbol ?? 'unknown';
     const size = formatUSD(p.sizeUSD);
     const entry = formatUSD(p.entryPriceUSD);
-    const tp = p.tpPriceUSD != null ? formatUSD(p.tpPriceUSD) : '—';
-    const sl = p.slPriceUSD != null ? formatUSD(p.slPriceUSD) : '—';
+    const tp = p.tpPriceUSD != null ? formatUSD(p.tpPriceUSD) : '-';
+    const sl = p.slPriceUSD != null ? formatUSD(p.slPriceUSD) : '-';
     const txUrl = p.twakTxHash ? `https://bscscan.com/tx/${p.twakTxHash}` : null;
     const lines = [
       `*OPEN* ${escapeMarkdownV2(side)} *${escapeMarkdownV2(token)}*`,

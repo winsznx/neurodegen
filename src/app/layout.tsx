@@ -29,7 +29,7 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: 'NeuroDegen V2 — Investment Committee on BNB Chain',
+    default: 'NeuroDegen V2 - Investment Committee on BNB Chain',
     template: '%s · NeuroDegen',
   },
   description: DESCRIPTION,
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
     type: 'website',
     url: APP_URL,
     siteName: 'NeuroDegen',
-    title: 'NeuroDegen V2 — Investment Committee on BNB Chain',
+    title: 'NeuroDegen V2 - Investment Committee on BNB Chain',
     description: DESCRIPTION,
     images: [
       { url: '/opengraph-image', width: 1200, height: 630, alt: 'NeuroDegen' },

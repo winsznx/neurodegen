@@ -5,7 +5,7 @@ pragma solidity ^0.8.20;
 /// @notice Emits immutable on-chain events for every agent decision, including a
 ///         commit-reveal pair that cryptographically links a reasoning graph to
 ///         the MYX transaction it produced.
-/// @dev Event emission only — no state storage. Access restricted to a single
+/// @dev Event emission only - no state storage. Access restricted to a single
 ///      agent wallet set at construction. Ownership transfer is intentionally
 ///      not supported.
 contract NeurodegenAttestation {

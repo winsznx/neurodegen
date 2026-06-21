@@ -294,7 +294,7 @@ export class AgentLoop {
 
       // V1 audit §3.4.6 + §3.5 step 2 fix: if metrics haven't materially
       // changed AND the open-position count is unchanged, skip cognition
-      // entirely. This is the single biggest cost saver — V1 produced 92.8%
+      // entirely. This is the single biggest cost saver - V1 produced 92.8%
       // hold decisions because it asked the model about static markets.
       const stableHash = this.computeStableMetricsHash(metrics);
       const openCount = (await getOpenPositions().catch(() => [])).length;
@@ -461,11 +461,11 @@ export class AgentLoop {
           timestamp: Date.now(),
         });
 
-        // BNB AI Agent SDK — ERC-8183 agentic-commerce job lifecycle. Self-employed:
+        // BNB AI Agent SDK - ERC-8183 agentic-commerce job lifecycle. Self-employed:
         // the agent's TWAK wallet is both client and provider. Wraps every executed
         // decision as an on-chain job whose deliverable manifest links twakTxHash
         // back to the reasoning hash. Opt-in via ENABLE_ERC8183_JOBS (requires U
-        // token balance for funding). Fire-and-forget — never blocks the cycle.
+        // token balance for funding). Fire-and-forget - never blocks the cycle.
         const sessionForCommerce = {
           ...session,
           attestationCommitTx: execution.attestationCommitTx,

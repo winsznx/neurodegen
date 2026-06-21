@@ -28,7 +28,7 @@ export interface EvGateInput {
 
 /**
  * Decide whether the projected alpha from a premium CMC data call beats the
- * cost of the call itself. Pure function — no side effects, no state, no I/O.
+ * cost of the call itself. Pure function - no side effects, no state, no I/O.
  * The caller (cmcIngester / committeeSession) reads the decision and acts.
  */
 export function evaluateEV(input: EvGateInput): EVDecision {
@@ -51,10 +51,10 @@ export function evaluateEV(input: EvGateInput): EVDecision {
   const rationale = !evGateActive
     ? `regime '${input.regime}' suppresses EV gate (hibernate or volatile defensive); skipping premium fetch`
     : projectedAlphaUSD <= 0
-      ? `projected alpha is zero — base position $${positionSize.toFixed(2)} * regime ${regimeParams.positionSizeMultiplier.toFixed(2)} * |signal| ${Math.abs(input.signalMagnitude).toFixed(3)} = $0`
+      ? `projected alpha is zero - base position $${positionSize.toFixed(2)} * regime ${regimeParams.positionSizeMultiplier.toFixed(2)} * |signal| ${Math.abs(input.signalMagnitude).toFixed(3)} = $0`
       : shouldFetchPremium
-        ? `ratio ${evRatio.toFixed(1)}× >= threshold ${threshold.toFixed(1)}× — fetching premium data`
-        : `ratio ${evRatio.toFixed(1)}× < threshold ${threshold.toFixed(1)}× — skipping premium`;
+        ? `ratio ${evRatio.toFixed(1)}× >= threshold ${threshold.toFixed(1)}× - fetching premium data`
+        : `ratio ${evRatio.toFixed(1)}× < threshold ${threshold.toFixed(1)}× - skipping premium`;
 
   return {
     shouldFetchPremium,

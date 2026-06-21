@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   console.log(`---`);
   for (const trade of result.simulatedTrades) {
     console.log(
-      `#${trade.sessionNumber.toString().padStart(3, '0')} ${trade.action.padEnd(12)} ${trade.tokenSymbol ?? '—'} entry=${trade.entryPriceUSD ?? '—'} exit=${trade.exitPriceUSD ?? '—'} pnl=${trade.pnlPct === null ? '—' : (trade.pnlPct * 100).toFixed(2) + '%'}`,
+      `#${trade.sessionNumber.toString().padStart(3, '0')} ${trade.action.padEnd(12)} ${trade.tokenSymbol ?? '-'} entry=${trade.entryPriceUSD ?? '-'} exit=${trade.exitPriceUSD ?? '-'} pnl=${trade.pnlPct === null ? '-' : (trade.pnlPct * 100).toFixed(2) + '%'}`,
     );
   }
 }

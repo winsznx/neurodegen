@@ -2,7 +2,7 @@
 
 An autonomous **investment-committee trading agent** for BNB Chain. Submission to the BNB Hack: AI Trading Agent Edition (CoinMarketCap × Trust Wallet × BNB Chain).
 
-NeuroDegen runs a three-LLM committee — narrative analyst, quant analyst, risk classifier — that ingests live CoinMarketCap data via the CMC AI Agent Hub, executes BEP-20 swaps **only through Trust Wallet Agent Kit (TWAK)**, and commits its reasoning hash on-chain **before** every trade so any observer can independently reconstruct the decision-to-action chain from BscScan alone.
+NeuroDegen runs a three-LLM committee - narrative analyst, quant analyst, risk classifier - that ingests live CoinMarketCap data via the CMC AI Agent Hub, executes BEP-20 swaps **only through Trust Wallet Agent Kit (TWAK)**, and commits its reasoning hash on-chain **before** every trade so any observer can independently reconstruct the decision-to-action chain from BscScan alone.
 
 **The product is the composition, not the alpha.** This codebase makes no profitability claim. It demonstrates an end-to-end autonomous agent under self-custody, with hard guardrails (149-token allowlist, drawdown ladder, slippage caps, EV-gated outbound payments) and a cryptographically verifiable audit trail across three independent on-chain rails.
 
@@ -28,9 +28,9 @@ Source-of-truth: this is open-source. Fork it, point at your own TWAK wallet, re
 
 NeuroDegen is a **spectator product + reference implementation**, not a consumer app:
 
-1. **Agent builders** who want to deploy a verifiable trading agent under their own self-custody. Fork the repo, point at your own TWAK wallet, set your own mandate, register on the competition contract — your agent inherits the same on-chain audit guarantees.
+1. **Agent builders** who want to deploy a verifiable trading agent under their own self-custody. Fork the repo, point at your own TWAK wallet, set your own mandate, register on the competition contract - your agent inherits the same on-chain audit guarantees.
 2. **Self-custody power users** who refuse to trust opaque "alpha bots" and want to watch / read / pay an agent whose every decision is cryptographically anchored to BSC events.
-3. **Researchers + auditors** who want a working composition of EIP-8004 (identity), EIP-8183 (agentic commerce), x402 (micropayments), and TWAK self-custody signing — all wired and running.
+3. **Researchers + auditors** who want a working composition of EIP-8004 (identity), EIP-8183 (agentic commerce), x402 (micropayments), and TWAK self-custody signing - all wired and running.
 
 What this is NOT (deliberate scope choices):
 
@@ -64,10 +64,10 @@ What this is NOT (deliberate scope choices):
 | Web | [neurodegen.xyz](https://neurodegen.xyz) |
 | Verify any trade | `https://neurodegen.xyz/proof/<twakTxHash>` |
 | Registration status | `GET https://neurodegen.xyz/api/health` → `diagnostics.competition.registration` |
-| ERC-8004 identity | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) — see `diagnostics.bnbAgentSdk.erc8004` |
+| ERC-8004 identity | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) - see `diagnostics.bnbAgentSdk.erc8004` |
 | ERC-8183 commerce | [`0xea4daa3100a767e86fded867729ae7446476eba6`](https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6) |
 
-The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required — every flag is independently verifiable on BscScan.
+The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required - every flag is independently verifiable on BscScan.
 
 ---
 
@@ -75,8 +75,8 @@ The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for 
 
 NeuroDegen runs as two Railway services sharing one Supabase database and one BSC attestation contract.
 
-- **Worker** (`src/worker/index.ts`) — long-lived agent loop. Boot-time competition registration, perception ingestion from CMC, three-LLM committee deliberation, TWAK swap execution, commit-reveal attestation, daily probe scheduling.
-- **Web** (`src/app/`) — Next.js 16 App Router. SSE relay, public health/proof/journal pages, inbound x402 endpoint, admin proxy to the worker.
+- **Worker** (`src/worker/index.ts`) - long-lived agent loop. Boot-time competition registration, perception ingestion from CMC, three-LLM committee deliberation, TWAK swap execution, commit-reveal attestation, daily probe scheduling.
+- **Web** (`src/app/`) - Next.js 16 App Router. SSE relay, public health/proof/journal pages, inbound x402 endpoint, admin proxy to the worker.
 
 ```mermaid
 flowchart TD
@@ -110,21 +110,21 @@ flowchart TD
 
 ### Layer responsibilities
 
-**Perception** — CMC AI Agent Hub via MCP JSON-RPC `tools/call`. Free tier for baseline data; premium tools (deep social, KOL activity, security-risk score) gated through TWAK x402. Pyth Hermes for BTC/ETH/BNB oracle prices used in the divergence check. Outputs an `AggregateMetrics` snapshot per cycle: regime, fear & greed, top movers, KOL activity, funding rates, market liquidity score, security-risk per candidate token.
+**Perception** - CMC AI Agent Hub via MCP JSON-RPC `tools/call`. Free tier for baseline data; premium tools (deep social, KOL activity, security-risk score) gated through TWAK x402. Pyth Hermes for BTC/ETH/BNB oracle prices used in the divergence check. Outputs an `AggregateMetrics` snapshot per cycle: regime, fear & greed, top movers, KOL activity, funding rates, market liquidity score, security-risk per candidate token.
 
-**Cognition** — Three independent LLM members, each with a single role:
+**Cognition** - Three independent LLM members, each with a single role:
 
-- **Narrative Analyst** (Claude Sonnet 4.6) — `narrativeSummary`, `sentimentScore`, `confidenceLevel`, `direction`, `flaggedAnomalies`, `topThesisToken`.
-- **Quant Analyst** (GPT-4o) — `features`, `dominantDirection`, `liquidityAdequate`, `fundingRateWarning`, `recommendedToken`.
-- **Risk Classifier** (DeepSeek v3.2) — receives both analysts' outputs plus the dissent verdict, emits the final `action ∈ {open_long, close_position, adjust_parameters, hold}` with `targetToken` and `confidence`.
+- **Narrative Analyst** (Claude Sonnet 4.6) - `narrativeSummary`, `sentimentScore`, `confidenceLevel`, `direction`, `flaggedAnomalies`, `topThesisToken`.
+- **Quant Analyst** (GPT-4o) - `features`, `dominantDirection`, `liquidityAdequate`, `fundingRateWarning`, `recommendedToken`.
+- **Risk Classifier** (DeepSeek v3.2) - receives both analysts' outputs plus the dissent verdict, emits the final `action ∈ {open_long, close_position, adjust_parameters, hold}` with `targetToken` and `confidence`.
 
 All three are routed through the [DGrid](https://dgrid.ai) LLM gateway with a BYOK → DGrid primary → DGrid fallback chain. The dissent tracker collapses the analyst pair into a half-size or hold modifier; analyst parse-failures are treated as hidden dissent (no false unanimity). Every session is canonicalized and keccak-hashed; the hash is the on-chain attestation primary key.
 
-**Execution** — `twakExecutor.execute()` is the only path to a signed BSC transaction. Eight pre-execution checks fire in sequence (oracle divergence, security-risk score, honeypot flag, slippage headroom, allowlist membership, drawdown tier, daily PnL cap, exposure cap). On pass, the executor commits the reasoning hash on-chain, calls `twakClient.executeSwap()` (TWAK CLI → BSC), then reveals the execution pointer linking `reasoningHash → twakTxHash`.
+**Execution** - `twakExecutor.execute()` is the only path to a signed BSC transaction. Eight pre-execution checks fire in sequence (oracle divergence, security-risk score, honeypot flag, slippage headroom, allowlist membership, drawdown tier, daily PnL cap, exposure cap). On pass, the executor commits the reasoning hash on-chain, calls `twakClient.executeSwap()` (TWAK CLI → BSC), then reveals the execution pointer linking `reasoningHash → twakTxHash`.
 
-**Attestation** — A minimal immutable Solidity contract (`NeurodegenAttestation.sol`) emits five event types: `RegimeChanged`, `PositionOpened`, `PositionClosed`, `ReasoningCommitted` (pre-submit, includes `reasoningHash` + `actionIntent`), `ExecutionRevealed` (post-confirmation, links `reasoningHash` → `twakTxHash`). The contract is verified on BscScan and read directly by the `/proof` page so verification doesn't depend on our database.
+**Attestation** - A minimal immutable Solidity contract (`NeurodegenAttestation.sol`) emits five event types: `RegimeChanged`, `PositionOpened`, `PositionClosed`, `ReasoningCommitted` (pre-submit, includes `reasoningHash` + `actionIntent`), `ExecutionRevealed` (post-confirmation, links `reasoningHash` → `twakTxHash`). The contract is verified on BscScan and read directly by the `/proof` page so verification doesn't depend on our database.
 
-**Risk** — Mandate-aware ladder with a global competition-survival floor:
+**Risk** - Mandate-aware ladder with a global competition-survival floor:
 
 | Drawdown | Tier | Behaviour |
 |---|---|---|
@@ -138,7 +138,7 @@ Plus per-cycle: max 5 concurrent positions, daily PnL cap, mandate-driven consec
 
 ---
 
-## Reasoning gateway — DGrid is primary
+## Reasoning gateway - DGrid is primary
 
 Every committee cycle (narrative + quant + risk) routes through the **DGrid LLM gateway** as the primary path. BYOK Anthropic + OpenAI keys, if set, are tried as a fallback ONLY. The risk classifier (DeepSeek v3.2) has no BYOK path and **always** uses DGrid.
 
@@ -156,36 +156,36 @@ The router preflight ([src/lib/clients/llm/router.ts:103-178](src/lib/clients/ll
 
 ## Observability + transparency
 
-- `/api/health` — env preflight, worker reachability, database health, competition registration state, preflight issues (loud if trading window opens with no registration or with `DRY_RUN_MODE=true`)
-- `/api/events/stream` — SSE feed of `perception_event`, `committee_session_complete`, `position_update`, `regime_change`, `health_degradation`, `agent_status_snapshot`
-- `/journal` — paginated session log with reasoning hash, on-chain commit/reveal txs, dissent verdict, plain-language explanation
-- `/session/[id]` — full committee session detail: each analyst's prompt, raw model output, parsed JSON, latency, cost
-- `/proof/[twakTxHash]` — independent on-chain verification
+- `/api/health` - env preflight, worker reachability, database health, competition registration state, preflight issues (loud if trading window opens with no registration or with `DRY_RUN_MODE=true`)
+- `/api/events/stream` - SSE feed of `perception_event`, `committee_session_complete`, `position_update`, `regime_change`, `health_degradation`, `agent_status_snapshot`
+- `/journal` - paginated session log with reasoning hash, on-chain commit/reveal txs, dissent verdict, plain-language explanation
+- `/session/[id]` - full committee session detail: each analyst's prompt, raw model output, parsed JSON, latency, cost
+- `/proof/[twakTxHash]` - independent on-chain verification
 
 ---
 
 ## BNB AI Agent SDK integration
 
-NeuroDegen integrates the [BNB AI Agent SDK](https://github.com/bnb-chain/bnbagent-sdk) at two layers via the corresponding TWAK CLI subcommands (`twak erc8004 …`, `twak erc8183 …`, `twak wallet sign-message`). **TWAK remains the sole signing path** — the Node worker never touches a private key for any of the SDK calls.
+NeuroDegen integrates the [BNB AI Agent SDK](https://github.com/bnb-chain/bnbagent-sdk) at two layers via the corresponding TWAK CLI subcommands (`twak erc8004 …`, `twak erc8183 …`, `twak wallet sign-message`). **TWAK remains the sole signing path** - the Node worker never touches a private key for any of the SDK calls.
 
-### ERC-8004 — agent identity
+### ERC-8004 - agent identity
 
 At first boot the worker calls `twak erc8004 register` with a `data:application/json;base64,…` agent card embedding the canonical EIP-8004 type. The resulting `agentId` is persisted to `worker_state` so subsequent boots are no-ops. Registration is idempotent, has no deadline, and is non-fatal on failure. See [src/lib/services/bnbAgentRegistration.ts](src/lib/services/bnbAgentRegistration.ts).
 
 The agent card declares three supportedTrust profiles:
 
-- `erc-8004-identity` — this registration
-- `erc-8183-commerce` — the per-decision job lifecycle below
-- `neurodegen-attestation-commit-reveal` — the AttestationEmitter pattern
+- `erc-8004-identity` - this registration
+- `erc-8183-commerce` - the per-decision job lifecycle below
+- `neurodegen-attestation-commit-reveal` - the AttestationEmitter pattern
 
-### ERC-8183 — agentic commerce per committee decision
+### ERC-8183 - agentic commerce per committee decision
 
 When `ENABLE_ERC8183_JOBS=true` and the agent wallet holds U-tokens (`0xcE24439F…666666`, 18 dec), each executed committee decision triggers a **self-employed job lifecycle**: the agent's TWAK wallet is both the client and the provider. After the TWAK swap lands and the reveal attestation fires, the agent runs:
 
-1. **Negotiate** — build a `NegotiationContent` JSON (task, terms, deliverables, success_criteria), canonicalise via sorted-key JSON, keccak256 the canonical bytes, sign the digest via `twak wallet sign-message` (EIP-191 personal_sign) — the `provider_sig` proves the agent agreed to its own price before funding.
-2. **Create** — `twak erc8183 create-job` with `provider = agent wallet`, `evaluator = OptimisticPolicy`, `expiredAt = now + 24h`, `description` encoding both the negotiation hash and the reasoning hash.
-3. **Budget + Fund** — `twak erc8183 set-budget` then `twak erc8183 fund` for `ERC8183_JOB_BUDGET_WEI` (default `1e16` = 0.01 U).
-4. **Submit** — build a `DeliverableManifest` JSON embedding `{reasoningHash, twakTxHash, attestationCommitTx, attestationRevealTx, action, confidence, executedAt}`, canonicalise + keccak256 → `bytes32 deliverable`, call `twak erc8183 submit`.
+1. **Negotiate** - build a `NegotiationContent` JSON (task, terms, deliverables, success_criteria), canonicalise via sorted-key JSON, keccak256 the canonical bytes, sign the digest via `twak wallet sign-message` (EIP-191 personal_sign) - the `provider_sig` proves the agent agreed to its own price before funding.
+2. **Create** - `twak erc8183 create-job` with `provider = agent wallet`, `evaluator = OptimisticPolicy`, `expiredAt = now + 24h`, `description` encoding both the negotiation hash and the reasoning hash.
+3. **Budget + Fund** - `twak erc8183 set-budget` then `twak erc8183 fund` for `ERC8183_JOB_BUDGET_WEI` (default `1e16` = 0.01 U).
+4. **Submit** - build a `DeliverableManifest` JSON embedding `{reasoningHash, twakTxHash, attestationCommitTx, attestationRevealTx, action, confidence, executedAt}`, canonicalise + keccak256 → `bytes32 deliverable`, call `twak erc8183 submit`.
 
 The 7-day OptimisticPolicy dispute window then acts as a tamper-evident time-locked audit trail: anyone can settle the job after the window closes, and the on-chain `JobSubmitted(jobId, provider, deliverable)` event hash matches `keccak256(canonical(manifest))` byte-for-byte.
 
@@ -201,15 +201,15 @@ Three on-chain protocols layered for **redundant verifiability** of the same dec
 | **ERC-8183 agentic commerce** | The committee was paid to execute the decision, agreed to its own price off-chain, and submitted a manifest whose hash recomputes from the persisted session row |
 | **ERC-8004 identity** | The wallet that committed, executed, and submitted is the same registered agent identity |
 
-Anyone can independently reconstruct the decision-to-execution chain from BscScan alone, cross-checking three distinct contracts — without ever calling our API.
+Anyone can independently reconstruct the decision-to-execution chain from BscScan alone, cross-checking three distinct contracts - without ever calling our API.
 
 ---
 
 ## x402 in the trade loop
 
-**Outbound** — Cognition calls into CMC's premium MCP tools (e.g. deep social, KOL velocity, token security score) only when the EV gate says the expected information value clears the micropayment cost. Each x402 call goes through `twak x402 request --max-payment` so payment authorisation never leaves the agent wallet. Daily spend tracker enforces a hard cap.
+**Outbound** - Cognition calls into CMC's premium MCP tools (e.g. deep social, KOL velocity, token security score) only when the EV gate says the expected information value clears the micropayment cost. Each x402 call goes through `twak x402 request --max-payment` so payment authorisation never leaves the agent wallet. Daily spend tracker enforces a hard cap.
 
-**Inbound** — `GET /api/x402/session/[id]` returns a `402 Payment Required` challenge with a USDT-on-BSC recipient + amount when called without an `X-Payment-Proof` header. With a valid USDT transfer receipt to the configured revenue address, the proof is atomically inserted to `consumed_x402_proofs` (race-safe via primary-key unique violation) and the session is returned. The revenue address is normalised via `getAddress()` at module load so case-mismatched env vars surface immediately.
+**Inbound** - `GET /api/x402/session/[id]` returns a `402 Payment Required` challenge with a USDT-on-BSC recipient + amount when called without an `X-Payment-Proof` header. With a valid USDT transfer receipt to the configured revenue address, the proof is atomically inserted to `consumed_x402_proofs` (race-safe via primary-key unique violation) and the session is returned. The revenue address is normalised via `getAddress()` at module load so case-mismatched env vars surface immediately.
 
 ---
 

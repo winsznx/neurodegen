@@ -91,7 +91,7 @@ describe('ensureCompetitionRegistration', () => {
     // #given
     getWorkerStateMock.mockResolvedValueOnce(null);
 
-    // #when — one second after the deadline
+    // #when - one second after the deadline
     const result = await ensureCompetitionRegistration(new Date('2026-06-22T00:00:01Z'));
 
     // #then
@@ -128,7 +128,7 @@ describe('preflightCompetitionState', () => {
     // #given
     getWorkerStateMock.mockResolvedValueOnce(null);
 
-    // #when — well before the 6/22 open
+    // #when - well before the 6/22 open
     const issues = await preflightCompetitionState(new Date('2026-06-17T00:00:00Z'));
 
     // #then
@@ -139,7 +139,7 @@ describe('preflightCompetitionState', () => {
     // #given
     getWorkerStateMock.mockResolvedValueOnce(null);
 
-    // #when — one second after window open
+    // #when - one second after window open
     const issues = await preflightCompetitionState(new Date('2026-06-22T00:00:01Z'));
 
     // #then

@@ -8,7 +8,7 @@
  *  - `undefined` values and properties are omitted (matches JSON.stringify).
  *  - `bigint` values are serialized as their decimal string ("1n" → "1").
  *  - `Date` values are serialized as their ISO string.
- *  - Cycles throw — refusing to silently lie about a graph is better than
+ *  - Cycles throw - refusing to silently lie about a graph is better than
  *    pretending the hash means anything.
  */
 export function canonicalize(value: unknown): string {
@@ -51,7 +51,7 @@ export function canonicalize(value: unknown): string {
 
 /**
  * Sugar over canonicalize() for objects that don't tolerate the cycle check
- * (e.g. you've already cloned safely upstream) — same output.
+ * (e.g. you've already cloned safely upstream) - same output.
  */
 export function canonicalizeShape<T>(value: T): string {
   return canonicalize(value);

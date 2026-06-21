@@ -60,9 +60,9 @@ export default async function JournalPage() {
                     </td>
                     <td className="border-b border-border/40 py-2 pr-4">{s.regime}</td>
                     <td className="border-b border-border/40 py-2 pr-4">{s.finalAction.action}</td>
-                    <td className="border-b border-border/40 py-2 pr-4">{s.finalAction.tokenSymbol ?? '—'}</td>
-                    <td className="border-b border-border/40 py-2 pr-4">{s.dissentResult.dissentDetected ? 'yes' : '—'}</td>
-                    <td className="border-b border-border/40 py-2 pr-4">{p?.pnlPct == null ? '—' : `${(p.pnlPct * 100).toFixed(2)}%`}</td>
+                    <td className="border-b border-border/40 py-2 pr-4">{s.finalAction.tokenSymbol ?? '-'}</td>
+                    <td className="border-b border-border/40 py-2 pr-4">{s.dissentResult.dissentDetected ? 'yes' : '-'}</td>
+                    <td className="border-b border-border/40 py-2 pr-4">{p?.pnlPct == null ? '-' : `${(p.pnlPct * 100).toFixed(2)}%`}</td>
                     <td className="border-b border-border/40 py-2 pr-4">
                       {p?.twakTxHash ? (
                         <a
@@ -74,7 +74,7 @@ export default async function JournalPage() {
                           BscScan
                         </a>
                       ) : (
-                        '—'
+                        '-'
                       )}
                     </td>
                   </tr>

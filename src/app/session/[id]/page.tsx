@@ -26,7 +26,7 @@ export async function generateMetadata({
   const session = await getSessionById(id).catch(() => null);
   if (!session) return { title: 'Session not found' };
   return {
-    title: `Session #${session.sessionNumber} · ${session.finalAction.action} · ${session.finalAction.tokenSymbol ?? '—'}`,
+    title: `Session #${session.sessionNumber} · ${session.finalAction.action} · ${session.finalAction.tokenSymbol ?? '-'}`,
     description: session.finalAction.plainLanguageExplanation,
     openGraph: {
       images: [`/api/og/session/${id}`],
@@ -55,7 +55,7 @@ export default async function SessionDetailPage({
           session #{session.sessionNumber} · {session.regime} · F&amp;G {session.fearGreedAtSession}
         </p>
         <h1 className="mt-2 font-display text-3xl text-text-primary">
-          {session.finalAction.action.toUpperCase()} · {session.finalAction.tokenSymbol ?? '—'}
+          {session.finalAction.action.toUpperCase()} · {session.finalAction.tokenSymbol ?? '-'}
         </h1>
         <p className="mt-3 max-w-3xl text-text-secondary">
           {session.finalAction.plainLanguageExplanation}

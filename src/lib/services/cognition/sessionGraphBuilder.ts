@@ -156,15 +156,15 @@ function buildPlainLanguageExplanation(args: {
 }): string {
   if (args.action === 'hold') {
     if (args.collapsedFromAction && args.collapsedFromAction !== 'hold') {
-      return `Committee held — risk classifier proposed ${args.collapsedFromAction} but regime/dissent/mandate stack collapsed size to $0. No trade fired.`;
+      return `Committee held - risk classifier proposed ${args.collapsedFromAction} but regime/dissent/mandate stack collapsed size to $0. No trade fired.`;
     }
     if (args.dissent.dissentSeverity === 'strong') {
-      return `Committee held — analysts disagreed strongly (narrative ${args.dissent.narrativeDirection}, quant ${args.dissent.quantDirection}).`;
+      return `Committee held - analysts disagreed strongly (narrative ${args.dissent.narrativeDirection}, quant ${args.dissent.quantDirection}).`;
     }
     if (!args.quant.liquidityAdequate) {
-      return `Committee held — quant flagged inadequate liquidity for all candidate tokens.`;
+      return `Committee held - quant flagged inadequate liquidity for all candidate tokens.`;
     }
-    return `Committee held — regime ${args.regime}, no setup met the confidence threshold.`;
+    return `Committee held - regime ${args.regime}, no setup met the confidence threshold.`;
   }
   if (args.action === 'close_position') {
     return `Committee closed an open position. Regime ${args.regime}.`;

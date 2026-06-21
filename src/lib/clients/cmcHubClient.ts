@@ -72,7 +72,7 @@ async function callMcp<T>(
 
   if (useX402 && !ENABLE_X402_OUTBOUND) {
     throw new Error(
-      'callMcp: no CMC_PRO_API_KEY and ENABLE_X402_OUTBOUND=false — cannot reach CMC. Set one of them.',
+      'callMcp: no CMC_PRO_API_KEY and ENABLE_X402_OUTBOUND=false. Cannot reach CMC. Set one of them.',
     );
   }
   if (useX402 && !getCmcX402Pay()) {
@@ -146,7 +146,7 @@ async function callMcp<T>(
     try {
       parsed = JSON.parse(textBlocks) as T;
     } catch {
-      // The tool may already return text — preserve raw.
+      // The tool may already return text preserve raw.
       parsed = textBlocks as unknown as T;
     }
   } else {

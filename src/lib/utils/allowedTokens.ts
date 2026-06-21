@@ -49,7 +49,7 @@ export function allowedTokenSymbols(): string[] {
   return Object.keys(runtimeAllowlist);
 }
 
-/** Static seed export — used by Risk Classifier prompt for predictable behavior in dev. */
+/** Static seed export - used by Risk Classifier prompt for predictable behavior in dev. */
 export const ALLOWED_TOKEN_SYMBOLS: string[] = Object.freeze(
   Object.keys(SEED_ALLOWLIST),
 ) as string[];

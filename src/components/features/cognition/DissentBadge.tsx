@@ -10,7 +10,7 @@ export function DissentBadge({ result }: Props) {
   if (!result.dissentDetected) {
     return (
       <div className="rounded-md border border-positive/40 bg-positive/10 px-3 py-2 font-mono text-[11px] text-positive">
-        Committee unanimous — narrative {result.narrativeDirection} · quant {result.quantDirection}
+        Committee unanimous, narrative {result.narrativeDirection} · quant {result.quantDirection}
       </div>
     );
   }

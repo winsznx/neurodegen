@@ -7,7 +7,7 @@ export interface RegimeParameters {
   slPercentage: number;
   cooldownAfterLossMs: number;
   evGateActive: boolean;
-  /** When true, the agent does no committee session — only the probe trade fires. */
+  /** When true, the agent does no committee session only the probe trade fires. */
   hibernate: boolean;
 }
 

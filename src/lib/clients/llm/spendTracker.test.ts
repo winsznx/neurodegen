@@ -17,7 +17,7 @@ describe('llmSpendTracker', () => {
     // #given a never-before-seen model
     llmSpendTracker.recordCall('unknown/model', 1_000_000, 0);
     // #then it falls back to the conservatively-high default ($3/M input)
-    // — refreshed in the 2026 rate-card update so unknown models trip the
+    // refreshed in the 2026 rate-card update so unknown models trip the
     // kill earlier, not later, than reality.
     expect(llmSpendTracker.status().dailyUSD).toBeCloseTo(3, 4);
   });

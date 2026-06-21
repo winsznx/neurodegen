@@ -10,7 +10,7 @@ interface Props {
 }
 
 /**
- * Position Explainer modal — PRD §8.5. Triggered from the dashboard
+ * Position Explainer modal PRD §8.5. Triggered from the dashboard
  * "Why?" button. Loads the session and renders the plain-language
  * explanation, dissent flag, and a link to the full session detail.
  */
@@ -78,7 +78,7 @@ export function PositionExplainerModal({ sessionId, onClose }: Props) {
             </p>
             <h2 className="mt-2 font-display text-2xl text-text-primary">
               {session.finalAction.action.toUpperCase()} ·{' '}
-              {session.finalAction.tokenSymbol ?? '—'}
+              {session.finalAction.tokenSymbol ?? '-'}
             </h2>
 
             <p className="mt-4 text-text-secondary">
@@ -101,7 +101,7 @@ export function PositionExplainerModal({ sessionId, onClose }: Props) {
                 value={
                   session.dissentResult.dissentDetected
                     ? `${session.dissentResult.dissentSeverity} (modifier ×${session.dissentResult.positionSizeModifier.toFixed(2)})`
-                    : 'none — committee aligned'
+                    : 'none. Committee aligned.'
                 }
               />
               <Row

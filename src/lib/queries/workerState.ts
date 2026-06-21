@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from '@/lib/clients/supabase';
  * Currently used by the probe-trade scheduler (`lastProbeDay`) so a worker
  * crash between 00:00 UTC and the daily probe window can't cause two
  * probes to fire the same day. Other restart-sensitive scheduler state
- * should land here too — one row per key, no migrations needed.
+ * should land here too - one row per key, no migrations needed.
  */
 export async function getWorkerState<T>(key: string): Promise<T | null> {
   const { data, error } = await getSupabaseAdmin()

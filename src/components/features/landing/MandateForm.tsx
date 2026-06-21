@@ -45,7 +45,7 @@ export function MandateForm() {
         <h2 className="font-display text-xl text-text-primary">Mandate saved</h2>
         <p className="mt-2 text-text-secondary">
           Your mandate is saved locally. Connect Trust Wallet to grant the agent
-          its execution scope — coming in the live trading window.
+          its execution scope. Coming in the live trading window.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link

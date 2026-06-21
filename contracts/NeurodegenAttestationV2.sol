@@ -7,10 +7,10 @@ pragma solidity ^0.8.20;
 ///         with three new event families: liquidity in/out, co-launch handshakes,
 ///         and mandate attestations. Source is published in-repo so judges and
 ///         operators can audit the V2 design surface; the contract is intentionally
-///         NOT deployed before the 2026-06-28 live trading window — V1 carries the
+///         NOT deployed before the 2026-06-28 live trading window - V1 carries the
 ///         live attestation traffic to avoid pre-competition deploy risk. V2 ships
 ///         after the window closes as part of the V2.1 release.
-/// @dev    Event emission only — no state, no upgrades, no proxy. Access restricted
+/// @dev    Event emission only - no state, no upgrades, no proxy. Access restricted
 ///         to a single agent wallet set at construction. Compatible ABI for the V1
 ///         commit-reveal pair (function selectors match) so a switchover is a
 ///         single-env-var change in the worker.
@@ -61,7 +61,7 @@ contract NeurodegenAttestationV2 {
     );
 
     /* ============================================================
-       V2 new events — liquidity, co-launch, mandate, x402 revenue
+       V2 new events - liquidity, co-launch, mandate, x402 revenue
        ============================================================ */
 
     /// @notice Attests that funds flowed INTO the agent's TWAK wallet. Off-chain
@@ -79,7 +79,7 @@ contract NeurodegenAttestationV2 {
         uint256 timestamp
     );
 
-    /// @notice Symmetric to LiquidityIn — funds flowing OUT (fee payouts,
+    /// @notice Symmetric to LiquidityIn - funds flowing OUT (fee payouts,
     ///         user-mandated withdrawals, ERC-8183 job funding).
     event LiquidityOut(
         bytes32 indexed reason,

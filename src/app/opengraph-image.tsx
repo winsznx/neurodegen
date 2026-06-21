@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-export const alt = 'NeuroDegen — on-chain proof of AI reasoning';
+export const alt = 'NeuroDegen: on-chain proof of AI reasoning';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 

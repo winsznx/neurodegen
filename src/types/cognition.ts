@@ -121,7 +121,7 @@ export interface ExecutionResultRecord {
   /**
    * True when the execution result was produced by `DRY_RUN_MODE=true`.
    * The twakTxHash on such rows is a synthetic hash with no on-chain
-   * counterpart — UI surfaces should label these as simulated.
+   * counterpart UI surfaces should label these as simulated.
    */
   dryRun?: boolean;
 }

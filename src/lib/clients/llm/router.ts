@@ -214,7 +214,7 @@ export async function routeCommitteeCall(
   const eligible = candidates.filter((c) => c.preflight());
   if (eligible.length === 0) {
     throw new Error(
-      `No eligible LLM candidate for ${params.member} — set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DGRID_API_KEY`,
+      `No eligible LLM candidate for ${params.member}. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DGRID_API_KEY`,
     );
   }
 

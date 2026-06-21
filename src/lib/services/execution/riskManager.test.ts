@@ -46,7 +46,7 @@ describe('classifyDrawdownTier', () => {
   });
 
   it('preserves an alert band when the mandate halt is far enough above the global alert', () => {
-    // #given a mandate that halts at 22% — leaves 15%-17% as the alert band
+    // #given a mandate that halts at 22% - leaves 15%-17% as the alert band
     expect(classifyDrawdownTier(0.16, 0.22)).toBe('alert');
     expect(classifyDrawdownTier(0.18, 0.22)).toBe('defensive');
     expect(classifyDrawdownTier(0.22, 0.22)).toBe('halt');
@@ -110,7 +110,7 @@ describe('RiskManager.canAct', () => {
     const conservativeMandate = { ...DEFAULT_MANDATE, maxDrawdownPct: 0.18 };
     const mgr = new RiskManager(conservativeMandate);
 
-    // #when drawdown is 19% — above the user's halt but below the global 25%
+    // #when drawdown is 19% - above the user's halt but below the global 25%
     const state = { ...baseState, currentDrawdownFromPeak: 0.19 };
     const verdict = mgr.canAct(openLong(50), state, [], portfolioUSD);
 
@@ -189,7 +189,7 @@ describe('updateDrawdownFromValue', () => {
     expect(state.peakPortfolioValueUSD).toBe(1_500);
     expect(state.currentDrawdownFromPeak).toBe(0);
 
-    // #when value drops to $1,200 (15% under peak — alert tier)
+    // #when value drops to $1,200 (15% under peak - alert tier)
     state = updateDrawdownFromValue(state, 1_275);
     expect(state.currentDrawdownFromPeak).toBeCloseTo(0.15, 3);
   });

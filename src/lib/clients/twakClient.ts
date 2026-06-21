@@ -364,7 +364,7 @@ export class TWAKClient {
   }
 
   // =====================================================================
-  // ERC-8004 (Identity Registry) — BSC mainnet: 0x8004A169…a432
+  // ERC-8004 (Identity Registry) - BSC mainnet: 0x8004A169…a432
   // =====================================================================
 
   async erc8004Register(args: {
@@ -423,7 +423,7 @@ export class TWAKClient {
   }
 
   // =====================================================================
-  // ERC-8183 (Agentic Commerce) — BSC mainnet: 0xea4daa…eba6
+  // ERC-8183 (Agentic Commerce) - BSC mainnet: 0xea4daa…eba6
   // =====================================================================
 
   async erc8183CreateJob(args: {
@@ -552,7 +552,7 @@ export class TWAKClient {
   }
 
   // =====================================================================
-  // EIP-191 personal_sign — used by ERC-8183 NegotiationHandler provider_sig
+  // EIP-191 personal_sign - used by ERC-8183 NegotiationHandler provider_sig
   // =====================================================================
 
   async walletSignMessage(args: {

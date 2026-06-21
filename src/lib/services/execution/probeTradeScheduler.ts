@@ -22,7 +22,7 @@ const PROBE_STATE_KEY = 'probe_scheduler/v1';
  *
  * V2 Phase 2 audit fix: previously the scheduler kept `lastProbeDay` in
  * memory only, so a crash plus restart on the same day would replay the
- * probe — blowing the "first trade of the day must be the probe" compliance
+ * probe - blowing the "first trade of the day must be the probe" compliance
  * signal we rely on.
  */
 export async function loadPersistedProbeState(): Promise<ProbeTradeSchedulerState> {
@@ -31,7 +31,7 @@ export async function loadPersistedProbeState(): Promise<ProbeTradeSchedulerStat
     return row ?? { lastProbeDay: null };
   } catch (err) {
     console.error(
-      '[probe] failed to load persisted state — defaulting to in-memory:',
+      '[probe] failed to load persisted state - defaulting to in-memory:',
       err instanceof Error ? err.message : String(err),
     );
     return { lastProbeDay: null };

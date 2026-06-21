@@ -38,7 +38,7 @@ Rules:
 - sentimentScore ranges from -1.0 (extreme fear/inactivity) to 1.0 (extreme greed/frenzy).
 - confidenceLevel ranges from 0.0 (no clear signal) to 1.0 (strong, multi-source confirmation).
 - direction must be exactly one of: bullish, bearish, neutral.
-- topThesisToken: the single symbol you believe has the strongest narrative tailwind right now, or null if no clear thesis. The symbol must come from the input — do not invent.
+- topThesisToken: the single symbol you believe has the strongest narrative tailwind right now, or null if no clear thesis. The symbol must come from the input; do not invent.
 - Respond ONLY with the JSON schema below. No preamble. No markdown. Raw JSON only.
 
 Output schema:

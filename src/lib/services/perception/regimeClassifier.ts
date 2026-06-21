@@ -34,7 +34,7 @@ export function emptyRegimeState(): RegimeClassifierState {
 
 /**
  * Classify the current regime. Reads + mutates the state for the volatile
- * exit cooldown — once the regime enters volatile, it stays volatile until
+ * exit cooldown - once the regime enters volatile, it stays volatile until
  * `REGIME_VOLATILE_EXIT_COOLDOWN_MS` of sustained recovery is observed.
  *
  * The caller still owns `state.lastRegime` and updates it via
@@ -50,11 +50,11 @@ export function classifyRegime(
 
   if (previousRegime === 'volatile') {
     if (metricsVolatile) {
-      // Still volatile — reset any exit candidate.
+      // Still volatile - reset any exit candidate.
       state.lastVolatileExitCandidateAt = null;
       return classification('volatile', previousRegime, now, 'metrics remain volatile');
     }
-    // Metrics recovered — start or honor the cooldown.
+    // Metrics recovered - start or honor the cooldown.
     if (state.lastVolatileExitCandidateAt === null) {
       state.lastVolatileExitCandidateAt = now;
       return classification(
@@ -73,7 +73,7 @@ export function classifyRegime(
         `volatile exit cooldown ${Math.max(0, REGIME_VOLATILE_EXIT_COOLDOWN_MS - elapsed)}ms remaining`,
       );
     }
-    // Cooldown satisfied — clear candidate and exit volatile.
+    // Cooldown satisfied - clear candidate and exit volatile.
     state.lastVolatileExitCandidateAt = null;
     const next = baseClassify(metrics);
     return classification(

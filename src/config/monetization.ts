@@ -6,7 +6,7 @@ export const X402_INBOUND_PRICE_USDT_HUMAN: string = process.env.X402_INBOUND_PR
 export const X402_INBOUND_TOKEN_SYMBOL: string = 'USDT';
 export const X402_INBOUND_NETWORK: 'bsc' | 'base' = 'bsc';
 
-// Revenue address — receives inbound x402 settlements. Set per-deploy; required in prod for
+// Revenue address receives inbound x402 settlements. Set per-deploy; required in prod for
 // the inbound endpoint to function. Empty string in dev short-circuits to a 503.
 export const X402_REVENUE_ADDRESS: `0x${string}` | '' =
   (process.env.X402_REVENUE_ADDRESS as `0x${string}` | undefined) ?? '';

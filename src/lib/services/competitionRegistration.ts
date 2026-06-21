@@ -27,7 +27,7 @@ export type EnsureRegistrationResult =
  * Idempotently register the agent wallet on the competition contract.
  *
  *  - If a fresh registration record exists in `worker_state`, return it.
- *  - If we're inside DRY_RUN_MODE, skip the live call (loudly) — synthetic tx
+ *  - If we're inside DRY_RUN_MODE, skip the live call (loudly) - synthetic tx
  *    hashes have no on-chain counterpart and would never be accepted as proof.
  *  - If the registration deadline has already passed, bail with a clear reason
  *    so the operator notices and doesn't silently run an ineligible agent.
@@ -35,7 +35,7 @@ export type EnsureRegistrationResult =
  *    return it.
  *
  * Errors are caught and surfaced as `{ ok: false }` so the worker can boot
- * even when registration fails — the agent should keep the codepaths warm
+ * even when registration fails - the agent should keep the codepaths warm
  * even if its trades don't count this run.
  */
 export async function ensureCompetitionRegistration(
@@ -53,7 +53,7 @@ export async function ensureCompetitionRegistration(
       ok: false,
       reason: 'dry_run_skipped',
       message:
-        'DRY_RUN_MODE=true — skipping on-chain `twak compete register`. Set DRY_RUN_MODE=false before the trading window opens.',
+        'DRY_RUN_MODE=true - skipping on-chain `twak compete register`. Set DRY_RUN_MODE=false before the trading window opens.',
     };
   }
 
@@ -101,7 +101,7 @@ export async function preflightCompetitionState(
   const windowOpen = !Number.isNaN(start) && now.getTime() >= start;
   if (windowOpen && DRY_RUN_MODE) {
     issues.push(
-      `trading window OPEN (since ${COMPETITION_TRADING_WINDOW_START}) but DRY_RUN_MODE=true — no real trades will land`,
+      `trading window OPEN (since ${COMPETITION_TRADING_WINDOW_START}) but DRY_RUN_MODE=true - no real trades will land`,
     );
   }
   const cached = await getWorkerState<PersistedCompetitionRegistration>(

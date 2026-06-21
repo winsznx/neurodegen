@@ -1,7 +1,7 @@
 # DoraHacks submission package
 
 **Hackathon:** BNB Hack: AI Trading Agent Edition (CoinMarketCap × Trust Wallet)
-**Track:** Track 1 — Autonomous Trading Agents ($24,000)
+**Track:** Track 1 - Autonomous Trading Agents ($24,000)
 **Specials targeted:** Best Use of Trust Wallet Agent Kit ($2,000), Best Use of Agent Hub ($2,000), Best Use of BNB AI Agent SDK ($2,000)
 **Repo:** https://github.com/<owner>/neurodegen *(fill in before submitting)*
 **Live demo:** https://neurodegen.xyz
@@ -44,7 +44,7 @@ NeuroDegen V2 is an autonomous **investment-committee trading agent** for BNB Ch
 
 **The guardrails.** A five-tier drawdown ladder (normal/alert/defensive/halt/disqualified) hard-stops execution at the competition's 25% halt floor and disqualification is impossible below the global 30% line. The risk manager derives total exposure live from the position book on every cycle (the audit found and fixed a stale-state cap-bypass during Phase E). A daily probe-trade scheduler at 18:00 UTC guarantees at least one qualifying trade per day even in quiet markets; `lastProbeDay` is persisted to Postgres so a worker restart cannot double-fire. The agent will not trade outside the 149-token list. The agent will not bypass `PreExecutionChecker`. The agent never holds user funds.
 
-**The honest disclosure.** This is a composition demonstration, not an alpha claim. The codebase makes no profitability promise. What it demonstrates is end-to-end autonomous agent execution under self-custody with a cryptographically verifiable audit trail — every component (perception, cognition, execution, attestation) verifiable from public artefacts (CMC, TWAK output, BSC events) without ever trusting our infrastructure.
+**The honest disclosure.** This is a composition demonstration, not an alpha claim. The codebase makes no profitability promise. What it demonstrates is end-to-end autonomous agent execution under self-custody with a cryptographically verifiable audit trail - every component (perception, cognition, execution, attestation) verifiable from public artefacts (CMC, TWAK output, BSC events) without ever trusting our infrastructure.
 
 ---
 
@@ -70,35 +70,35 @@ The Best Use of TWAK rubric (5 categories, 100 points). How NeuroDegen scores ea
 | Category | Pts | Evidence |
 |---|---|---|
 | TWAK integration depth | 30 | TWAK is the **sole** signing path. We use ≥3 surfaces: `twak compete register` (on-chain identity), `twak swap` (execution), `twak x402 request` (outbound micropayments to CMC premium tools). |
-| Self-custody integrity | 25 | The Node worker never touches a private key. Every signing operation is delegated to the TWAK CLI process. No Privy/Magic/custodial component anywhere in the trade path. (Privy was in V1; stripped in Phase F — `git log` shows the dep removal commit.) |
+| Self-custody integrity | 25 | The Node worker never touches a private key. Every signing operation is delegated to the TWAK CLI process. No Privy/Magic/custodial component anywhere in the trade path. (Privy was in V1; stripped in Phase F - `git log` shows the dep removal commit.) |
 | Autonomous execution + guardrails | 20 | Hands-off agent loop with hard rules: 149-token allowlist, mandate-driven drawdown ladder (alert/defensive/halt/DQ), slippage cap, daily PnL cap, per-position size cap, exposure cap derived live, consecutive-loss halt. |
-| Native x402 usage | 10 | Outbound — CMC premium tools paid per-request via `twak x402 request --max-payment` with daily-spend cap. Inbound — `/api/x402/session/[id]` sells session data via USDT-on-BSC micropayments with atomic replay protection. |
-| Originality + RWR | 10 | Three-LLM committee with structured dissent, plain-language explanation surfacing override rationale, and on-chain commit-reveal — distinct from "LLM-as-trader" baseline. Self-custody user can let it run unattended. |
+| Native x402 usage | 10 | Outbound - CMC premium tools paid per-request via `twak x402 request --max-payment` with daily-spend cap. Inbound - `/api/x402/session/[id]` sells session data via USDT-on-BSC micropayments with atomic replay protection. |
+| Originality + RWR | 10 | Three-LLM committee with structured dissent, plain-language explanation surfacing override rationale, and on-chain commit-reveal - distinct from "LLM-as-trader" baseline. Self-custody user can let it run unattended. |
 | Demo | 5 | `/proof/[twakTxHash]` provides one-click independent verification. `/journal` paginated session log. `/api/health` exposes preflight + registration state. |
 
 ---
 
 ## Agent Hub special-prize scoring map
 
-Best Use of Agent Hub — the criterion is using the most of the CMC AI Agent Hub surface (MCP, x402, CMC CLI, IDE integrations, Skills).
+Best Use of Agent Hub - the criterion is using the most of the CMC AI Agent Hub surface (MCP, x402, CMC CLI, IDE integrations, Skills).
 
 | Surface | How NeuroDegen uses it |
 |---|---|
 | MCP | `cmcHubClient.ts` is a MCP JSON-RPC `tools/call` client over the hub's transport. Free-tier tools feed every perception cycle. |
 | x402 outbound | Premium tools (deep social, KOL velocity, security-risk score) gated by an EV calculation; payments authorised via `twak x402 request --max-payment`. Daily spend cap. |
-| Skills | The cognition committee — Narrative Analyst, Quant Analyst, Risk Classifier — are authored as system prompts pluggable as CMC Skills (Track 2-style strategy specs). |
+| Skills | The cognition committee - Narrative Analyst, Quant Analyst, Risk Classifier - are authored as system prompts pluggable as CMC Skills (Track 2-style strategy specs). |
 
 ---
 
 ## BNB AI Agent SDK special-prize scoring map
 
-The Best Use of BNB AI Agent SDK rubric — "most inventive integration of the SDK". NeuroDegen integrates BOTH ERC-8004 (identity) AND ERC-8183 (agentic commerce) via the TWAK CLI's native subcommands, keeping TWAK as the sole signing path. Three on-chain protocols (AttestationEmitter commit-reveal + ERC-8183 commerce + ERC-8004 identity) are layered for redundant verifiability of the same trade decision.
+The Best Use of BNB AI Agent SDK rubric - "most inventive integration of the SDK". NeuroDegen integrates BOTH ERC-8004 (identity) AND ERC-8183 (agentic commerce) via the TWAK CLI's native subcommands, keeping TWAK as the sole signing path. Three on-chain protocols (AttestationEmitter commit-reveal + ERC-8183 commerce + ERC-8004 identity) are layered for redundant verifiability of the same trade decision.
 
 | Surface | How NeuroDegen uses it |
 |---|---|
 | ERC-8004 identity registry | Boot-time `twak erc8004 register` with a `data:application/json;base64,…` agent card embedding the canonical EIP-8004 type. Persisted to `worker_state`. Idempotent. Surfaced on `/api/health → diagnostics.bnbAgentSdk.erc8004.registration`. |
 | ERC-8183 agentic commerce | Per-decision self-employed job lifecycle: agent is both client and provider. Negotiation hash signed via TWAK personal_sign for `provider_sig`. `create-job → set-budget → fund → submit` runs after every executed trade. Deliverable manifest hash recomputes byte-for-byte from the persisted session row. |
-| NegotiationHandler | Off-chain EIP-191 personal_sign of the canonical JSON keccak digest — provider_sig is stored alongside the on-chain job so any observer can verify the agent agreed to its own price before funding. |
+| NegotiationHandler | Off-chain EIP-191 personal_sign of the canonical JSON keccak digest - provider_sig is stored alongside the on-chain job so any observer can verify the agent agreed to its own price before funding. |
 | OptimisticPolicy dispute window | The 7-day window functions as a time-locked audit trail; anyone can settle the job after it closes by submitting the manifest. |
 
 Inventive composition: a single committee decision generates THREE on-chain records across THREE separate protocols, all cross-verifiable from BscScan alone.

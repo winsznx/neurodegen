@@ -24,7 +24,7 @@ export type DrawdownTier = 'normal' | 'alert' | 'defensive' | 'halt' | 'disquali
 
 /**
  * Classify drawdown into one of five tiers. The halt threshold is the LESSER
- * of the global `DRAWDOWN_HALT_PCT` (25% — the competition-survival floor) and
+ * of the global `DRAWDOWN_HALT_PCT` (25% - the competition-survival floor) and
  * the user's `mandate.maxDrawdownPct` (their personal halt). This way a
  * conservative user who sets 15% gets halted at 15% even though the global
  * rules wouldn't halt until 25%. An aggressive user who sets 28% is still
@@ -89,7 +89,7 @@ export class RiskManager {
     if (drawdownTier === 'defensive' && recommendation.action !== 'close_position') {
       return {
         approved: false,
-        rejectionReason: `drawdown ${(state.currentDrawdownFromPeak * 100).toFixed(2)}% in defensive band — close-only`,
+        rejectionReason: `drawdown ${(state.currentDrawdownFromPeak * 100).toFixed(2)}% in defensive band - close-only`,
         adjustedPositionSizeUSD: null,
       };
     }

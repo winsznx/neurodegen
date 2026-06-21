@@ -17,12 +17,12 @@ interface RateCard {
 }
 
 // Rate card refreshed for 2026-06 retail pricing. Sources cross-checked at
-// the time of writing; the hard kill exists so rounding doesn't matter — what
+// the time of writing; the hard kill exists so rounding doesn't matter what
 // matters is that none of these numbers are wildly low. Bias toward the
 // highest published variant of each family so we hit the kill EARLIER, not
 // later, than reality.
 const RATES: Record<string, RateCard> = {
-  // Anthropic — Claude 4.X family
+  // Anthropic Claude 4.X family
   'claude-opus-4.8': { inputPerMillion: 15, outputPerMillion: 75 },
   'claude-opus-4.7': { inputPerMillion: 15, outputPerMillion: 75 },
   'claude-opus-4.6': { inputPerMillion: 15, outputPerMillion: 75 },
@@ -31,7 +31,7 @@ const RATES: Record<string, RateCard> = {
   'anthropic/claude-opus-4.8': { inputPerMillion: 15, outputPerMillion: 75 },
   'anthropic/claude-sonnet-4.6': { inputPerMillion: 3, outputPerMillion: 15 },
   'anthropic/claude-haiku-4.5': { inputPerMillion: 1, outputPerMillion: 5 },
-  // OpenAI — GPT-4o/5 family
+  // OpenAI GPT-4o/5 family
   'gpt-5': { inputPerMillion: 5, outputPerMillion: 15 },
   'gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10 },
   'gpt-4o-mini': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
@@ -74,7 +74,7 @@ class LLMSpendTracker {
     if (this.dailyUSD >= DAILY_LIMIT_USD) {
       this.killActiveUntil = this.dayBucket;
       console.warn(
-        `[llm-spend] HARD KILL — daily $${this.dailyUSD.toFixed(4)} ≥ $${DAILY_LIMIT_USD.toFixed(2)} ceiling (calls=${this.callCount})`,
+        `[llm-spend] HARD KILL daily $${this.dailyUSD.toFixed(4)} ≥ $${DAILY_LIMIT_USD.toFixed(2)} ceiling (calls=${this.callCount})`,
       );
     }
   }

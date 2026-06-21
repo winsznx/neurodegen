@@ -202,7 +202,7 @@ export function AgentDashboard() {
                       href={`/session/${s.sessionId}`}
                       className="font-mono text-[12px] text-text-primary hover:text-accent"
                     >
-                      #{s.sessionNumber} · {s.action} · {s.tokenSymbol ?? '—'}
+                      #{s.sessionNumber} · {s.action} · {s.tokenSymbol ?? '-'}
                     </Link>
                     <span className="font-mono text-[10px] text-text-tertiary mt-1 line-clamp-2">
                       {s.plainLanguageExplanation}
@@ -245,7 +245,7 @@ export function AgentDashboard() {
                     href={`/session/${e.sessionId}`}
                     className="font-mono text-[12px] text-text-primary hover:text-accent"
                   >
-                    #{e.sessionNumber} · {e.action} · {e.tokenSymbol ?? '—'}
+                    #{e.sessionNumber} · {e.action} · {e.tokenSymbol ?? '-'}
                   </Link>
                   <span className="font-mono text-[10px] text-text-tertiary">
                     regime {e.regime} · {e.committeeConviction} conviction
@@ -253,7 +253,7 @@ export function AgentDashboard() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 font-mono text-[12px] text-text-secondary">
-                  <span>{e.pnlPct === null ? '—' : `${(e.pnlPct * 100).toFixed(2)}%`}</span>
+                  <span>{e.pnlPct === null ? '-' : `${(e.pnlPct * 100).toFixed(2)}%`}</span>
                   <button
                     onClick={() => setExplainerSessionId(e.sessionId)}
                     className="text-accent hover:underline"

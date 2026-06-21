@@ -1,5 +1,5 @@
 /**
- * Stateless Telegram Bot API client. Outbound-only — never calls getUpdates or
+ * Stateless Telegram Bot API client. Outbound-only never calls getUpdates or
  * setWebhook. Fire-and-forget by design: every error path resolves (never
  * throws) so the caller (telegramAlerter) cannot leak into the agent loop.
  *
@@ -11,7 +11,7 @@
  * exponential backoff (1s, 2s, 4s) capped at the documented retry_after, max
  * 3 retries.
  *
- * MarkdownV2 only — all 18 reserved characters must be backslash-escaped via
+ * MarkdownV2 only all 18 reserved characters must be backslash-escaped via
  * `escapeMarkdownV2` at template-fill time. Use raw markup (*bold*, `code`)
  * for static template scaffolding only.
  */
@@ -48,11 +48,29 @@ export function escapeMarkdownV2(input: string): string {
 /** Alias kept for spec parity. */
 export const escapeMdV2 = escapeMarkdownV2;
 
+/** Inline keyboard button: opens the url in the user's browser. */
+export interface InlineKeyboardButton {
+  text: string;
+  url: string;
+}
+
+export type InlineKeyboard = InlineKeyboardButton[][];
+
 export interface SendMessageOptions {
   /** Override the default chat id (per-chat ceiling still applies). */
   chatId?: string;
   /** Notification-silence. Defaults to false (audible). */
   disableNotification?: boolean;
+  /**
+   * Link preview policy. `off` (default) disables the preview entirely.
+   * `large` opts in to a large unfurled card useful for /proof links that
+   * have OG images. `small` shows a compact preview.
+   */
+  linkPreview?: 'off' | 'small' | 'large';
+  /** Specific URL to unfurl when linkPreview != 'off'; defaults to first URL in text. */
+  previewUrl?: string;
+  /** Inline keyboard buttons rendered under the message. */
+  inlineKeyboard?: InlineKeyboard;
 }
 
 export interface SendMessageResult {
@@ -174,14 +192,32 @@ export class TelegramClient {
     let retriedTotal = 0;
     let giveUpReason: string | null = null;
 
-    for (const chunk of chunks) {
-      const body = {
+    const linkPreview = opts?.linkPreview ?? 'off';
+    const previewUrl = opts?.previewUrl;
+    const inlineKeyboard = opts?.inlineKeyboard;
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const isLast = i === chunks.length - 1;
+      const body: Record<string, unknown> = {
         chat_id: chatId,
         text: chunk,
         parse_mode: 'MarkdownV2' as const,
-        link_preview_options: { is_disabled: true },
+        link_preview_options:
+          linkPreview === 'off'
+            ? { is_disabled: true }
+            : {
+                is_disabled: false,
+                ...(previewUrl ? { url: previewUrl } : {}),
+                ...(linkPreview === 'large' ? { prefer_large_media: true } : {}),
+                ...(linkPreview === 'small' ? { prefer_small_media: true } : {}),
+              },
         disable_notification: disableNotification,
       };
+      // Inline keyboards attach to the final chunk only (Telegram requirement).
+      if (isLast && inlineKeyboard && inlineKeyboard.length > 0) {
+        body.reply_markup = { inline_keyboard: inlineKeyboard };
+      }
 
       const chunkResult = await this.postWithRetry(url, body);
       retriedTotal += chunkResult.retried;
@@ -250,7 +286,7 @@ export class TelegramClient {
         continue;
       }
 
-      // Non-2xx, non-429 — log and give up (do not throw).
+      // Non-2xx, non-429 log and give up (do not throw).
       const errBody = parsed && !parsed.ok ? parsed : null;
       console.error('[tg-client] non-2xx', {
         status: response.status,
@@ -265,6 +301,56 @@ export class TelegramClient {
     }
 
     return { messageId: null, retried, giveUpReason: 'max-retries' };
+  }
+
+  /**
+   * Edit a previously sent message in-place. Used to keep one pinned status
+   * message current instead of flooding the channel. NEVER throws.
+   */
+  async editMessageText(
+    messageId: number,
+    text: string,
+    opts?: Omit<SendMessageOptions, 'disableNotification'>,
+  ): Promise<boolean> {
+    if (!this.enabled || !this.token || !this.chatId) return false;
+    const chatId = opts?.chatId ?? this.chatId;
+    const url = `${TELEGRAM_API_BASE}/bot${this.token}/editMessageText`;
+    const linkPreview = opts?.linkPreview ?? 'off';
+    const body: Record<string, unknown> = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'MarkdownV2',
+      link_preview_options:
+        linkPreview === 'off'
+          ? { is_disabled: true }
+          : {
+              is_disabled: false,
+              ...(opts?.previewUrl ? { url: opts.previewUrl } : {}),
+              ...(linkPreview === 'large' ? { prefer_large_media: true } : {}),
+            },
+    };
+    if (opts?.inlineKeyboard && opts.inlineKeyboard.length > 0) {
+      body.reply_markup = { inline_keyboard: opts.inlineKeyboard };
+    }
+    const r = await this.postWithRetry(url, body);
+    return r.messageId !== null;
+  }
+
+  /**
+   * Pin a message in the channel so it stays at the top. The bot needs the
+   * "Pin Messages" admin permission. NEVER throws.
+   */
+  async pinChatMessage(messageId: number, opts?: { disableNotification?: boolean }): Promise<boolean> {
+    if (!this.enabled || !this.token || !this.chatId) return false;
+    const url = `${TELEGRAM_API_BASE}/bot${this.token}/pinChatMessage`;
+    const body = {
+      chat_id: this.chatId,
+      message_id: messageId,
+      disable_notification: opts?.disableNotification ?? true,
+    };
+    const r = await this.postWithRetry(url, body);
+    return r.messageId !== null;
   }
 }
 

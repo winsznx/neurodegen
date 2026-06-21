@@ -25,7 +25,7 @@ export const MAX_TOTAL_EXPOSURE_RATIO: number = envNumber('MAX_TOTAL_EXPOSURE_RA
 export const MAX_DAILY_LOSS_USD: number = envNumber('MAX_DAILY_LOSS_USD', 50);
 export const COOLDOWN_AFTER_LOSS_MS: number = envInt('COOLDOWN_AFTER_LOSS_MS', 1_800_000);
 
-// Drawdown ladder thresholds. ALL enforced by our RiskManager — TWAK has no wallet-level guardrails.
+// Drawdown ladder thresholds. ALL enforced by our RiskManager TWAK has no wallet-level guardrails.
 export const DRAWDOWN_ALERT_PCT: number = envNumber('DRAWDOWN_ALERT_PCT', 0.15);
 export const DRAWDOWN_DEFENSIVE_PCT: number = envNumber('DRAWDOWN_DEFENSIVE_PCT', 0.2);
 export const DRAWDOWN_HALT_PCT: number = envNumber('DRAWDOWN_HALT_PCT', 0.25);
