@@ -36,6 +36,14 @@ interface SpawnResult {
 
 const TWAK_CLI_TIMEOUT_MS = Number(process.env.TWAK_CLI_TIMEOUT_MS ?? '45000');
 
+function formatTwakError(args: string[], exitCode: number, stdout: string, stderr: string): string {
+  // Some TWAK CLI errors land on stdout (especially JSON-formatted ones) while
+  // exit code is non-zero. Surface both so we can diagnose silent failures.
+  const trimmedOut = stdout.trim().slice(0, 500);
+  const trimmedErr = stderr.trim().slice(0, 500);
+  return `twak [${args[0] ?? '?'} ${args[1] ?? ''}] failed [exit=${exitCode}] stderr="${trimmedErr}" stdout="${trimmedOut}"`;
+}
+
 async function runTwak(args: string[]): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(TWAK_BIN, args, {
@@ -228,7 +236,7 @@ export class TWAKClient {
     }
     const { exitCode, stdout, stderr } = await runTwak(argsArr);
     if (exitCode !== 0) {
-      throw new Error(`twak balance failed [exit=${exitCode}]: ${stderr}`);
+      throw new Error(formatTwakError(argsArr, exitCode, stdout, stderr));
     }
     const raw = parseJsonOutput<RawBalanceResult>(stdout, 'twak balance');
     return { symbol: raw.symbol, total: raw.total, totalUsd: raw.totalUsd };
@@ -407,7 +415,7 @@ export class TWAKClient {
       };
     }
     const slippage = args.slippagePct ?? MAX_SLIPPAGE_PCT * 100;
-    const { exitCode, stdout, stderr } = await runTwak([
+    const swapArgs = [
       'swap',
       args.amountTokens,
       args.fromTokenSymbol,
@@ -417,9 +425,10 @@ export class TWAKClient {
       '--slippage',
       slippage.toFixed(4),
       '--json',
-    ]);
+    ];
+    const { exitCode, stdout, stderr } = await runTwak(swapArgs);
     if (exitCode !== 0) {
-      throw new Error(`twak swap failed [exit=${exitCode}]: ${stderr}`);
+      throw new Error(formatTwakError(swapArgs, exitCode, stdout, stderr));
     }
     const raw = parseJsonOutput<RawSwapResult>(stdout, 'twak swap');
     return {
