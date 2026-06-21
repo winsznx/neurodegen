@@ -35,7 +35,7 @@ const Quote = z
 
 const QuoteListEntry = z
   .object({
-    id: z.number().optional(),
+    id: z.union([z.number(), z.string()]).optional(),
     name: z.string().optional(),
     symbol: z.string(),
     cmc_rank: z.number().optional(),
@@ -50,6 +50,47 @@ const QuoteListEntry = z
     quote: Quote,
   })
   .passthrough();
+
+// CMC MCP `get_crypto_quotes_latest` returns a FLAT array where each entry has
+// price/volume_24h/percent_change_* directly on the row instead of nested
+// under `quote.USD`. Schema captures only the fields we use downstream.
+const FlatQuoteEntry = z
+  .object({
+    id: z.union([z.number(), z.string()]).optional(),
+    name: z.string().optional(),
+    symbol: z.string(),
+    rank: z.number().optional(),
+    price: z.union([z.number(), z.string()]),
+    volume_24h: z.union([z.number(), z.string()]).optional(),
+    percent_change_1h: z.union([z.number(), z.string()]).optional(),
+    percent_change_24h: z.union([z.number(), z.string()]).optional(),
+    market_cap: z.union([z.number(), z.string()]).optional(),
+  })
+  .passthrough();
+
+function flatToNested(entry: z.infer<typeof FlatQuoteEntry>): z.infer<typeof QuoteListEntry> {
+  const toNum = (v: number | string | undefined): number => {
+    if (v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    id: entry.id,
+    name: entry.name,
+    symbol: entry.symbol,
+    cmc_rank: entry.rank,
+    quote: {
+      USD: {
+        price: toNum(entry.price),
+        volume_24h: toNum(entry.volume_24h),
+        percent_change_1h: toNum(entry.percent_change_1h),
+        percent_change_24h: toNum(entry.percent_change_24h),
+        market_cap: toNum(entry.market_cap),
+      },
+    },
+  };
+}
 
 /**
  * Accepts either the v1 dict-of-symbols shape or the v2 list shape and normalizes
@@ -91,8 +132,15 @@ function collectQuoteEntries(rawData: unknown): z.infer<typeof QuoteListEntry>[]
   if (Array.isArray(rawData)) {
     const out: z.infer<typeof QuoteListEntry>[] = [];
     for (const item of rawData) {
-      const parsed = QuoteListEntry.safeParse(item);
-      if (parsed.success) out.push(parsed.data);
+      // Try the nested {quote: {USD: ...}} shape first (legacy CMC v1/v2 REST).
+      const nested = QuoteListEntry.safeParse(item);
+      if (nested.success) {
+        out.push(nested.data);
+        continue;
+      }
+      // Fall back to the flat shape returned by CMC MCP tools/call.
+      const flat = FlatQuoteEntry.safeParse(item);
+      if (flat.success) out.push(flatToNested(flat.data));
     }
     return out;
   }
@@ -104,8 +152,13 @@ function collectQuoteEntries(rawData: unknown): z.infer<typeof QuoteListEntry>[]
     const dict = candidate as Record<string, unknown>;
     const out: z.infer<typeof QuoteListEntry>[] = [];
     for (const [_sym, value] of Object.entries(dict)) {
-      const parsed = QuoteListEntry.safeParse(value);
-      if (parsed.success) out.push(parsed.data);
+      const nested = QuoteListEntry.safeParse(value);
+      if (nested.success) {
+        out.push(nested.data);
+        continue;
+      }
+      const flat = FlatQuoteEntry.safeParse(value);
+      if (flat.success) out.push(flatToNested(flat.data));
     }
     return out;
   }

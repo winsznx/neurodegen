@@ -1,5 +1,6 @@
 import { X402_COST_PER_CALL_USDC } from '@/config/perception';
 import { ENABLE_X402_OUTBOUND } from '@/config/features';
+import { cmcIdFor } from '@/lib/utils/cmcIds';
 
 const CMC_MCP_ENDPOINT = process.env.CMC_MCP_ENDPOINT ?? 'https://mcp.coinmarketcap.com/mcp';
 const CMC_X402_ENDPOINT = process.env.CMC_X402_ENDPOINT ?? 'https://mcp.coinmarketcap.com/x402/mcp';
@@ -110,6 +111,32 @@ function getCmcX402Pay(): ((url: string, maxAtomic: bigint) => Promise<string>) 
   return cmcX402PayHook;
 }
 
+/**
+ * CMC MCP returns columnar `{headers: string[], rows: unknown[][]}` for the
+ * quote tools. Reshape into an array of plain objects so the downstream
+ * normalizers see a uniform shape.
+ */
+export function reshapeColumnar(raw: unknown): unknown {
+  if (
+    raw &&
+    typeof raw === 'object' &&
+    !Array.isArray(raw) &&
+    Array.isArray((raw as { headers?: unknown }).headers) &&
+    Array.isArray((raw as { rows?: unknown }).rows)
+  ) {
+    const headers = (raw as { headers: string[] }).headers;
+    const rows = (raw as { rows: unknown[][] }).rows;
+    return rows.map((row) => {
+      const obj: Record<string, unknown> = {};
+      for (let i = 0; i < headers.length; i++) {
+        obj[headers[i]] = row[i];
+      }
+      return obj;
+    });
+  }
+  return raw;
+}
+
 async function callMcp<T>(
   toolName: CmcTool,
   args: Record<string, unknown>,
@@ -137,6 +164,9 @@ async function callMcp<T>(
 
   const baseHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
+    // CMC MCP server returns 400 without this; their streaming responses use
+    // text/event-stream and they require explicit Accept negotiation.
+    'Accept': 'application/json, text/event-stream',
     'MCP-Protocol-Version': MCP_PROTOCOL_VERSION,
   };
   if (!useX402 && key) {
@@ -227,13 +257,16 @@ async function callMcp<T>(
       .map((c) => c.text as string)
       .join('');
     try {
-      parsed = JSON.parse(textBlocks) as T;
+      const raw = JSON.parse(textBlocks) as unknown;
+      // CMC MCP returns columnar {headers, rows} for quote tools; reshape
+      // to an array of objects so downstream normalizers see a uniform shape.
+      parsed = reshapeColumnar(raw) as T;
     } catch {
       // The tool may already return text preserve raw.
       parsed = textBlocks as unknown as T;
     }
   } else {
-    parsed = json.result as T;
+    parsed = reshapeColumnar(json.result) as T;
   }
 
   return {
@@ -249,7 +282,21 @@ export class CmcHubClient {
   async getCryptoQuotes(args: { symbols?: string[]; ids?: string[]; convert?: string }): Promise<
     CmcToolCallResult<unknown>
   > {
-    return callMcp('get_crypto_quotes_latest', args, false);
+    // CMC MCP `get_crypto_quotes_latest` requires a comma-separated `id`
+    // string (the numeric internal id), not a symbol list. Translate via the
+    // static SYMBOL_TO_CMC_ID map. Unknown symbols are silently dropped
+    // (caller is expected to log if its tracked list mismatches the map).
+    const resolved: string[] = [];
+    if (args.ids && args.ids.length > 0) resolved.push(...args.ids);
+    if (args.symbols) {
+      for (const sym of args.symbols) {
+        const id = cmcIdFor(sym);
+        if (id !== null) resolved.push(String(id));
+      }
+    }
+    const payload: Record<string, unknown> = { id: resolved.join(',') };
+    if (args.convert) payload.convert = args.convert;
+    return callMcp('get_crypto_quotes_latest', payload, false);
   }
 
   async searchCryptos(args: { query: string; limit?: number }): Promise<CmcToolCallResult<unknown>> {

@@ -7,6 +7,7 @@ import {
 import { ensureErc8004Registration } from '@/lib/services/bnbAgentRegistration';
 import { realtimeService } from '@/lib/services/realtimeService';
 import { telegramAlerter } from '@/lib/services/telegramAlerter';
+import { twakHttpClient } from '@/lib/clients/twakHttpClient';
 import { verifyAdminSecret } from '@/lib/utils/adminAuth';
 import { loadAllowlistFromEnv } from '@/lib/utils/allowedTokens';
 
