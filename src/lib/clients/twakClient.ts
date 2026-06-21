@@ -212,7 +212,12 @@ export class TWAKClient {
     if (DRY_RUN_MODE) {
       return { symbol: 'BNB', total: '0', totalUsd: 0 };
     }
-    const argsArr = ['balance', '--address', args.address, '--chain', TWAK_CHAIN, '--json'];
+    // TWAK CLI 0.19.x: `twak wallet balance` reads the keystore at ~/.twak/wallet.json,
+    // not an external address. The wallet at boot IS the agent wallet. There is no
+    // `--address` flag any more (older docs are stale). Passing it produces
+    // "unknown option '--address'" and exit=1 with empty stderr that we saw in the
+    // agent-loop logs.
+    const argsArr = ['wallet', 'balance', '--chain', TWAK_CHAIN, '--json'];
     if (args.tokenAddress) {
       argsArr.push('--token', args.tokenAddress);
     }
