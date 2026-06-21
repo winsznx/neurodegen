@@ -28,15 +28,15 @@
 
 ## Track 2 Strategy Skill submission
 
-A self-contained CMC Strategy Skill — same regime-conditioned committee logic, packaged as a backtestable Skill in `skills/neurodegen-committee/`. Files:
+A self-contained CMC Strategy Skill - same regime-conditioned committee logic, packaged as a backtestable Skill in `skills/neurodegen-committee/`. Files:
 
-- `skills/neurodegen-committee/SKILL.md` — manifest (YAML frontmatter + decision rules)
-- `skills/neurodegen-committee/README.md` — judge-readable intro + edge thesis
-- `skills/neurodegen-committee/prompts/` — narrative, quant, risk system prompts
-- `skills/neurodegen-committee/src/` — CMC client, regime classifier, sizing helpers
-- `skills/neurodegen-committee/backtest.ts` — runnable CLI: `pnpm run backtest`
-- `skills/neurodegen-committee/examples/` — sample-output.json + live-invocation.md
-- `skills/neurodegen-committee/LICENSE` — AGPL-3.0-only
+- `skills/neurodegen-committee/SKILL.md` - manifest (YAML frontmatter + decision rules)
+- `skills/neurodegen-committee/README.md` - judge-readable intro + edge thesis
+- `skills/neurodegen-committee/prompts/` - narrative, quant, risk system prompts
+- `skills/neurodegen-committee/src/` - CMC client, regime classifier, sizing helpers
+- `skills/neurodegen-committee/backtest.ts` - runnable CLI: `pnpm run backtest`
+- `skills/neurodegen-committee/examples/` - sample-output.json + live-invocation.md
+- `skills/neurodegen-committee/LICENSE` - AGPL-3.0-only
 
 Adversarially verified: 9/10 claims confirmed (backtestable, CMC-specific, deterministic regime gate, defensible edge thesis).
 
