@@ -10,6 +10,7 @@ import { MAX_SLIPPAGE_PCT } from '@/config/execution';
 import {
   readErc20Balance,
   readNativeBalance,
+  STABLECOIN_SYMBOLS,
 } from './erc20BalanceFallback';
 import type {
   TWAKPortfolioSnapshot,
@@ -305,12 +306,22 @@ export class TWAKClient {
             symbol,
           });
           if (fallback.rawBalance > 0n) {
+            // V2 Phase J: price stablecoins at $1 in the viem fallback so the
+            // agent can see real USD value (and pass `collateralAvailable`
+            // checks) when TWAK balance is broken. Non-stable tokens still
+            // contribute $0 — they need an oracle read which lives in the
+            // perception layer (CMC ingester) on a different cadence.
+            const balanceNum = Number.parseFloat(fallback.balanceTokens);
+            const valueUSD = STABLECOIN_SYMBOLS.has(symbol.toUpperCase())
+              ? balanceNum
+              : 0;
             entries.push({
               tokenSymbol: symbol,
               tokenAddress: address,
               balanceTokens: fallback.balanceTokens,
-              valueUSD: 0,
+              valueUSD,
             });
+            totalUSD += valueUSD;
           }
         } catch (fallbackErr) {
           console.error(

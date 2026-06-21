@@ -17,6 +17,19 @@
 import { erc20Abi } from 'viem';
 import { publicClient } from './chain';
 
+/**
+ * Stablecoins on BSC that can be safely priced at $1 in the viem fallback
+ * path. Used only when the TWAK CLI balance read is broken — the agent loop's
+ * cognition layer continues to consume CMC quote events for live pricing of
+ * non-stable holdings.
+ *
+ * Sourced from `loadAllowlistFromEnv` map by symbol (already uppercased).
+ */
+export const STABLECOIN_SYMBOLS = new Set<string>([
+  'USDT', 'USDC', 'BUSD', 'DAI', 'FDUSD', 'TUSD', 'FRAX', 'USDD',
+  'USDE', 'USD1', 'USDF', 'USDF', 'FRXUSD', 'LISUSD', 'DUSD', 'XUSD', 'EURI',
+]);
+
 export interface Erc20BalanceReadResult {
   symbol: string;
   tokenAddress: `0x${string}`;
