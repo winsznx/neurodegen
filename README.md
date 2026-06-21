@@ -10,10 +10,11 @@ NeuroDegen runs a three-LLM committee - narrative analyst, quant analyst, risk c
 
 ## For judges (human or AI)
 
-Five short docs, each one cites file:line so claims can be audited without trusting this README.
+Six short docs, each one cites file:line so claims can be audited without trusting this README.
 
 | Document | What's in it |
 |---|---|
+| [HOW_IT_WORKS.md](HOW_IT_WORKS.md) | Plain-English walkthrough of the whole product: what it is, what happens during one cycle, where each part lives in code, how to spin it up yourself, what to look at to know it is working, what breaks and what to do |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Layered three-rail design (commit-reveal + ERC-8183 commerce + ERC-8004 identity), async patterns, restart-safe state, the 8-flag `/proof` verification |
 | [SECURITY.md](SECURITY.md) | Self-custody integrity proof, hard "never X" constraints with enforcers, TOCTOU protections, prompt-injection mitigations, known gaps |
 | [ADVERSARIAL_TESTING.md](ADVERSARIAL_TESTING.md) | Phase E/F/G/H multi-agent skeptic audit receipts (32/32, 5/5, 8/8 claims confirmed), test design philosophy, gaps we accept |
