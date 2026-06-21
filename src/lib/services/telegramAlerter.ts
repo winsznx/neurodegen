@@ -42,6 +42,8 @@ export type AlertKey =
 export interface BootSnapshot {
   regime: string;
   openPositionCount: number;
+  walletNonStableHoldings: number;
+  walletValueUSD: number;
   drawdownPct: number;
   gitSha: string;
 }
@@ -322,9 +324,13 @@ class TelegramAlerter {
   // -------- formatters (MarkdownV2) --------
 
   private fmtBoot(s: BootSnapshot): string {
+    const walletLine = s.walletValueUSD > 0
+      ? `_wallet_: ${escapeMarkdownV2(`$${s.walletValueUSD.toFixed(2)}`)} \\(${escapeMarkdownV2(String(s.walletNonStableHoldings))} non\\-stable\\)`
+      : `_wallet_: ${escapeMarkdownV2('pending first cycle')}`;
     return [
       `*NeuroDegen V2 online*`,
       `_regime_: ${escapeMarkdownV2(s.regime)}`,
+      walletLine,
       `_open positions_: ${escapeMarkdownV2(String(s.openPositionCount))}`,
       `_drawdown_: ${escapeMarkdownV2(formatPct(s.drawdownPct))}`,
       `_commit_: \`${escapeMarkdownV2(s.gitSha)}\``,

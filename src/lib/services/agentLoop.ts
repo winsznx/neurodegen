@@ -54,7 +54,12 @@ export interface AgentStatus {
   cyclesSkippedSameMetrics: number;
   lastCycleAt: number | null;
   regime: RegimeLabel;
+  /** Live count from getOpenPositions() — committee-driven positions in DB. */
   openPositionCount: number;
+  /** Number of non-stable BEP-20 tokens with non-zero balance in the agent wallet. */
+  walletNonStableHoldings: number;
+  /** Most recent portfolio value in USD as reported by twakClient.getPortfolio(). */
+  walletValueUSD: number;
   drawdownPct: number;
   x402SpendSessionUSDC: number;
   x402SpendDailyUSDC: number;
@@ -79,6 +84,9 @@ export class AgentLoop {
   private regimeTimer: ReturnType<typeof setInterval> | null = null;
   private lastMetricsHash: `0x${string}` | null = null;
   private lastOpenPositionCount = -1;
+  /** Cached portfolio snapshot from the last completed cycle. */
+  private lastPortfolioValueUSD = 0;
+  private lastWalletNonStableHoldings = 0;
   private cyclesSkippedSameMetrics = 0;
   // Re-entrancy + cross-timer guards. cycleInFlight prevents two cycle ticks
   // from interleaving when a single cycle exceeds the timer interval.
@@ -167,7 +175,13 @@ export class AgentLoop {
       cyclesSkippedSameMetrics: this.cyclesSkippedSameMetrics,
       lastCycleAt: this.lastCycleAt,
       regime: this.regimeState.lastRegime ?? 'quiet',
-      openPositionCount: this.riskState.positionsOpenCount,
+      // V2 Phase P fix: was reading `this.riskState.positionsOpenCount` which
+      // is @deprecated and never updated → always 0 in boot/status snapshots.
+      // Use the cached live count from the last cycle (-1 sentinel before any
+      // cycle runs).
+      openPositionCount: Math.max(0, this.lastOpenPositionCount),
+      walletNonStableHoldings: this.lastWalletNonStableHoldings,
+      walletValueUSD: this.lastPortfolioValueUSD,
       drawdownPct: this.riskState.currentDrawdownFromPeak,
       x402SpendSessionUSDC: x402SpendTracker.sessionSpendUSDC(),
       x402SpendDailyUSDC: x402SpendTracker.dailySpendUSDC(),
@@ -269,6 +283,15 @@ export class AgentLoop {
       });
       if (Number.isFinite(portfolio.totalValueUSD) && portfolio.totalValueUSD > 0) {
         this.riskState = updateDrawdownFromValue(this.riskState, portfolio.totalValueUSD);
+        // V2 Phase P: cache the live portfolio snapshot so getStatus() reflects
+        // on-chain reality, not deprecated riskState fields. Previously
+        // status snapshots reported $0 / 0 positions even when the wallet held
+        // $30+ in BEP-20 tokens (probe trades + early committee swaps).
+        this.lastPortfolioValueUSD = portfolio.totalValueUSD;
+        const STABLE_SYMS = new Set(['USDT', 'USDC', 'BUSD', 'DAI', 'FDUSD', 'TUSD']);
+        this.lastWalletNonStableHoldings = portfolio.positions.filter(
+          (p) => !STABLE_SYMS.has(p.tokenSymbol.toUpperCase()),
+        ).length;
       } else {
         console.warn(
           `[agent-loop] portfolio totalValueUSD invalid (${portfolio.totalValueUSD}); preserving last drawdown state`,

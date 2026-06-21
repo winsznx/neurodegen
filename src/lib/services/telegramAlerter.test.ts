@@ -517,6 +517,8 @@ describe('telegramAlerter', () => {
     await telegramAlerter.notifyBoot({
       regime: 'TRENDING_UP',
       openPositionCount: 0,
+      walletNonStableHoldings: 0,
+      walletValueUSD: 0,
       drawdownPct: 0,
       gitSha: 'ef5e607',
     });

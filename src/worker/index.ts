@@ -192,20 +192,29 @@ async function main(): Promise<void> {
   // ENABLE_TELEGRAM_ALERTS=false or token/chat env missing.
   telegramAlerter.start();
   if (telegramAlerter.isStarted()) {
-    const status = agentLoop.getStatus();
-    void telegramAlerter
-      .notifyBoot({
-        regime: status.regime,
-        openPositionCount: status.openPositionCount,
-        drawdownPct: status.drawdownPct,
-        gitSha: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
-      })
-      .catch((err) => {
-        console.error(
-          '[worker] telegramAlerter.notifyBoot threw:',
-          err instanceof Error ? err.message : String(err),
-        );
-      });
+    // V2 Phase P: defer the boot alert by 75s so the first cycle has had a
+    // chance to populate the live status fields (portfolio value, on-chain
+    // holdings count, regime, drawdown). Calling notifyBoot immediately
+    // produced snapshots with `wallet: $0, positions: 0, regime: quiet`
+    // regardless of the agent's actual on-chain state.
+    setTimeout(() => {
+      const status = agentLoop.getStatus();
+      void telegramAlerter
+        .notifyBoot({
+          regime: status.regime,
+          openPositionCount: status.openPositionCount,
+          walletNonStableHoldings: status.walletNonStableHoldings,
+          walletValueUSD: status.walletValueUSD,
+          drawdownPct: status.drawdownPct,
+          gitSha: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
+        })
+        .catch((err) => {
+          console.error(
+            '[worker] telegramAlerter.notifyBoot threw:',
+            err instanceof Error ? err.message : String(err),
+          );
+        });
+    }, 75_000);
   }
 
   // Telegram daily summary: tick every minute, fires once per UTC day after
