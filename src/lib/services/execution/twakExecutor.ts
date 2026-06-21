@@ -28,6 +28,7 @@ export interface TwakExecutorInputs {
   fundingRateWarning: boolean;
   securityRiskScore: number | null;
   isHoneypot: boolean | null;
+  tokenMomentum: { pct1h: number | null; pct24h: number | null } | null;
 }
 
 export interface TwakExecutorResult {
@@ -58,6 +59,7 @@ export class TwakExecutor {
       isHoneypot: inputs.isHoneypot,
       portfolio: inputs.portfolio,
       agentAddress: inputs.agentAddress,
+      tokenMomentum: inputs.tokenMomentum,
     });
 
     if (!checks.passed) {

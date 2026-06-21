@@ -4,6 +4,7 @@ import {
   SECURITY_RISK_SCORE_MAX,
   GAS_BUFFER_BNB,
 } from '@/config/execution';
+import { ENABLE_MOMENTUM_FILTER } from '@/config/features';
 import { MIN_POSITION_SIZE_USD } from '@/config/risk';
 import { isAllowedTokenSymbol } from '@/lib/utils/allowedTokens';
 import type {
@@ -38,6 +39,14 @@ export interface PreExecutionCheckerInputs {
   isHoneypot: boolean | null;
   portfolio: TWAKPortfolioSnapshot;
   agentAddress: `0x${string}`;
+  /**
+   * Phase I momentum filter inputs. When both pct1h and pct24h are non-positive
+   * for an `open_long` recommendation, the filter rejects the trade (refuses
+   * to catch a falling knife). Pass null when no recent quote is available for
+   * the symbol — the filter is pass-through in that case (better than blocking
+   * trades on missing data).
+   */
+  tokenMomentum: { pct1h: number | null; pct24h: number | null } | null;
 }
 
 export class PreExecutionChecker {
@@ -51,6 +60,7 @@ export class PreExecutionChecker {
     checks.push(await this.pythOracleDivergence(inputs));
     checks.push(this.liquidityAdequate(inputs));
     checks.push(this.fundingRateSafe(inputs));
+    checks.push(this.momentumNotAdverse(inputs));
     checks.push(this.slippageWithinTolerance(inputs));
     checks.push(await this.collateralAvailable(inputs));
     checks.push(this.riskManagerApproval(inputs));
@@ -170,6 +180,69 @@ export class PreExecutionChecker {
       };
     }
     return { name: 'funding_rate_safe', passed: true, value: 'safe', threshold: 'safe', message: 'ok' };
+  }
+
+  /**
+   * Phase I "don't catch a falling knife" filter. Applied ONLY to `open_long`.
+   * Rules:
+   *  - Pass when the filter is disabled, the action is not `open_long`, or
+   *    momentum data is unavailable for the symbol.
+   *  - Fail when BOTH pct1h ≤ 0 AND pct24h ≤ 0 (token has been bleeding on
+   *    both timeframes).
+   *  - Otherwise pass.
+   *
+   * This is a deterministic rule, not "alpha". It exists to stop the LLM
+   * committee from entering longs into multi-timeframe downtrends — which
+   * has been the dominant failure mode for spot agents this competition
+   * week per the chat consensus.
+   */
+  private momentumNotAdverse(inputs: PreExecutionCheckerInputs): PreExecutionCheckEntry {
+    if (!ENABLE_MOMENTUM_FILTER) {
+      return {
+        name: 'momentum_not_adverse',
+        passed: true,
+        value: 'disabled',
+        threshold: 'pct1h>0 OR pct24h>0',
+        message: 'ENABLE_MOMENTUM_FILTER=false; filter skipped',
+      };
+    }
+    if (inputs.recommendation.action !== 'open_long') {
+      return {
+        name: 'momentum_not_adverse',
+        passed: true,
+        value: inputs.recommendation.action,
+        threshold: 'pct1h>0 OR pct24h>0',
+        message: 'filter only applies to open_long',
+      };
+    }
+    const pct1h = inputs.tokenMomentum?.pct1h ?? null;
+    const pct24h = inputs.tokenMomentum?.pct24h ?? null;
+    if (pct1h === null || pct24h === null) {
+      return {
+        name: 'momentum_not_adverse',
+        passed: true,
+        value: 'no_data',
+        threshold: 'pct1h>0 OR pct24h>0',
+        message: 'no recent CMC quote for symbol; filter pass-through',
+      };
+    }
+    const adverse = pct1h <= 0 && pct24h <= 0;
+    if (adverse) {
+      return {
+        name: 'momentum_not_adverse',
+        passed: false,
+        value: `1h=${pct1h.toFixed(2)}% 24h=${pct24h.toFixed(2)}%`,
+        threshold: 'pct1h>0 OR pct24h>0',
+        message: `refused open_long into multi-timeframe downtrend (1h=${pct1h.toFixed(2)}%, 24h=${pct24h.toFixed(2)}%)`,
+      };
+    }
+    return {
+      name: 'momentum_not_adverse',
+      passed: true,
+      value: `1h=${pct1h.toFixed(2)}% 24h=${pct24h.toFixed(2)}%`,
+      threshold: 'pct1h>0 OR pct24h>0',
+      message: 'at least one timeframe is non-negative',
+    };
   }
 
   private slippageWithinTolerance(_inputs: PreExecutionCheckerInputs): PreExecutionCheckEntry {

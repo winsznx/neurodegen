@@ -435,6 +435,7 @@ export class AgentLoop {
         fundingRateWarning,
         securityRiskScore: securityEvent?.riskScore ?? null,
         isHoneypot: securityEvent?.isHoneypot ?? null,
+        tokenMomentum: pickMomentum(events, session.finalAction.tokenSymbol),
       });
 
       void updateSessionExecutionResult(session.sessionId, execution.executionResult).catch(
@@ -532,6 +533,27 @@ function pickQuotedPrice(
     }
   }
   return latest?.priceUSD ?? null;
+}
+
+function pickMomentum(
+  events: ReturnType<typeof hotState.getRecentEvents>,
+  symbol: string | null,
+): { pct1h: number | null; pct24h: number | null } | null {
+  if (!symbol) return null;
+  const upper = symbol.toUpperCase();
+  let latest: { pct1h: number; pct24h: number; ts: number } | null = null;
+  for (const event of events) {
+    if (event.eventType !== 'quote_update') continue;
+    if (event.tokenSymbol.toUpperCase() !== upper) continue;
+    if (!latest || event.timestamp > latest.ts) {
+      latest = {
+        pct1h: event.percentChange1h,
+        pct24h: event.percentChange24h,
+        ts: event.timestamp,
+      };
+    }
+  }
+  return latest ? { pct1h: latest.pct1h, pct24h: latest.pct24h } : null;
 }
 
 function mapPythSymbol(symbol: string | null): 'BTC_USD' | 'ETH_USD' | 'BNB_USD' | null {

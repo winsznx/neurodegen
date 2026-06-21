@@ -29,6 +29,12 @@ export const DISABLE_DGRID_ROUTING: boolean = envBool('DISABLE_DGRID_ROUTING', f
 // Probe-trade compliance fallback. On by default. Defenders against quiet markets.
 export const ENABLE_PROBE_TRADE: boolean = envBool('ENABLE_PROBE_TRADE', true);
 
+// Momentum filter — Phase I: refuse open_long entries when BOTH 1h AND 24h
+// percent-changes on the target token are non-positive ("don't catch falling
+// knives"). Deterministic; skipped for close_position and adjust_parameters;
+// pass-through when momentum data is unavailable.
+export const ENABLE_MOMENTUM_FILTER: boolean = envBool('ENABLE_MOMENTUM_FILTER', true);
+
 // BNB AI Agent SDK integration ERC-8004 identity registration runs at boot,
 // idempotent. Default ON (the registration is harmless when DRY_RUN_MODE=true
 // since twak returns a synthetic agentId).
