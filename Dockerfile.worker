@@ -2,46 +2,38 @@
 #
 # The worker spawns the TWAK CLI via child_process for every signing operation
 # (swaps, x402 micropayments, ERC-8004/ERC-8183 calls, wallet sign-message), so
-# the image MUST have the `twak` binary on PATH. Railway's default `railpack`
-# builder gives us Node + pnpm but NOT TWAK — hence this Dockerfile.
+# the image MUST have a working `twak` binary on PATH.
+#
+# IMPORTANT — single-stage build. A previous multi-stage attempt broke the
+# npm global symlink (/usr/local/bin/twak → /usr/local/lib/node_modules/...)
+# because Docker COPY does not preserve a symlink whose target lives outside
+# the source path. The CLI then failed at runtime with MODULE_NOT_FOUND looking
+# for ../storage/dist/index.mjs. Doing `npm install -g` directly in the final
+# image is slower to build but ensures the symlink + node_modules are coherent.
 
-FROM node:22-slim AS deps
+FROM node:22-slim
 
-# Tools needed to install global npm packages reliably + curl for healthcheck.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
 
-# pnpm — match the version pinned in package.json (`packageManager` field).
+# pnpm — match the version pinned in package.json `packageManager`.
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
-# TWAK CLI globally. Re-pin via TWAK_CLI_VERSION build-arg if Trust Wallet ships
-# a breaking change; default to the latest published tag.
+# TWAK CLI globally. Re-pin via TWAK_CLI_VERSION build-arg if Trust Wallet
+# ships a breaking change; default to the latest published tag.
 ARG TWAK_CLI_VERSION=latest
 RUN npm install -g @trustwallet/cli@${TWAK_CLI_VERSION} \
  && twak --version
 
 WORKDIR /app
+
+# Install Node deps first so source edits don't bust this cache layer.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile
 
-# ────────────────────────────────────────────────────────────────────────
-
-FROM node:22-slim AS runtime
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl \
- && rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-
-WORKDIR /app
-
-# Bring forward the global TWAK CLI + node_modules from the deps stage.
-COPY --from=deps /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=deps /usr/local/bin/twak /usr/local/bin/twak
-COPY --from=deps /app/node_modules ./node_modules
-
-# Source — copy only what tsx needs at runtime to keep the layer small.
-COPY tsconfig.json package.json pnpm-lock.yaml ./
+# Source — copy only what tsx needs at runtime.
+COPY tsconfig.json ./
 COPY src ./src
 COPY contracts ./contracts
 COPY supabase ./supabase
