@@ -115,7 +115,11 @@ export function AgentDashboard() {
 
   const sse = useSSE('/api/events/stream', handlers);
 
-  const regime = status.data?.regime ?? 'unknown';
+  // Default to 'quiet' rather than 'unknown' — the regime classifier always
+  // returns one of the four valid labels; 'unknown' here only means the SSE
+  // hasn't pushed a status snapshot yet. 'quiet' is the agent's default
+  // initial regime and the correct placeholder for the first paint.
+  const regime = status.data?.regime ?? 'quiet';
   const cycles = status.data?.cycleCount ?? 0;
   const running = status.data?.status === 'running';
 
@@ -232,8 +236,9 @@ export function AgentDashboard() {
         ) : entries.length === 0 ? (
           <div className="mt-4 rounded-md border border-border bg-surface p-6 text-center">
             <p className="font-mono text-[12px] text-text-tertiary">
-              No sessions yet. Once the agent runs its first non-quiet cycle, every committee
-              deliberation lands here.
+              {regime === 'quiet'
+                ? 'Committee idle by design. The regime classifier is QUIET (low volatility, no narrative momentum, no funding-rate spikes), so cognition is suppressed to avoid burning LLM budget on static markets. The daily probe trade still fires for compliance. Sessions land here the moment regime flips to active / momentum / volatile.'
+                : 'No sessions yet. Once the agent runs its first non-quiet cycle, every committee deliberation lands here.'}
             </p>
           </div>
         ) : (
