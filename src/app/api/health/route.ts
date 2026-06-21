@@ -20,11 +20,11 @@ import {
 } from '@/lib/services/bnbAgentRegistration';
 import { getWorkerState } from '@/lib/queries/workerState';
 
+// Only env vars the WEB service actually uses (RPC for /proof reads, ADMIN_SECRET
+// for worker proxy, SUPABASE_* for DB). CMC/DGRID/TWAK_AGENT_* are worker-only;
+// the worker has its own preflight that warns if any of those are missing.
 const REQUIRED_ENV = [
   'BSC_RPC_URL',
-  'CMC_PRO_API_KEY',
-  'DGRID_API_KEY',
-  'TWAK_AGENT_WALLET_ADDRESS',
   'ADMIN_SECRET',
 ] as const;
 
