@@ -7,6 +7,10 @@ import {
 } from '@/config/chains';
 import { DRY_RUN_MODE, ENABLE_EXECUTION } from '@/config/features';
 import { MAX_SLIPPAGE_PCT } from '@/config/execution';
+import {
+  readErc20Balance,
+  readNativeBalance,
+} from './erc20BalanceFallback';
 import type {
   TWAKPortfolioSnapshot,
   TWAKSwapResult,
@@ -242,8 +246,33 @@ export class TWAKClient {
     }> = [];
     let totalUSD = 0;
 
-    const native = await this.getBalance({ address: args.agentAddress });
-    if (native.totalUsd && native.totalUsd > 0) totalUSD += native.totalUsd;
+    // Native BNB balance. V2 Phase H fix: previously this line was un-guarded
+    // and a single TWAK CLI hiccup (exit=1, account-flagged, keystore locked)
+    // crashed the entire cycle before execution could be attempted. Now we
+    // try TWAK first, fall back to a direct BSC RPC `eth_getBalance` read on
+    // failure — read-only, no signing, self-custody preserved.
+    try {
+      const native = await this.getBalance({ address: args.agentAddress });
+      if (native.totalUsd && native.totalUsd > 0) totalUSD += native.totalUsd;
+    } catch (err) {
+      console.warn(
+        '[twak] native balance via TWAK failed; falling back to viem:',
+        err instanceof Error ? err.message : String(err),
+      );
+      try {
+        await readNativeBalance(args.agentAddress);
+        // We don't have a BNB/USD price here without an additional call;
+        // contribute zero to the portfolio total but record the read worked
+        // so the cycle keeps going. The cognition layer ingests CMC quotes
+        // independently for sizing — this fallback is just to keep the
+        // drawdown / risk-state math from going to NaN.
+      } catch (innerErr) {
+        console.error(
+          '[twak] native balance viem fallback ALSO failed:',
+          innerErr instanceof Error ? innerErr.message : String(innerErr),
+        );
+      }
+    }
 
     for (const [symbol, address] of Object.entries(tokens)) {
       try {
@@ -260,10 +289,35 @@ export class TWAKClient {
         }
       } catch (err) {
         // A single token failure shouldn't blow up the whole portfolio read.
-        console.error(
-          `[twak] portfolio read for ${symbol} failed:`,
+        // V2 Phase H: ALSO try the viem fallback per token so we still surface
+        // balances when TWAK is misbehaving. USD valuation is left at 0 because
+        // we don't have an oracle price wired into this read path — but having
+        // a non-zero `balanceTokens` is enough for the executor to size sells
+        // against and for the position tracker to compute PnL on closes.
+        console.warn(
+          `[twak] portfolio read for ${symbol} via TWAK failed; trying viem:`,
           err instanceof Error ? err.message : String(err),
         );
+        try {
+          const fallback = await readErc20Balance({
+            holder: args.agentAddress,
+            tokenAddress: address,
+            symbol,
+          });
+          if (fallback.rawBalance > 0n) {
+            entries.push({
+              tokenSymbol: symbol,
+              tokenAddress: address,
+              balanceTokens: fallback.balanceTokens,
+              valueUSD: 0,
+            });
+          }
+        } catch (fallbackErr) {
+          console.error(
+            `[twak] viem fallback for ${symbol} ALSO failed:`,
+            fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+          );
+        }
       }
     }
 

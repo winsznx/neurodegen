@@ -62,9 +62,32 @@ export async function GET() {
   };
   const healthy = Object.values(services).every(Boolean);
 
+  // Build identifier: Railway sets RAILWAY_GIT_COMMIT_SHA; we also accept
+  // VERCEL_GIT_COMMIT_SHA / GIT_SHA / NEXT_PUBLIC_GIT_SHA. Surfacing this lets
+  // the operator confirm in one curl that Railway is actually serving the
+  // expected commit (the #1 cause of "I shipped a fix but it's still broken").
+  const gitSha =
+    process.env.RAILWAY_GIT_COMMIT_SHA ??
+    process.env.VERCEL_GIT_COMMIT_SHA ??
+    process.env.GIT_SHA ??
+    process.env.NEXT_PUBLIC_GIT_SHA ??
+    null;
+  const buildEnv =
+    process.env.RAILWAY_ENVIRONMENT_NAME ??
+    process.env.VERCEL_ENV ??
+    process.env.NODE_ENV ??
+    null;
+
   return NextResponse.json({
     healthy,
     services,
+    build: {
+      gitSha,
+      gitShaShort: gitSha ? gitSha.slice(0, 7) : null,
+      environment: buildEnv,
+      nodeVersion: process.version,
+      uptimeSeconds: Math.round(process.uptime()),
+    },
     diagnostics: {
       missingEnv: missing,
       databaseError,
