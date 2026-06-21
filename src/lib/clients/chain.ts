@@ -46,9 +46,28 @@ export const publicClient: PublicClient<Transport, Chain> = createBscPublicClien
 const BSC_LOGS_RPC_DEFAULT =
   'https://bsc-mainnet.nodereal.io/v1/64a9df0874fb4a93b9d0a3849de012d3';
 
+// URLs known to be dead — ignore even when set explicitly via env so a stale
+// Railway config (set during the QuickNode era, now non-functional) doesn't
+// silently break /journal / /agent / /anatomy on-chain activity feeds.
+const DEAD_RPC_URLS = new Set<string>([
+  'https://old-thrilling-waterfall.bsc.quiknode.pro/a8e2ec6da71fcbed7a6e7ea3c659c30ca7ec5447/',
+]);
+
+function resolveLogsRpcUrl(): string {
+  const envUrl = process.env.BSC_LOGS_RPC_URL;
+  if (!envUrl || DEAD_RPC_URLS.has(envUrl)) return BSC_LOGS_RPC_DEFAULT;
+  return envUrl;
+}
+
+const logsPrimaryUrl = resolveLogsRpcUrl();
+// Always include NodeReal as a fallback so a broken primary RPC degrades to
+// 'slow' rather than 'silent'.
 export const logsPublicClient: PublicClient<Transport, Chain> = createPublicClient({
   chain: bscChain,
-  transport: http(process.env.BSC_LOGS_RPC_URL ?? BSC_LOGS_RPC_DEFAULT),
+  transport:
+    logsPrimaryUrl === BSC_LOGS_RPC_DEFAULT
+      ? http(logsPrimaryUrl)
+      : fallback([http(logsPrimaryUrl), http(BSC_LOGS_RPC_DEFAULT)]),
 });
 
 export function getAgentWalletClient(): WalletClient {
