@@ -67,6 +67,11 @@ export async function GET(): Promise<NextResponse> {
         endpoint: `${appUrl}/api/events/stream`,
         version: '1.0.0',
       },
+      {
+        name: 'telegram-status-channel',
+        endpoint: 'https://t.me/neurodegenv2',
+        version: '1.0.0',
+      },
     ],
     registrations: [
       {

@@ -133,7 +133,7 @@ Five spots, ranked by usefulness:
 
 `/proof/<txHash>` is the verification page for a specific executed trade. Replace `<txHash>` with the TWAK swap tx hash from the journal. You get eight green or red flags. If they are all green, the trade matches its committed reasoning byte for byte.
 
-The Telegram channel mirrors the bigger moments if you set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Boot messages, position opens, position closes, regime shifts, drawdown tier changes.
+The [Telegram channel](https://t.me/neurodegenv2) mirrors the bigger moments if you set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. Boot messages, position opens, position closes, regime shifts, drawdown tier changes. Follow the channel to watch the agent live without running anything yourself.
 
 ## What breaks and what to do
 

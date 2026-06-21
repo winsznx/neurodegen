@@ -10,6 +10,7 @@
 **Trade verification (per-tx):** https://neurodegen.xyz/proof/`<twakTxHash>`
 **Health + registration:** https://neurodegen.xyz/api/health
 **ERC-8004 agent card:** https://neurodegen.xyz/api/agent-card
+**Live status channel (Telegram):** https://t.me/neurodegenv2
 
 ## On-chain artefacts (everything verifiable from BscScan)
 
@@ -35,7 +36,7 @@ A self-contained CMC Strategy Skill - same regime-conditioned committee logic, p
 - `skills/neurodegen-committee/prompts/` - narrative, quant, risk system prompts
 - `skills/neurodegen-committee/src/` - CMC client, regime classifier, sizing helpers
 - `skills/neurodegen-committee/backtest.ts` - runnable CLI: `pnpm run backtest`
-- `skills/neurodegen-committee/examples/` - sample-output.json + live-invocation.md
+- `skills/neurodegen-committee/examples/` - sample-output.json + live-invocation.md`
 - `skills/neurodegen-committee/LICENSE` - AGPL-3.0-only
 
 Adversarially verified: 9/10 claims confirmed (backtestable, CMC-specific, deterministic regime gate, defensible edge thesis).
@@ -139,7 +140,7 @@ Inventive composition: a single committee decision generates THREE on-chain reco
 
 - We do not claim profitability. The composition is the product.
 - We do not trade perps (V1 used MYX; V2 is spot-only via TWAK).
-- We do not have a Telegram bot or copy-trade fan-out in V2 (V1-only; explicit V2.0 deferral).
+- We have a read-only Telegram status channel ([t.me/neurodegenv2](https://t.me/neurodegenv2)) that mirrors regime changes and trade events. The V1 copy-trade fan-out is not in V2 (explicit V2.0 deferral).
 - We never hold user funds. The agent has its own TWAK wallet.
 
 ---

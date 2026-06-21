@@ -71,6 +71,7 @@ What this is NOT (deliberate scope choices):
 | Web | [neurodegen.xyz](https://neurodegen.xyz) |
 | Verify any trade | `https://neurodegen.xyz/proof/<twakTxHash>` |
 | Registration status | `GET https://neurodegen.xyz/api/health` |
+| Live status channel (Telegram) | [t.me/neurodegenv2](https://t.me/neurodegenv2) |
 
 The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required - every flag is independently verifiable on BscScan.
 

@@ -58,7 +58,12 @@ export function Shell({ children, backgroundVariant = 'app' }: ShellProps) {
             <span>agent is a demonstration, not a trading strategy</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">contact</span>
+            <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">live</span>
+            <FooterLink href="https://t.me/neurodegenv2" label="NeuroDegen live status channel on Telegram">
+              <TelegramIcon />
+              <span>@neurodegenv2</span>
+            </FooterLink>
+            <span className="ml-2 text-[10px] uppercase tracking-[0.18em] text-text-muted">contact</span>
             <FooterLink href="https://x.com/winsznx" label="NeuroDegen builder on X">
               <XIcon />
               <span>@winsznx</span>
