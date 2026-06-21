@@ -1,0 +1,55 @@
+{
+  "_comment": "Deterministic output from running the Skill against the first momentum bar (timestampMs=1758499800000) in backtest/fixtures/bsc-2025-q4.json with moderate mandate, $1000 equity, no open positions, drawdown 0. Reproduce with: npx tsx scripts/runOneBar.ts.",
+  "schemaVersion": "0.1.0",
+  "timestampMs": 1758499800000,
+  "regime": "momentum",
+  "previousRegime": "active",
+  "regimeRationale": "momentum: F&G 65, surge 4 tokens, KOL velocity hit",
+  "narrative": {
+    "narrativeSummary": "Rally accelerating; KOL velocity high on BNB and CAKE.",
+    "kolMentionedTokens": ["BNB", "CAKE"],
+    "sentimentScore": 0.7,
+    "confidenceLevel": 0.7,
+    "direction": "bullish",
+    "flaggedAnomalies": [],
+    "topThesisToken": "BNB"
+  },
+  "quant": {
+    "features": [
+      { "name": "surge", "value": 4, "direction": "bullish", "weight": 0.7 },
+      { "name": "funding", "value": 0.0006, "direction": "bullish", "weight": 0.6 },
+      { "name": "liquidity", "value": 50000000, "direction": "bullish", "weight": 0.7 }
+    ],
+    "dominantDirection": "bullish",
+    "liquidityAdequate": true,
+    "fundingRateWarning": false,
+    "recommendedToken": "BNB"
+  },
+  "dissent": {
+    "dissentDetected": false,
+    "dissentSeverity": "none",
+    "narrativeDirection": "bullish",
+    "quantDirection": "bullish",
+    "positionSizeModifier": 1,
+    "rationale": "analysts agree"
+  },
+  "action": "open_long",
+  "targetToken": "BNB",
+  "sizeUsd": 100,
+  "sizing": {
+    "sizeUsd": 100,
+    "regimeMult": 1,
+    "dissentMult": 1,
+    "mandateMult": 1,
+    "drawdownMult": 1,
+    "capped": false
+  },
+  "riskBand": {
+    "label": "normal",
+    "sizeMult": 1,
+    "newEntriesBlocked": false,
+    "stop": false
+  },
+  "mustHoldReasons": [],
+  "rationale": "Open long BNB in momentum regime. Narrative bullish@0.70, quant bullish@0.67, dissent none."
+}

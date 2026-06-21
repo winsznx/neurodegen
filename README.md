@@ -58,14 +58,18 @@ What this is NOT (deliberate scope choices):
 | Artifact | Value |
 |---|---|
 | Chain | BNB Smart Chain mainnet (chainId 56) |
+| **Agent wallet (TWAK signer)** | [`0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF`](https://bscscan.com/address/0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF) |
+| Competition registration tx | [`0x505c22f5…6358ed13`](https://bscscan.com/tx/0x505c22f537990841fb623b636521028984e13be7570840a49c6bd8e06358ed13) |
 | Competition contract | [`0x212c61b9b72c95d95bf29cf032f5e5635629aed5`](https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5) |
-| AttestationEmitter contract | [`0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4`](https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4) |
-| Agent wallet | provisioned via TWAK keychain; published via `/api/health` once the worker boots |
+| **V2 AttestationEmitter** (verified) | [`0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3`](https://bscscan.com/address/0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3#code) |
+| V2 deploy tx | [`0x84e19526…a6d027d7`](https://bscscan.com/tx/0x84e195266c47c2c2eb4ac80122e340bd52bec897aa505fa85ce0f178a6d027d7) |
+| ERC-8004 identity (agentId **139974**) | [`0xd1afd2b3…ca389b2f`](https://bscscan.com/tx/0xd1afd2b3a23700f4cf74b75d9fe7b8365dca5c6ec237c1662846a2ffca389b2f) |
+| ERC-8004 registry | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) |
+| ERC-8183 commerce | [`0xea4daa3100a767e86fded867729ae7446476eba6`](https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6) |
+| Agent card (EIP-8004 v1) | [`/api/agent-card`](https://neurodegen.xyz/api/agent-card) |
 | Web | [neurodegen.xyz](https://neurodegen.xyz) |
 | Verify any trade | `https://neurodegen.xyz/proof/<twakTxHash>` |
-| Registration status | `GET https://neurodegen.xyz/api/health` → `diagnostics.competition.registration` |
-| ERC-8004 identity | [`0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) - see `diagnostics.bnbAgentSdk.erc8004` |
-| ERC-8183 commerce | [`0xea4daa3100a767e86fded867729ae7446476eba6`](https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6) |
+| Registration status | `GET https://neurodegen.xyz/api/health` |
 
 The `/proof/[twakTxHash]` page reads the AttestationEmitter contract events for the matching reasoning hash, recomputes the hash from the persisted DB row, and shows a flag-by-flag verdict (hash recomputes, commit found, reveal found, commit landed before reveal, on-chain myxTxHash matches the swap). No trust in our database, dashboard, or demo is required - every flag is independently verifiable on BscScan.
 
@@ -261,7 +265,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 
 # Chain
 BSC_RPC_URL=
-ATTESTATION_CONTRACT_ADDRESS=0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4
+ATTESTATION_CONTRACT_ADDRESS=0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3
+ATTESTATION_DEPLOY_BLOCK=105434008
 COMPETITION_CONTRACT_ADDRESS=0x212c61b9b72c95d95bf29cf032f5e5635629aed5
 
 # TWAK (self-custody)

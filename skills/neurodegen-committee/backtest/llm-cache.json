@@ -1,0 +1,454 @@
+{
+  "_comment": "Deterministic analyst outputs keyed by '{timestampMs}:{narrative|quant}'. Recorded once via scripts/recordCache.ts so the backtest is reproducible.",
+  "1758499200000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Quiet tape; no clear thesis.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.1,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 50, "direction": "neutral", "weight": 0.1 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758499200000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 50, "direction": "neutral", "weight": 0.1 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758499500000:narrative": {
+    "narrative": {
+      "narrativeSummary": "BNB ecosystem grants pushing CAKE and BNB.",
+      "kolMentionedTokens": ["BNB", "CAKE"],
+      "sentimentScore": 0.5,
+      "confidenceLevel": 0.55,
+      "direction": "bullish",
+      "flaggedAnomalies": [],
+      "topThesisToken": "BNB"
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758499500000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "surge", "value": 3, "direction": "bullish", "weight": 0.5 },
+        { "name": "funding", "value": 0.0004, "direction": "bullish", "weight": 0.5 },
+        { "name": "liquidity", "value": 50000000, "direction": "bullish", "weight": 0.6 }
+      ],
+      "dominantDirection": "bullish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": "BNB"
+    }
+  },
+  "1758499800000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Rally accelerating; KOL velocity high on BNB and CAKE.",
+      "kolMentionedTokens": ["BNB", "CAKE"],
+      "sentimentScore": 0.7,
+      "confidenceLevel": 0.7,
+      "direction": "bullish",
+      "flaggedAnomalies": [],
+      "topThesisToken": "BNB"
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758499800000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "surge", "value": 4, "direction": "bullish", "weight": 0.7 },
+        { "name": "funding", "value": 0.0006, "direction": "bullish", "weight": 0.6 },
+        { "name": "liquidity", "value": 50000000, "direction": "bullish", "weight": 0.7 }
+      ],
+      "dominantDirection": "bullish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": "BNB"
+    }
+  },
+  "1758500100000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Continuation; YTD inflows.",
+      "kolMentionedTokens": ["BNB", "CAKE"],
+      "sentimentScore": 0.75,
+      "confidenceLevel": 0.75,
+      "direction": "bullish",
+      "flaggedAnomalies": [],
+      "topThesisToken": "BNB"
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758500100000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "surge", "value": 4, "direction": "bullish", "weight": 0.7 },
+        { "name": "funding", "value": 0.0007, "direction": "bullish", "weight": 0.6 }
+      ],
+      "dominantDirection": "bullish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": "BNB"
+    }
+  },
+  "1758500400000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Macro sell-off; sentiment flips bear.",
+      "kolMentionedTokens": ["BNB"],
+      "sentimentScore": -0.5,
+      "confidenceLevel": 0.55,
+      "direction": "bearish",
+      "flaggedAnomalies": ["funding rate negative spike"],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758500400000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "funding", "value": -0.0015, "direction": "bearish", "weight": 0.7 }
+      ],
+      "dominantDirection": "bearish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": true,
+      "recommendedToken": null
+    }
+  },
+  "1758500700000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Cool-down; uncertain.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.2,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758500700000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 45, "direction": "neutral", "weight": 0.2 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501000000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Markets stabilize.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.2,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501000000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 52, "direction": "neutral", "weight": 0.2 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501300000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Rebound on BNB and CAKE.",
+      "kolMentionedTokens": ["BNB", "CAKE"],
+      "sentimentScore": 0.45,
+      "confidenceLevel": 0.55,
+      "direction": "bullish",
+      "flaggedAnomalies": [],
+      "topThesisToken": "BNB"
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501300000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "surge", "value": 3, "direction": "bullish", "weight": 0.55 },
+        { "name": "liquidity", "value": 49000000, "direction": "bullish", "weight": 0.55 }
+      ],
+      "dominantDirection": "bullish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": "BNB"
+    }
+  },
+  "1758501600000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Continuation; KOLs sustained.",
+      "kolMentionedTokens": ["BNB", "CAKE"],
+      "sentimentScore": 0.5,
+      "confidenceLevel": 0.55,
+      "direction": "bullish",
+      "flaggedAnomalies": [],
+      "topThesisToken": "BNB"
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501600000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [
+        { "name": "surge", "value": 3, "direction": "bullish", "weight": 0.55 },
+        { "name": "funding", "value": 0.0004, "direction": "bullish", "weight": 0.5 }
+      ],
+      "dominantDirection": "bullish",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": "BNB"
+    }
+  },
+  "1758501900000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Cooling.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.1,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758501900000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 50, "direction": "neutral", "weight": 0.1 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758502200000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Quiet.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.1,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758502200000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 50, "direction": "neutral", "weight": 0.1 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758502500000:narrative": {
+    "narrative": {
+      "narrativeSummary": "Quiet.",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0.05,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  },
+  "1758502500000:quant": {
+    "narrative": {
+      "narrativeSummary": "",
+      "kolMentionedTokens": [],
+      "sentimentScore": 0,
+      "confidenceLevel": 0,
+      "direction": "neutral",
+      "flaggedAnomalies": [],
+      "topThesisToken": null
+    },
+    "quant": {
+      "features": [{ "name": "fg", "value": 50, "direction": "neutral", "weight": 0.05 }],
+      "dominantDirection": "neutral",
+      "liquidityAdequate": true,
+      "fundingRateWarning": false,
+      "recommendedToken": null
+    }
+  }
+}

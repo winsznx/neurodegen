@@ -1,0 +1,16 @@
+{
+  "name": "neurodegen-committee",
+  "version": "0.1.0",
+  "description": "Regime-conditioned two-analyst committee Skill for BSC spot trading on CoinMarketCap data.",
+  "license": "MIT",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "backtest": "tsx backtest.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "4.19.2",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "startedAt": "2025-09-22T00:00:00Z",
+  "endedAt": "2025-09-22T01:00:00Z",
+  "barIntervalMs": 300000,
+  "_comment": "Compact sample fixture covering all four regimes. The full 90-day fixture follows the same schema and is captured by scripts/captureFixture.ts from the seven CMC tools listed in SKILL.md.",
+  "bars": [
+    {
+      "timestampMs": 1758499200000,
+      "snapshot": {
+        "timestampMs": 1758499200000,
+        "fearGreedValue": 50,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 580.1, "percentChange1h": 0.4, "volume24hUsd": 1200000000 },
+          { "symbol": "CAKE", "price": 2.31, "percentChange1h": -0.2, "volume24hUsd": 95000000 },
+          { "symbol": "ETH", "price": 3450.2, "percentChange1h": 0.3, "volume24hUsd": 9000000000 },
+          { "symbol": "BTCB", "price": 67200.5, "percentChange1h": 0.1, "volume24hUsd": 7000000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0002, "openInterestUsd": 350000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0003, "openInterestUsd": 1100000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 3, "velocityPerHour": 1.2, "sentimentDirection": "neutral" },
+          "CAKE": { "mentionCount": 1, "velocityPerHour": 0.5, "sentimentDirection": "neutral" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.4 },
+          { "label": "RWA", "momentum": 0.3 }
+        ],
+        "newsHeadlines": [
+          { "title": "Quiet session across majors", "sentiment": "neutral" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 50000000, "priceImpactPctFor1000Usd": 0.05 },
+          { "symbol": "CAKE", "liquidityUsd": 8000000, "priceImpactPctFor1000Usd": 0.2 }
+        ],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 60
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0, "CAKE": 0, "ETH": 0, "BTCB": 0 }
+    },
+    {
+      "timestampMs": 1758499500000,
+      "snapshot": {
+        "timestampMs": 1758499500000,
+        "fearGreedValue": 55,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 590.3, "percentChange1h": 5.5, "volume24hUsd": 1300000000 },
+          { "symbol": "CAKE", "price": 2.45, "percentChange1h": 6.1, "volume24hUsd": 110000000 },
+          { "symbol": "ETH", "price": 3500.1, "percentChange1h": 5.2, "volume24hUsd": 9500000000 },
+          { "symbol": "BTCB", "price": 67500.2, "percentChange1h": 0.4, "volume24hUsd": 7100000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0004, "openInterestUsd": 360000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0005, "openInterestUsd": 1150000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 12, "velocityPerHour": 4.0, "sentimentDirection": "bullish" },
+          "CAKE": { "mentionCount": 8, "velocityPerHour": 3.0, "sentimentDirection": "bullish" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.7 }
+        ],
+        "newsHeadlines": [
+          { "title": "BNB ecosystem grants announced", "sentiment": "bullish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 50000000, "priceImpactPctFor1000Usd": 0.05 },
+          { "symbol": "CAKE", "liquidityUsd": 8000000, "priceImpactPctFor1000Usd": 0.2 }
+        ],
+        "activeSurgeTokens": 3,
+        "marketLiquidityScore": 62
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.018, "CAKE": 0.022, "ETH": 0.015, "BTCB": 0.002 }
+    },
+    {
+      "timestampMs": 1758499800000,
+      "snapshot": {
+        "timestampMs": 1758499800000,
+        "fearGreedValue": 65,
+        "fearGreedLabel": "greed",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 605.1, "percentChange1h": 7.2, "volume24hUsd": 1400000000 },
+          { "symbol": "CAKE", "price": 2.62, "percentChange1h": 8.1, "volume24hUsd": 130000000 },
+          { "symbol": "ETH", "price": 3555.3, "percentChange1h": 6.0, "volume24hUsd": 9700000000 },
+          { "symbol": "BTCB", "price": 67800.0, "percentChange1h": 5.4, "volume24hUsd": 7200000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0006, "openInterestUsd": 380000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0008, "openInterestUsd": 1180000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 22, "velocityPerHour": 7.5, "sentimentDirection": "bullish" },
+          "CAKE": { "mentionCount": 18, "velocityPerHour": 6.2, "sentimentDirection": "bullish" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.85 }
+        ],
+        "newsHeadlines": [
+          { "title": "BNB rally accelerates", "sentiment": "bullish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 50000000, "priceImpactPctFor1000Usd": 0.05 },
+          { "symbol": "CAKE", "liquidityUsd": 8000000, "priceImpactPctFor1000Usd": 0.2 }
+        ],
+        "activeSurgeTokens": 4,
+        "marketLiquidityScore": 65
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.025, "CAKE": 0.03, "ETH": 0.018, "BTCB": 0.012 }
+    },
+    {
+      "timestampMs": 1758500100000,
+      "snapshot": {
+        "timestampMs": 1758500100000,
+        "fearGreedValue": 70,
+        "fearGreedLabel": "greed",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 620.6, "percentChange1h": 6.3, "volume24hUsd": 1500000000 },
+          { "symbol": "CAKE", "price": 2.7, "percentChange1h": 7.5, "volume24hUsd": 140000000 },
+          { "symbol": "ETH", "price": 3620.2, "percentChange1h": 5.8, "volume24hUsd": 9800000000 },
+          { "symbol": "BTCB", "price": 68000.4, "percentChange1h": 5.0, "volume24hUsd": 7300000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0007, "openInterestUsd": 400000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0009, "openInterestUsd": 1200000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 28, "velocityPerHour": 9.2, "sentimentDirection": "bullish" },
+          "CAKE": { "mentionCount": 24, "velocityPerHour": 7.8, "sentimentDirection": "bullish" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.9 }
+        ],
+        "newsHeadlines": [
+          { "title": "Spot inflows hit YTD high", "sentiment": "bullish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 50000000, "priceImpactPctFor1000Usd": 0.05 },
+          { "symbol": "CAKE", "liquidityUsd": 8000000, "priceImpactPctFor1000Usd": 0.2 }
+        ],
+        "activeSurgeTokens": 4,
+        "marketLiquidityScore": 65
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.012, "CAKE": 0.016, "ETH": 0.01, "BTCB": 0.006 }
+    },
+    {
+      "timestampMs": 1758500400000,
+      "snapshot": {
+        "timestampMs": 1758500400000,
+        "fearGreedValue": 22,
+        "fearGreedLabel": "extreme fear",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 580.2, "percentChange1h": -7.1, "volume24hUsd": 1600000000 },
+          { "symbol": "CAKE", "price": 2.41, "percentChange1h": -10.3, "volume24hUsd": 150000000 },
+          { "symbol": "ETH", "price": 3500.1, "percentChange1h": -3.3, "volume24hUsd": 10000000000 },
+          { "symbol": "BTCB", "price": 67500.0, "percentChange1h": -0.7, "volume24hUsd": 7400000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": -0.0015, "openInterestUsd": 410000000 },
+          "ETHUSDT": { "rateAnnualized": -0.0012, "openInterestUsd": 1220000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 30, "velocityPerHour": 6.5, "sentimentDirection": "bearish" },
+          "CAKE": { "mentionCount": 25, "velocityPerHour": 5.8, "sentimentDirection": "bearish" }
+        },
+        "trendingNarratives": [
+          { "label": "Risk-off", "momentum": 0.7 }
+        ],
+        "newsHeadlines": [
+          { "title": "Macro sell-off", "sentiment": "bearish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 48000000, "priceImpactPctFor1000Usd": 0.06 },
+          { "symbol": "CAKE", "liquidityUsd": 7500000, "priceImpactPctFor1000Usd": 0.22 }
+        ],
+        "activeSurgeTokens": 4,
+        "marketLiquidityScore": 50
+      },
+      "forwardReturnPctBySymbol": { "BNB": -0.015, "CAKE": -0.022, "ETH": -0.011, "BTCB": -0.007 }
+    },
+    {
+      "timestampMs": 1758500700000,
+      "snapshot": {
+        "timestampMs": 1758500700000,
+        "fearGreedValue": 45,
+        "fearGreedLabel": "fear",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 572.0, "percentChange1h": -1.4, "volume24hUsd": 1620000000 },
+          { "symbol": "CAKE", "price": 2.36, "percentChange1h": -2.1, "volume24hUsd": 152000000 },
+          { "symbol": "ETH", "price": 3460.0, "percentChange1h": -1.1, "volume24hUsd": 10100000000 },
+          { "symbol": "BTCB", "price": 67000.0, "percentChange1h": -0.7, "volume24hUsd": 7500000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": -0.0007, "openInterestUsd": 405000000 },
+          "ETHUSDT": { "rateAnnualized": -0.0006, "openInterestUsd": 1215000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 18, "velocityPerHour": 3.2, "sentimentDirection": "neutral" },
+          "CAKE": { "mentionCount": 14, "velocityPerHour": 2.4, "sentimentDirection": "neutral" }
+        },
+        "trendingNarratives": [
+          { "label": "Risk-off", "momentum": 0.4 }
+        ],
+        "newsHeadlines": [
+          { "title": "Cool-down continues", "sentiment": "neutral" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 48000000, "priceImpactPctFor1000Usd": 0.06 }
+        ],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 55
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.003, "CAKE": 0.001, "ETH": 0.002, "BTCB": 0.001 }
+    },
+    {
+      "timestampMs": 1758501000000,
+      "snapshot": {
+        "timestampMs": 1758501000000,
+        "fearGreedValue": 52,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 574.0, "percentChange1h": 0.4, "volume24hUsd": 1610000000 },
+          { "symbol": "CAKE", "price": 2.37, "percentChange1h": 0.4, "volume24hUsd": 150000000 },
+          { "symbol": "ETH", "price": 3465.0, "percentChange1h": 0.1, "volume24hUsd": 10050000000 },
+          { "symbol": "BTCB", "price": 67050.0, "percentChange1h": 0.1, "volume24hUsd": 7480000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0001, "openInterestUsd": 400000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0002, "openInterestUsd": 1210000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 5, "velocityPerHour": 1.0, "sentimentDirection": "neutral" }
+        },
+        "trendingNarratives": [
+          { "label": "Mixed", "momentum": 0.3 }
+        ],
+        "newsHeadlines": [
+          { "title": "Markets stabilize", "sentiment": "neutral" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 48000000, "priceImpactPctFor1000Usd": 0.06 }
+        ],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 58
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.001, "CAKE": 0, "ETH": 0, "BTCB": 0 }
+    },
+    {
+      "timestampMs": 1758501300000,
+      "snapshot": {
+        "timestampMs": 1758501300000,
+        "fearGreedValue": 58,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 590.0, "percentChange1h": 5.1, "volume24hUsd": 1650000000 },
+          { "symbol": "CAKE", "price": 2.5, "percentChange1h": 5.5, "volume24hUsd": 160000000 },
+          { "symbol": "ETH", "price": 3520.0, "percentChange1h": 5.2, "volume24hUsd": 10100000000 },
+          { "symbol": "BTCB", "price": 67400.0, "percentChange1h": 0.5, "volume24hUsd": 7500000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0003, "openInterestUsd": 410000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0004, "openInterestUsd": 1220000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 14, "velocityPerHour": 4.2, "sentimentDirection": "bullish" },
+          "CAKE": { "mentionCount": 10, "velocityPerHour": 3.6, "sentimentDirection": "bullish" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.6 }
+        ],
+        "newsHeadlines": [
+          { "title": "BNB rebounds", "sentiment": "bullish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 49000000, "priceImpactPctFor1000Usd": 0.06 },
+          { "symbol": "CAKE", "liquidityUsd": 7800000, "priceImpactPctFor1000Usd": 0.21 }
+        ],
+        "activeSurgeTokens": 3,
+        "marketLiquidityScore": 60
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.011, "CAKE": 0.014, "ETH": 0.009, "BTCB": 0.003 }
+    },
+    {
+      "timestampMs": 1758501600000,
+      "snapshot": {
+        "timestampMs": 1758501600000,
+        "fearGreedValue": 62,
+        "fearGreedLabel": "greed",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 596.5, "percentChange1h": 4.6, "volume24hUsd": 1680000000 },
+          { "symbol": "CAKE", "price": 2.53, "percentChange1h": 5.0, "volume24hUsd": 165000000 },
+          { "symbol": "ETH", "price": 3550.0, "percentChange1h": 4.6, "volume24hUsd": 10150000000 },
+          { "symbol": "BTCB", "price": 67500.0, "percentChange1h": 0.4, "volume24hUsd": 7510000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0004, "openInterestUsd": 415000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0005, "openInterestUsd": 1225000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 19, "velocityPerHour": 5.6, "sentimentDirection": "bullish" },
+          "CAKE": { "mentionCount": 14, "velocityPerHour": 4.8, "sentimentDirection": "bullish" }
+        },
+        "trendingNarratives": [
+          { "label": "BSC DeFi", "momentum": 0.65 }
+        ],
+        "newsHeadlines": [
+          { "title": "Continuation", "sentiment": "bullish" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 49000000, "priceImpactPctFor1000Usd": 0.06 }
+        ],
+        "activeSurgeTokens": 3,
+        "marketLiquidityScore": 62
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0.008, "CAKE": 0.009, "ETH": 0.007, "BTCB": 0.002 }
+    },
+    {
+      "timestampMs": 1758501900000,
+      "snapshot": {
+        "timestampMs": 1758501900000,
+        "fearGreedValue": 50,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 600.0, "percentChange1h": 0.6, "volume24hUsd": 1700000000 },
+          { "symbol": "CAKE", "price": 2.54, "percentChange1h": 0.4, "volume24hUsd": 170000000 },
+          { "symbol": "ETH", "price": 3575.0, "percentChange1h": 0.7, "volume24hUsd": 10200000000 },
+          { "symbol": "BTCB", "price": 67550.0, "percentChange1h": 0.1, "volume24hUsd": 7520000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0003, "openInterestUsd": 420000000 },
+          "ETHUSDT": { "rateAnnualized": 0.0004, "openInterestUsd": 1230000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 8, "velocityPerHour": 1.8, "sentimentDirection": "neutral" }
+        },
+        "trendingNarratives": [
+          { "label": "Mixed", "momentum": 0.3 }
+        ],
+        "newsHeadlines": [
+          { "title": "Cooling", "sentiment": "neutral" }
+        ],
+        "liquiditySamples": [
+          { "symbol": "BNB", "liquidityUsd": 49000000, "priceImpactPctFor1000Usd": 0.06 }
+        ],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 60
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0, "CAKE": 0, "ETH": 0, "BTCB": 0 }
+    },
+    {
+      "timestampMs": 1758502200000,
+      "snapshot": {
+        "timestampMs": 1758502200000,
+        "fearGreedValue": 50,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 600.5, "percentChange1h": 0.1, "volume24hUsd": 1700000000 },
+          { "symbol": "CAKE", "price": 2.54, "percentChange1h": 0.0, "volume24hUsd": 170000000 },
+          { "symbol": "ETH", "price": 3575.0, "percentChange1h": 0.0, "volume24hUsd": 10200000000 },
+          { "symbol": "BTCB", "price": 67555.0, "percentChange1h": 0.0, "volume24hUsd": 7520000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0003, "openInterestUsd": 420000000 }
+        },
+        "kolActivityByToken": {
+          "BNB": { "mentionCount": 6, "velocityPerHour": 1.2, "sentimentDirection": "neutral" }
+        },
+        "trendingNarratives": [],
+        "newsHeadlines": [],
+        "liquiditySamples": [],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 60
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0, "CAKE": 0, "ETH": 0, "BTCB": 0 }
+    },
+    {
+      "timestampMs": 1758502500000,
+      "snapshot": {
+        "timestampMs": 1758502500000,
+        "fearGreedValue": 50,
+        "fearGreedLabel": "neutral",
+        "topMoversByVolume": [
+          { "symbol": "BNB", "price": 600.5, "percentChange1h": 0.0, "volume24hUsd": 1700000000 }
+        ],
+        "fundingRatesByPair": {
+          "BNBUSDT": { "rateAnnualized": 0.0003, "openInterestUsd": 420000000 }
+        },
+        "kolActivityByToken": {},
+        "trendingNarratives": [],
+        "newsHeadlines": [],
+        "liquiditySamples": [],
+        "activeSurgeTokens": 0,
+        "marketLiquidityScore": 60
+      },
+      "forwardReturnPctBySymbol": { "BNB": 0 }
+    }
+  ]
+}

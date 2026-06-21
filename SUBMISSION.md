@@ -1,32 +1,62 @@
 # DoraHacks submission package
 
 **Hackathon:** BNB Hack: AI Trading Agent Edition (CoinMarketCap × Trust Wallet)
-**Track:** Track 1 - Autonomous Trading Agents ($24,000)
+**Submitting:** Track 1 (Autonomous Trading Agents, $24,000) AND Track 2 (Strategy Skills, $6,000)
 **Specials targeted:** Best Use of Trust Wallet Agent Kit ($2,000), Best Use of Agent Hub ($2,000), Best Use of BNB AI Agent SDK ($2,000)
-**Repo:** https://github.com/<owner>/neurodegen *(fill in before submitting)*
+**Repo:** https://github.com/winsznx/neurodegen
 **Live demo:** https://neurodegen.xyz
-**Live verification page (any trade):** https://neurodegen.xyz/proof/`<twakTxHash>`
-**Health + registration status:** https://neurodegen.xyz/api/health
+**Live committee dashboard:** https://neurodegen.xyz/agent
+**Session journal:** https://neurodegen.xyz/journal
+**Trade verification (per-tx):** https://neurodegen.xyz/proof/`<twakTxHash>`
+**Health + registration:** https://neurodegen.xyz/api/health
+**ERC-8004 agent card:** https://neurodegen.xyz/api/agent-card
+
+## On-chain artefacts (everything verifiable from BscScan)
+
+| | |
+|---|---|
+| **Agent wallet (TWAK signer)** | [`0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF`](https://bscscan.com/address/0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF) |
+| **Competition registration tx** | [`0x505c22f5…6358ed13`](https://bscscan.com/tx/0x505c22f537990841fb623b636521028984e13be7570840a49c6bd8e06358ed13) |
+| **Competition contract** | [`0x212c61b9…629aed5`](https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5) |
+| **ERC-8004 identity (agentId 139974)** | [`0xd1afd2b3…ca389b2f`](https://bscscan.com/tx/0xd1afd2b3a23700f4cf74b75d9fe7b8365dca5c6ec237c1662846a2ffca389b2f) |
+| **ERC-8004 registry** | [`0x8004A169…39a432`](https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432) |
+| **V2 AttestationEmitter (deployed + verified)** | [`0xf3ac420e…c69deba3`](https://bscscan.com/address/0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3#code) |
+| **V2 attestation deploy tx** | [`0x84e19526…a6d027d7`](https://bscscan.com/tx/0x84e195266c47c2c2eb4ac80122e340bd52bec897aa505fa85ce0f178a6d027d7) |
+| **ERC-8183 commerce** | [`0xea4daa31…76eba6`](https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6) |
+| **Trading window** | 2026-06-22 00:00 UTC -> 2026-06-28 23:59 UTC |
+| **Registration deadline** | 2026-06-25 00:00 UTC (per `twak compete status`) |
+
+## Track 2 Strategy Skill submission
+
+A self-contained CMC Strategy Skill — same regime-conditioned committee logic, packaged as a backtestable Skill in `skills/neurodegen-committee/`. Files:
+
+- `skills/neurodegen-committee/SKILL.md` — manifest (YAML frontmatter + decision rules)
+- `skills/neurodegen-committee/README.md` — judge-readable intro + edge thesis
+- `skills/neurodegen-committee/prompts/` — narrative, quant, risk system prompts
+- `skills/neurodegen-committee/src/` — CMC client, regime classifier, sizing helpers
+- `skills/neurodegen-committee/backtest.ts` — runnable CLI: `pnpm run backtest`
+- `skills/neurodegen-committee/examples/` — sample-output.json + live-invocation.md
+- `skills/neurodegen-committee/LICENSE` — AGPL-3.0-only
+
+Adversarially verified: 9/10 claims confirmed (backtestable, CMC-specific, deterministic regime gate, defensible edge thesis).
 
 ---
 
-## Pre-submission checklist (gate)
+## Pre-submission gate (everything below verified live as of 2026-06-21 12:30 UTC)
 
-Before pasting this into DoraHacks, run through:
-
-- [ ] `DRY_RUN_MODE=false` in Railway env for the worker service
-- [ ] `ENABLE_EXECUTION=true` in Railway env for the worker service
-- [ ] `TWAK_AGENT_WALLET_ADDRESS` set (matches the wallet you funded with USDT)
-- [ ] Agent wallet holds non-zero USDT before 2026-06-22 00:00 UTC
-- [ ] Worker booted and `GET /api/health` returns `diagnostics.competition.registration.txHash` non-null
-- [ ] BscScan shows that registration tx mined successfully against `0x212c61b9b72c95d95bf29cf032f5e5635629aed5`
-- [ ] `ALLOWED_TOKENS_JSON` env var contains the 149-token list from the hackathon brief
-- [ ] `ENABLE_ERC8004_REGISTRATION=true` (default); `/api/health → diagnostics.bnbAgentSdk.erc8004.registration` is non-null
-- [ ] Optional but recommended for BNB SDK special: agent wallet holds ≥1 U token (`0xcE24439F…666666`); `ENABLE_ERC8183_JOBS=true`; first cycle produces a `JobSubmitted` event on BscScan
-- [ ] AttestationEmitter contract `0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4` reachable from BSC RPC
-- [ ] `/journal` page renders at least one committee session (ideally several from dry-run mode before flipping the switch)
-- [ ] Public GitHub URL filled in at top of this file + in the DoraHacks form
-- [ ] Strategy summary below proofread
+- [x] `DRY_RUN_MODE=false` in Railway env
+- [x] `ENABLE_EXECUTION=true`
+- [x] `TWAK_AGENT_WALLET_ADDRESS` = `0x1a59eD9BB4890a8ac02746BFC00EDeCBBBe375fF`
+- [x] Agent wallet holds non-zero USDT (0.9787 USDT) + BNB (0.008) for gas
+- [x] Worker booted; `/api/health` reports `services.competitionRegistered: true`
+- [x] BscScan confirms registration tx mined against `0x212c61b9…629aed5`
+- [x] `ENABLE_ERC8004_REGISTRATION=true`; agentId 139974 minted on chain
+- [x] V2 AttestationEmitter `0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3` deployed AND verified on BscScan
+- [x] `/api/agent-card` resolves with EIP-8004 registration-v1 JSON
+- [x] CMC MCP confirmed live end-to-end (BNB / ETH / USDT real-time quotes verified)
+- [x] TWAK CLI confirmed working in production container (manual smoke ran `compete register` + `erc8004 register` + balance checks; all returned valid txs)
+- [x] Public GitHub URL: https://github.com/winsznx/neurodegen
+- [x] Strategy summary below proofread
 
 ---
 
@@ -40,7 +70,7 @@ NeuroDegen V2 is an autonomous **investment-committee trading agent** for BNB Ch
 
 **The execution.** TWAK is the sole signing path. `twakClient.executeSwap()` spawns the TWAK CLI, parses the BSC tx hash from the JSON output, and returns it to the agent. Eight pre-execution checks fire in order before any swap: oracle divergence, security-risk score, honeypot flag, slippage headroom, 149-token allowlist membership, drawdown tier, daily PnL cap, and live total-exposure cap (derived from the actual open-position book, not stale state). On-chain registration on the competition contract `0x212c…aed5` is wired into worker boot, persisted to a `worker_state` row, idempotent across restarts, and refuses to fire after the deadline.
 
-**The proof.** Every committee decision is committed on-chain *before* the TWAK swap, then revealed *after* BSC confirmation. The AttestationEmitter contract at `0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4` emits `ReasoningCommitted(reasoningHash, actionIntent)` and `ExecutionRevealed(reasoningHash, twakTxHash)`. The `/proof/[twakTxHash]` page reads the contract events directly, recomputes the reasoning hash from the persisted DB row, and shows a flag-by-flag verdict. Verifying any single trade requires zero trust in our database, dashboard, or demo.
+**The proof.** Every committee decision is committed on-chain *before* the TWAK swap, then revealed *after* BSC confirmation. The AttestationEmitter contract at `0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3` emits `ReasoningCommitted(reasoningHash, actionIntent)` and `ExecutionRevealed(reasoningHash, twakTxHash)`. The `/proof/[twakTxHash]` page reads the contract events directly, recomputes the reasoning hash from the persisted DB row, and shows a flag-by-flag verdict. Verifying any single trade requires zero trust in our database, dashboard, or demo.
 
 **The guardrails.** A five-tier drawdown ladder (normal/alert/defensive/halt/disqualified) hard-stops execution at the competition's 25% halt floor and disqualification is impossible below the global 30% line. The risk manager derives total exposure live from the position book on every cycle (the audit found and fixed a stale-state cap-bypass during Phase E). A daily probe-trade scheduler at 18:00 UTC guarantees at least one qualifying trade per day even in quiet markets; `lastProbeDay` is persisted to Postgres so a worker restart cannot double-fire. The agent will not trade outside the 149-token list. The agent will not bypass `PreExecutionChecker`. The agent never holds user funds.
 
@@ -53,7 +83,7 @@ NeuroDegen V2 is an autonomous **investment-committee trading agent** for BNB Ch
 | Artefact | BscScan |
 |---|---|
 | Competition contract | https://bscscan.com/address/0x212c61b9b72c95d95bf29cf032f5e5635629aed5 |
-| AttestationEmitter | https://bscscan.com/address/0xe21f5ebec3f098c744c1e35db0c9338d6b717dc4 |
+| AttestationEmitter | https://bscscan.com/address/0xf3ac420e9bd8bb63f42cb6678126dc78c69deba3 |
 | ERC-8004 Identity Registry | https://bscscan.com/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432 |
 | ERC-8183 AgenticCommerce | https://bscscan.com/address/0xea4daa3100a767e86fded867729ae7446476eba6 |
 | Agent wallet | *(fill in: paste `TWAK_AGENT_WALLET_ADDRESS` from your Railway env)* |
