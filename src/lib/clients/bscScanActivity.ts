@@ -1,88 +1,131 @@
 /**
- * Pull recent on-chain activity for the agent wallet from BscScan v2 API.
+ * Recent on-chain swap history for the agent wallet, read directly from BSC
+ * RPC via viem `getLogs`. No third-party API key required — same RPC we use
+ * for every other on-chain read.
  *
- * Used by /journal and / to render real on-chain trades when the DB-backed
- * committee_sessions table is empty (regime stays quiet → cognition
- * suppressed → no sessions → empty journal even though the agent has real
- * probe trades on chain).
+ * Previous implementation used the BscScan v1 REST endpoint which Etherscan
+ * deprecated on 2026-06-26; v2 requires a paid plan for BSC. Reading
+ * Transfer logs directly via the BSC RPC sidesteps both.
  *
- * Free tier: 5 req/sec, no API key required. We cache aggressively via the
- * Next route's `revalidate` so a public landing page can't burn the quota.
+ * Scans `BSCSCAN_LOOKBACK_BLOCKS` (default ~28800 = ~24h at 3s blocks) of
+ * Transfer events for the agent wallet (as `from` OR `to`), groups by tx
+ * hash, identifies swaps (sent one token + received another), and
+ * classifies each as forward / reverse / oneway.
  */
 
-const BSCSCAN_API = 'https://api.bscscan.com/api';
+import { parseAbiItem } from 'viem';
+import { logsPublicClient } from './chain';
 
-interface BscScanTokenTx {
-  blockNumber: string;
-  timeStamp: string;
-  hash: string;
-  from: string;
-  to: string;
-  value: string;
-  tokenName: string;
-  tokenSymbol: string;
-  tokenDecimal: string;
-  contractAddress: string;
-  gas: string;
-  gasUsed: string;
-  gasPrice: string;
+const TRANSFER_EVENT = parseAbiItem(
+  'event Transfer(address indexed from, address indexed to, uint256 value)',
+);
+
+// Default: ~28800 blocks at 3s blocks = ~24h. Operator can widen via env.
+const DEFAULT_LOOKBACK_BLOCKS = Number(process.env.BSCSCAN_LOOKBACK_BLOCKS ?? '28800');
+
+interface TokenMeta {
+  symbol: string;
+  decimals: number;
 }
+const META_CACHE = new Map<string, TokenMeta>();
 
-interface BscScanResponse<T> {
-  status: '0' | '1';
-  message: string;
-  result: T[] | string;
+const STABLE_RE = /^(USDT|USDC|BUSD|DAI|FDUSD|TUSD|FRAX|USDD|USDE|USD1|USDF|USDf)$/i;
+
+const ERC20_ABI = [
+  parseAbiItem('function symbol() view returns (string)'),
+  parseAbiItem('function decimals() view returns (uint8)'),
+] as const;
+
+async function getTokenMeta(contract: `0x${string}`): Promise<TokenMeta> {
+  const cached = META_CACHE.get(contract.toLowerCase());
+  if (cached) return cached;
+  try {
+    const [symbol, decimals] = await Promise.all([
+      logsPublicClient.readContract({ address: contract, abi: ERC20_ABI, functionName: 'symbol' }),
+      logsPublicClient.readContract({
+        address: contract,
+        abi: ERC20_ABI,
+        functionName: 'decimals',
+      }),
+    ]);
+    const meta: TokenMeta = { symbol: String(symbol), decimals: Number(decimals) };
+    META_CACHE.set(contract.toLowerCase(), meta);
+    return meta;
+  } catch {
+    const fallback: TokenMeta = { symbol: contract.slice(0, 8), decimals: 18 };
+    META_CACHE.set(contract.toLowerCase(), fallback);
+    return fallback;
+  }
 }
 
 export interface OnChainSwap {
   hash: `0x${string}`;
   blockNumber: number;
   timestamp: number;
-  /** Token sent (debited from agent wallet). */
   sent: { symbol: string; amount: number; contract: `0x${string}` } | null;
-  /** Token received (credited to agent wallet). */
   received: { symbol: string; amount: number; contract: `0x${string}` } | null;
-  /** True when this looks like a probe round-trip leg (stable <-> known token). */
   probable: 'forward' | 'reverse' | 'oneway';
 }
 
-/**
- * Read the agent wallet's BEP-20 token transfer history, group by tx hash,
- * and return a list of swaps with sent + received tokens identified.
- */
+interface TransferLog {
+  blockNumber: bigint;
+  transactionHash: `0x${string}`;
+  address: `0x${string}`;
+  args: { from: `0x${string}`; to: `0x${string}`; value: bigint };
+}
+
 export async function fetchAgentSwaps(
   agentAddress: `0x${string}`,
-  options: { limit?: number; apiKey?: string } = {},
+  options: { limit?: number; lookbackBlocks?: number } = {},
 ): Promise<OnChainSwap[]> {
   const limit = options.limit ?? 25;
-  const key = options.apiKey ?? process.env.BSCSCAN_API_KEY ?? '';
+  const lookback = BigInt(options.lookbackBlocks ?? DEFAULT_LOOKBACK_BLOCKS);
+  const latest = await logsPublicClient.getBlockNumber().catch(() => null);
+  if (latest === null) return [];
+  const fromBlock = latest > lookback ? latest - lookback : 0n;
 
-  const params = new URLSearchParams({
-    module: 'account',
-    action: 'tokentx',
-    address: agentAddress,
-    sort: 'desc',
-    page: '1',
-    offset: String(Math.min(limit * 4, 200)), // each swap = ~2 transfers; over-fetch
-  });
-  if (key) params.set('apikey', key);
+  const [outLogs, inLogs] = await Promise.all([
+    logsPublicClient
+      .getLogs({
+        event: TRANSFER_EVENT,
+        args: { from: agentAddress },
+        fromBlock,
+        toBlock: latest,
+      })
+      .catch(() => []),
+    logsPublicClient
+      .getLogs({
+        event: TRANSFER_EVENT,
+        args: { to: agentAddress },
+        fromBlock,
+        toBlock: latest,
+      })
+      .catch(() => []),
+  ]);
 
-  const res = await fetch(`${BSCSCAN_API}?${params.toString()}`, {
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) return [];
-  const json = (await res.json()) as BscScanResponse<BscScanTokenTx>;
-  if (json.status !== '1' || !Array.isArray(json.result)) return [];
+  const allLogs = [...outLogs, ...inLogs] as unknown as TransferLog[];
+  if (allLogs.length === 0) return [];
 
-  // Group transfers by tx hash. A swap is a tx where ONE token is sent FROM
-  // the agent and a DIFFERENT token is received TO the agent (within the same
-  // tx). One-sided transfers (deposits, withdrawals, approvals) are filtered.
-  const byTx = new Map<string, BscScanTokenTx[]>();
-  for (const t of json.result) {
-    const list = byTx.get(t.hash) ?? [];
-    list.push(t);
-    byTx.set(t.hash, list);
+  const byTx = new Map<string, TransferLog[]>();
+  for (const log of allLogs) {
+    const list = byTx.get(log.transactionHash) ?? [];
+    list.push(log);
+    byTx.set(log.transactionHash, list);
   }
+
+  const blockNumbers = new Set<bigint>();
+  for (const log of allLogs) blockNumbers.add(log.blockNumber);
+  const blockTimestamps = new Map<string, number>();
+  await Promise.all(
+    [...blockNumbers].map(async (bn) => {
+      try {
+        const b = await logsPublicClient.getBlock({ blockNumber: bn });
+        blockTimestamps.set(bn.toString(), Number(b.timestamp) * 1000);
+      } catch {
+        blockTimestamps.set(bn.toString(), 0);
+      }
+    }),
+  );
 
   const lowerAgent = agentAddress.toLowerCase();
   const swaps: OnChainSwap[] = [];
@@ -94,36 +137,29 @@ export async function fetchAgentSwaps(
     let timestamp = 0;
 
     for (const t of transfers) {
-      blockNumber = Number.parseInt(t.blockNumber, 10);
-      timestamp = Number.parseInt(t.timeStamp, 10) * 1000;
-      const decimals = Number.parseInt(t.tokenDecimal, 10) || 18;
-      const amount = Number.parseFloat(t.value) / 10 ** decimals;
-      const fromAgent = t.from.toLowerCase() === lowerAgent;
-      const toAgent = t.to.toLowerCase() === lowerAgent;
+      blockNumber = Number(t.blockNumber);
+      timestamp = blockTimestamps.get(t.blockNumber.toString()) ?? 0;
+      const meta = await getTokenMeta(t.address);
+      const amount = Number(t.args.value) / 10 ** meta.decimals;
+      const fromAgent = t.args.from.toLowerCase() === lowerAgent;
+      const toAgent = t.args.to.toLowerCase() === lowerAgent;
       if (fromAgent && !toAgent) {
-        sent = { symbol: t.tokenSymbol, amount, contract: t.contractAddress as `0x${string}` };
+        sent = { symbol: meta.symbol, amount, contract: t.address };
       } else if (toAgent && !fromAgent) {
-        received = {
-          symbol: t.tokenSymbol,
-          amount,
-          contract: t.contractAddress as `0x${string}`,
-        };
+        received = { symbol: meta.symbol, amount, contract: t.address };
       }
     }
 
-    // Must be a real swap: agent sent ONE token and received ANOTHER.
     if (!sent || !received || sent.contract.toLowerCase() === received.contract.toLowerCase()) {
       continue;
     }
 
-    // Heuristic: forward leg = stable→volatile, reverse = volatile→stable.
-    const STABLE = /^(USDT|USDC|BUSD|DAI|FDUSD|TUSD|FRAX|USDD|USDE|USD1|USDF)$/i;
-    const sentStable = STABLE.test(sent.symbol);
-    const recvStable = STABLE.test(received.symbol);
+    const sentStable = STABLE_RE.test(sent.symbol);
+    const recvStable = STABLE_RE.test(received.symbol);
     let probable: OnChainSwap['probable'] = 'oneway';
     if (sentStable && !recvStable) probable = 'forward';
     else if (!sentStable && recvStable) probable = 'reverse';
-    else if (sentStable && recvStable) probable = 'oneway'; // stable round-trip
+    else if (sentStable && recvStable) probable = 'oneway';
 
     swaps.push({
       hash: hash as `0x${string}`,
@@ -135,7 +171,6 @@ export async function fetchAgentSwaps(
     });
   }
 
-  // Newest first.
   swaps.sort((a, b) => b.timestamp - a.timestamp);
   return swaps.slice(0, limit);
 }
