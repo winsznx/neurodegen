@@ -2,9 +2,23 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { encodeAbiParameters } from 'viem';
+import solc from 'solc';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+/**
+ * Etherscan expects the exact compiler version that produced the bytecode in
+ * the form `v0.8.28+commit.7893614a`. solc.version() returns
+ * `0.8.28+commit.7893614a.Emscripten.clang` — strip the platform suffix and
+ * prepend the `v`.
+ */
+function compilerVersionTag(): string {
+  const raw = (solc as unknown as { version(): string }).version();
+  const match = raw.match(/^(\d+\.\d+\.\d+\+commit\.[0-9a-f]+)/);
+  if (!match) throw new Error(`unrecognised solc version: ${raw}`);
+  return `v${match[1]}`;
+}
 
 /**
  * Submits the V2 contract source to BscScan for verification using the
@@ -16,8 +30,24 @@ const __dirname = dirname(__filename);
  * On testnet, pass BSC_NETWORK=testnet to switch to api-testnet.bscscan.com.
  */
 async function main(): Promise<void> {
-  const apiKey = process.env.BSCSCAN_API_KEY;
-  if (!apiKey) throw new Error('BSCSCAN_API_KEY env var is required (get one at https://bscscan.com/apis)');
+  // Etherscan launched a v2 multichain API in 2024 that accepts ONE key across
+  // 50+ chains including BSC. Prefer ETHERSCAN_API_KEY (multichain) if set,
+  // fall back to BSCSCAN_API_KEY (legacy single-chain).
+  // BscScan deprecated their V1 API in 2024 — only the Etherscan V2 multichain
+  // endpoint accepts new verification submissions. The user can name the env
+  // var ETHERSCAN_API_KEY, BSCSCAN_API_KEY, or BNBSCAN_API_KEY — same key
+  // backing all of them — and we always submit to the V2 endpoint.
+  const apiKey =
+    process.env.ETHERSCAN_API_KEY ??
+    process.env.BSCSCAN_API_KEY ??
+    process.env.BNBSCAN_API_KEY ??
+    process.env.BSC_SCAN_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'ETHERSCAN_API_KEY / BSCSCAN_API_KEY / BNBSCAN_API_KEY env var is required (multichain v2 key from etherscan.io/apis)',
+    );
+  }
+  const useV2 = true;
 
   const args = process.argv.slice(2);
   const contractAddress = args[0];
@@ -29,8 +59,12 @@ async function main(): Promise<void> {
   if (!/^0x[0-9a-fA-F]{40}$/.test(agentAddress)) throw new Error('invalid agent address');
 
   const network = (process.env.BSC_NETWORK ?? 'mainnet').toLowerCase();
-  const apiBase =
-    network === 'testnet'
+  const chainId = network === 'testnet' ? '97' : '56';
+  // Etherscan v2 multichain: single endpoint with chainid param.
+  // Legacy BscScan: chain-specific endpoint.
+  const apiBase = useV2
+    ? 'https://api.etherscan.io/v2/api'
+    : network === 'testnet'
       ? 'https://api-testnet.bscscan.com/api'
       : 'https://api.bscscan.com/api';
 
@@ -45,7 +79,10 @@ async function main(): Promise<void> {
   );
   const constructorArgs = encoded.replace(/^0x/, '');
 
-  const body = new URLSearchParams({
+  const compilerVersion = compilerVersionTag();
+  console.log(`[verify-v2] compiler version: ${compilerVersion}`);
+
+  const submitBody = new URLSearchParams({
     apikey: apiKey,
     module: 'contract',
     action: 'verifysourcecode',
@@ -53,16 +90,20 @@ async function main(): Promise<void> {
     sourceCode: source,
     codeformat: 'solidity-single-file',
     contractname: 'NeurodegenAttestationV2',
-    compilerversion: 'v0.8.20+commit.a1b79de6',
+    compilerversion: compilerVersion,
     optimizationUsed: '1',
     runs: '200',
     evmversion: 'paris',
-    licenseType: '11', // AGPL-3.0-only on BscScan
+    licenseType: '11', // AGPL-3.0-only
     constructorArguements: constructorArgs,
   });
 
-  console.log(`[verify-v2] submitting source to ${apiBase}`);
-  const submit = await fetch(apiBase, { method: 'POST', body });
+  // Etherscan V2 requires chainid as a URL query parameter, NOT in the form body.
+  const submitUrl = useV2 ? `${apiBase}?chainid=${chainId}` : apiBase;
+
+  console.log(`[verify-v2] api: ${useV2 ? 'Etherscan v2 multichain' : 'BscScan legacy'}`);
+  console.log(`[verify-v2] submitting source to ${submitUrl}`);
+  const submit = await fetch(submitUrl, { method: 'POST', body: submitBody });
   const submitJson = (await submit.json()) as { status: string; message: string; result: string };
   if (submitJson.status !== '1') {
     throw new Error(`verify submit failed: ${submitJson.message} — ${submitJson.result}`);
@@ -73,9 +114,18 @@ async function main(): Promise<void> {
   // Poll for completion. BscScan typically responds within 30–60s.
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 5_000));
-    const check = await fetch(
-      `${apiBase}?module=contract&action=checkverifystatus&guid=${guid}&apikey=${apiKey}`,
-    );
+    const checkParams = new URLSearchParams({
+      module: 'contract',
+      action: 'checkverifystatus',
+      guid,
+      apikey: apiKey,
+    });
+    if (useV2) checkParams.set('chainid', chainId);
+    const check = await fetch(`${apiBase}?${checkParams.toString()}`);
+    if (!check.ok) {
+      console.log(`[verify-v2] HTTP ${check.status} on status poll, retrying…`);
+      continue;
+    }
     const checkJson = (await check.json()) as { status: string; result: string };
     if (checkJson.result === 'Pending in queue') {
       console.log(`[verify-v2] still pending… (${(i + 1) * 5}s)`);
