@@ -59,19 +59,25 @@ function getCmcX402Pay(): ((url: string, maxAtomic: bigint) => Promise<string>) 
 async function callMcp<T>(
   toolName: CmcTool,
   args: Record<string, unknown>,
-  useX402: boolean,
+  useX402Hint: boolean,
 ): Promise<CmcToolCallResult<T>> {
-  const endpoint = useX402 ? CMC_X402_ENDPOINT : CMC_MCP_ENDPOINT;
   const key = getCmcProKey();
+  // Auto-pivot: when CMC_PRO_API_KEY is unset, route ALL calls via x402.
+  // The 12-tool surface is identical on both endpoints; the agent pays
+  // ~$0.01 USDC/call from its own x402 wallet via TWAK. This is the
+  // hackathon-supported access path (no API-key signup required) and is
+  // the stronger "Best Agent Hub" narrative: agent pays per query.
+  const useX402 = useX402Hint || !key;
+  const endpoint = useX402 ? CMC_X402_ENDPOINT : CMC_MCP_ENDPOINT;
 
-  if (!useX402 && !key) {
-    throw new Error(
-      'callMcp: CMC_PRO_API_KEY not set and useX402=false. Set the key or pass useX402=true.',
-    );
-  }
   if (useX402 && !ENABLE_X402_OUTBOUND) {
     throw new Error(
-      'callMcp: ENABLE_X402_OUTBOUND=false. Cannot use the x402 transport.',
+      'callMcp: no CMC_PRO_API_KEY and ENABLE_X402_OUTBOUND=false — cannot reach CMC. Set one of them.',
+    );
+  }
+  if (useX402 && !getCmcX402Pay()) {
+    throw new Error(
+      'callMcp: x402 transport selected but no x402 pay hook registered. Did setCmcX402PayHook(twakClient.payX402) run at boot?',
     );
   }
 
