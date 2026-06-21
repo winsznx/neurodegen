@@ -29,6 +29,8 @@ interface SpawnResult {
   stderr: string;
 }
 
+const TWAK_CLI_TIMEOUT_MS = Number(process.env.TWAK_CLI_TIMEOUT_MS ?? '45000');
+
 async function runTwak(args: string[]): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(TWAK_BIN, args, {
@@ -39,14 +41,40 @@ async function runTwak(args: string[]): Promise<SpawnResult> {
     });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    // Hard timeout: if TWAK hangs (network, dead process, stuck prompt) we
+    // kill the child and reject with a typed error. Prevents the agent loop
+    // from stalling indefinitely on a single signing op.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* already dead */
+      }
+      reject(
+        new Error(
+          `twak [${args[0] ?? '?'}] timed out after ${TWAK_CLI_TIMEOUT_MS}ms; partial stderr=${stderr.slice(0, 200)}`,
+        ),
+      );
+    }, TWAK_CLI_TIMEOUT_MS);
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8');
     });
     child.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString('utf8');
     });
-    child.on('error', (err) => reject(err));
+    child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
     child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       resolve({ exitCode: code ?? 0, stdout, stderr });
     });
   });
