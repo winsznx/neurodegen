@@ -278,8 +278,15 @@ export class AgentLoop {
       // Probe-trade gate (fires only in quiet/defensive/halt, or when no
       // trade has been recorded today).
       const probeCheck = await shouldFireProbe(this.probeState);
+      console.warn(
+        `[probe-gate] should=${probeCheck.should} reason="${probeCheck.reason}" lastProbeDay=${this.probeState.lastProbeDay ?? 'null'}`,
+      );
       if (probeCheck.should) {
+        console.warn('[probe-gate] firing probe trade now...');
         const probe = await fireProbe();
+        console.warn(
+          `[probe-gate] fired=${probe.fired} fwd=${probe.forwardTxHash ?? 'null'} rev=${probe.reverseTxHash ?? 'null'} reason="${probe.reason}"`,
+        );
         if (probe.fired) {
           this.probeState.lastProbeDay = utcDayBucket(new Date());
           void persistProbeState(this.probeState);
