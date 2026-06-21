@@ -59,6 +59,10 @@ export function Shell({ children, backgroundVariant = 'app' }: ShellProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">live</span>
+            <FooterLink href="https://x.com/neurodegen_" label="NeuroDegen architecture updates on X">
+              <XIcon />
+              <span>@neurodegen_</span>
+            </FooterLink>
             <FooterLink href="https://t.me/neurodegenv2" label="NeuroDegen live status channel on Telegram">
               <TelegramIcon />
               <span>@neurodegenv2</span>

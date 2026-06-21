@@ -168,6 +168,8 @@ The router preflight ([src/lib/clients/llm/router.ts:103-178](src/lib/clients/ll
 - `/session/[id]` - full committee session detail: each analyst's prompt, raw model output, parsed JSON, latency, cost
 - `/proof/[twakTxHash]` - independent on-chain verification
 
+For architecture updates + design notes that don't belong inline in code: [`@neurodegen_` on X](https://x.com/neurodegen_) · [`@neurodegenv2` on Telegram](https://t.me/neurodegenv2) (live status mirror).
+
 ---
 
 ## BNB AI Agent SDK integration

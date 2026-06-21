@@ -11,6 +11,7 @@
 **Health + registration:** https://neurodegen.xyz/api/health
 **ERC-8004 agent card:** https://neurodegen.xyz/api/agent-card
 **Live status channel (Telegram):** https://t.me/neurodegenv2
+**Architecture updates (X):** https://x.com/neurodegen_
 
 ## On-chain artefacts (everything verifiable from BscScan)
 
