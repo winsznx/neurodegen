@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Mandate' },
   { href: '/agent', label: 'Live' },
   { href: '/journal', label: 'Journal' },
+  { href: '/anatomy', label: 'Anatomy' },
 ];
 
 export function NavBar() {

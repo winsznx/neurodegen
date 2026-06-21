@@ -75,6 +75,12 @@ export default async function HomePage() {
           >
             Browse sessions
           </Link>
+          <Link
+            href="/anatomy"
+            className="rounded-md border border-border bg-surface px-4 py-2 text-sm text-text-primary transition-colors hover:border-accent hover:text-accent"
+          >
+            See the wiring
+          </Link>
         </div>
 
         <MandateForm />
