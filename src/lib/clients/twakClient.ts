@@ -12,6 +12,8 @@ import {
   readNativeBalance,
   STABLECOIN_SYMBOLS,
 } from './erc20BalanceFallback';
+import { getAddress } from 'viem';
+import { getAllowedTokens } from '@/lib/utils/allowedTokens';
 import type {
   TWAKPortfolioSnapshot,
   TWAKSwapResult,
@@ -35,6 +37,28 @@ interface SpawnResult {
 }
 
 const TWAK_CLI_TIMEOUT_MS = Number(process.env.TWAK_CLI_TIMEOUT_MS ?? '45000');
+
+/**
+ * Resolve a token symbol to its BSC contract address from the runtime
+ * allowlist. TWAK CLI (≥0.20.x) no longer accepts symbols on `swap` — it
+ * requires the contract address. Native BNB stays as the literal string
+ * 'BNB' which TWAK still recognizes as the chain's native coin. Falls back
+ * to the input string if not found (lets TWAK fail with its own error).
+ */
+function resolveSwapToken(symbol: string): string {
+  const upper = symbol.toUpperCase();
+  if (upper === 'BNB') return 'BNB';
+  const map = getAllowedTokens();
+  const addr = map[upper];
+  if (addr && /^0x[a-fA-F0-9]{40}$/.test(addr)) {
+    try {
+      return getAddress(addr); // checksum-normalised
+    } catch {
+      return addr;
+    }
+  }
+  return symbol;
+}
 
 function formatTwakError(args: string[], exitCode: number, stdout: string, stderr: string): string {
   // Some TWAK CLI errors land on stdout (especially JSON-formatted ones) while
@@ -367,20 +391,23 @@ export class TWAKClient {
         networkFeeUSD: 0,
       };
     }
-    const { exitCode, stdout, stderr } = await runTwak([
+    // TWAK CLI ≥0.20.x rejects symbols and demands contract addresses.
+    // Resolve via the runtime allowlist (set by loadAllowlistFromEnv at boot).
+    const quoteArgs = [
       'swap',
       args.amountTokens,
-      args.fromTokenSymbol,
-      args.toTokenSymbol,
+      resolveSwapToken(args.fromTokenSymbol),
+      resolveSwapToken(args.toTokenSymbol),
       '--chain',
       TWAK_CHAIN,
       '--slippage',
       slippage.toFixed(4),
       '--quote-only',
       '--json',
-    ]);
+    ];
+    const { exitCode, stdout, stderr } = await runTwak(quoteArgs);
     if (exitCode !== 0) {
-      throw new Error(`twak swap --quote-only failed [exit=${exitCode}]: ${stderr}`);
+      throw new Error(formatTwakError(quoteArgs, exitCode, stdout, stderr));
     }
     const raw = parseJsonOutput<RawQuoteResult>(stdout, 'twak swap quote');
     return {
@@ -415,11 +442,12 @@ export class TWAKClient {
       };
     }
     const slippage = args.slippagePct ?? MAX_SLIPPAGE_PCT * 100;
+    // TWAK CLI ≥0.20.x rejects symbols and demands contract addresses.
     const swapArgs = [
       'swap',
       args.amountTokens,
-      args.fromTokenSymbol,
-      args.toTokenSymbol,
+      resolveSwapToken(args.fromTokenSymbol),
+      resolveSwapToken(args.toTokenSymbol),
       '--chain',
       TWAK_CHAIN,
       '--slippage',
